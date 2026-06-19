@@ -23,7 +23,7 @@
     },
     {
       "name": "Practice & Exam Modes",
-      "description": "Practice, tutor mode, timed exams, CAT simulator, custom quiz builder, mock exams, daily quiz, weekly challenge."
+      "description": "Practice, tutor mode, timed exams, CAT simulator, custom quiz builder, readiness exams, daily quiz, weekly challenge."
     },
     {
       "name": "Rationales & Review",
@@ -59,7 +59,7 @@
     },
     {
       "name": "Certificates",
-      "description": "Completion, attendance, mock exam certificates with verification code."
+      "description": "Completion, attendance, readiness exam certificates with verification code."
     },
     {
       "name": "Admin & Instructor Tools",
