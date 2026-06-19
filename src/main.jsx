@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   Activity,
@@ -26,7 +26,15 @@ import {
   Video,
 } from 'lucide-react';
 import dashboardImage from './assets/nclex-dashboard.png';
-import { supabaseConfig, yingohTables } from './services/supabase';
+import {
+  getCurrentSession,
+  onAuthStateChange,
+  signInWithEmail,
+  signOut,
+  signUpWithEmail,
+  supabaseConfig,
+  yingohTables,
+} from './services/supabase';
 import './styles.css';
 
 const modules = [
@@ -280,14 +288,158 @@ function ModuleRoadmap() {
   );
 }
 
+function AccountAccess({ session }) {
+  const [mode, setMode] = useState('signin');
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [message, setMessage] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const userEmail = session?.user?.email;
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+    setIsSubmitting(true);
+    setMessage('');
+
+    const action = mode === 'signup'
+      ? signUpWithEmail({ email, password, fullName })
+      : signInWithEmail(email, password);
+    const { error } = await action;
+
+    if (error) {
+      setMessage(error.message);
+    } else if (mode === 'signup') {
+      setMessage('Account created. Check the inbox for confirmation if email verification is enabled.');
+    } else {
+      setMessage('Signed in successfully.');
+    }
+
+    setIsSubmitting(false);
+  }
+
+  async function handleSignOut() {
+    setIsSubmitting(true);
+    const { error } = await signOut();
+    setMessage(error ? error.message : 'Signed out.');
+    setIsSubmitting(false);
+  }
+
+  return (
+    <section className="content-band">
+      <div className="section-title">
+        <h2>Account Access</h2>
+        <LockKeyhole size={22} />
+      </div>
+      <div className="account-layout">
+        <div className="account-panel">
+          <span className="eyebrow">Supabase Auth</span>
+          <h3>{userEmail ? 'Session active' : mode === 'signup' ? 'Create student account' : 'Sign in to Yingoh'}</h3>
+          <p>
+            {userEmail
+              ? 'The current browser has an active Supabase session.'
+              : 'Use email and password access for students, instructors, finance, and administrators.'}
+          </p>
+
+          {!supabaseConfig.isConfigured && (
+            <div className="setup-alert">
+              Add <strong>VITE_SUPABASE_ANON_KEY</strong> in Vercel before live authentication can run.
+            </div>
+          )}
+
+          {userEmail ? (
+            <div className="session-card">
+              <span>Signed in as</span>
+              <strong>{userEmail}</strong>
+              <button className="ghost-btn" onClick={handleSignOut} disabled={isSubmitting}>
+                Sign out
+              </button>
+            </div>
+          ) : (
+            <form className="auth-form" onSubmit={handleSubmit}>
+              <div className="segmented-control" aria-label="Account mode">
+                <button type="button" className={mode === 'signin' ? 'segment-active' : ''} onClick={() => setMode('signin')}>
+                  Sign in
+                </button>
+                <button type="button" className={mode === 'signup' ? 'segment-active' : ''} onClick={() => setMode('signup')}>
+                  Sign up
+                </button>
+              </div>
+              {mode === 'signup' && (
+                <label>
+                  Full name
+                  <input value={fullName} onChange={(event) => setFullName(event.target.value)} required />
+                </label>
+              )}
+              <label>
+                Email
+                <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
+              </label>
+              <label>
+                Password
+                <input type="password" minLength="6" value={password} onChange={(event) => setPassword(event.target.value)} required />
+              </label>
+              <button className="primary-btn" type="submit" disabled={!supabaseConfig.isConfigured || isSubmitting}>
+                {isSubmitting ? 'Working...' : mode === 'signup' ? 'Create account' : 'Sign in'}
+              </button>
+            </form>
+          )}
+
+          {message && <p className="form-message">{message}</p>}
+        </div>
+
+        <div className="account-checklist">
+          <div>
+            <CheckCircle2 size={18} />
+            <span>Email/password authentication wired to Supabase</span>
+          </div>
+          <div>
+            <CheckCircle2 size={18} />
+            <span>Session persistence and automatic refresh enabled</span>
+          </div>
+          <div>
+            <CheckCircle2 size={18} />
+            <span>Profile creation supported through the database trigger</span>
+          </div>
+          <div>
+            <CheckCircle2 size={18} />
+            <span>Role tables ready for student, instructor, admin, finance, and content review access</span>
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function App() {
   const [activeView, setActiveView] = useState('Student');
+  const [session, setSession] = useState(null);
   const nav = [
     { label: 'Student', icon: LayoutDashboard },
     { label: 'Questions', icon: ClipboardCheck },
+    { label: 'Account', icon: LockKeyhole },
     { label: 'Operations', icon: Users },
     { label: 'Roadmap', icon: BookOpen },
   ];
+
+  useEffect(() => {
+    let mounted = true;
+
+    getCurrentSession().then(({ data }) => {
+      if (mounted) {
+        setSession(data.session);
+      }
+    });
+
+    const { data } = onAuthStateChange((_event, nextSession) => {
+      setSession(nextSession);
+    });
+
+    return () => {
+      mounted = false;
+      data.subscription.unsubscribe();
+    };
+  }, []);
 
   return (
     <main className="app-shell">
@@ -329,12 +481,15 @@ function App() {
           </div>
           <div className="topbar-actions">
             <button className="ghost-btn"><Brain size={18} /> AI planner</button>
-            <button className="primary-btn"><CreditCard size={18} /> Subscribe</button>
+            <button className="primary-btn" onClick={() => setActiveView('Account')}>
+              <CreditCard size={18} /> {session ? 'Account' : 'Sign in'}
+            </button>
           </div>
         </header>
 
         {activeView === 'Student' && <StudentDashboard />}
         {activeView === 'Questions' && <QuestionBank />}
+        {activeView === 'Account' && <AccountAccess session={session} />}
         {activeView === 'Operations' && <AdminConsole />}
         {activeView === 'Roadmap' && <ModuleRoadmap />}
       </section>

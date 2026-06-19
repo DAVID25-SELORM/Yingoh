@@ -22,6 +22,15 @@ button {
   cursor: pointer;
 }
 
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+input {
+  font: inherit;
+}
+
 .app-shell {
   min-height: 100vh;
   display: grid;
@@ -513,6 +522,127 @@ button {
   border: 1px solid #dce8e6;
 }
 
+.account-layout {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1fr);
+  gap: 16px;
+}
+
+.account-panel,
+.account-checklist {
+  border-radius: 8px;
+  padding: 18px;
+  border: 1px solid #dfe9e7;
+  background: #f8fbfa;
+}
+
+.account-panel h3 {
+  margin: 8px 0;
+  font-size: 1.5rem;
+}
+
+.account-panel p {
+  color: #5b6d72;
+  line-height: 1.5;
+}
+
+.setup-alert {
+  margin: 14px 0;
+  padding: 12px;
+  border-radius: 8px;
+  color: #7d5513;
+  background: #fff6df;
+  border: 1px solid #ead29b;
+  line-height: 1.45;
+}
+
+.auth-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.auth-form label {
+  display: grid;
+  gap: 6px;
+  color: #42585e;
+  font-weight: 800;
+  font-size: 0.88rem;
+}
+
+.auth-form input {
+  min-height: 42px;
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid #dbe6e4;
+  background: #ffffff;
+  color: #17212f;
+  padding: 0 12px;
+}
+
+.segmented-control {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  padding: 4px;
+  border-radius: 8px;
+  background: #e9f1ef;
+}
+
+.segmented-control button {
+  min-height: 36px;
+  border-radius: 6px;
+  color: #51676c;
+  background: transparent;
+  font-weight: 800;
+}
+
+.segmented-control .segment-active {
+  color: #17313a;
+  background: #ffffff;
+}
+
+.session-card {
+  margin-top: 16px;
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 8px;
+  border: 1px solid #dbe6e4;
+  background: #ffffff;
+}
+
+.session-card span {
+  color: #647579;
+  font-size: 0.86rem;
+}
+
+.form-message {
+  margin: 12px 0 0;
+  color: #2b6159;
+  font-weight: 700;
+}
+
+.account-checklist {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.account-checklist div {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  color: #42585e;
+  line-height: 1.45;
+}
+
+.account-checklist svg {
+  flex: 0 0 auto;
+  color: #2b8a7d;
+  margin-top: 2px;
+}
+
 .phase-block {
   margin-top: 18px;
 }
@@ -572,7 +702,7 @@ button {
   }
 
   .sidebar nav {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
   }
 
   .sidebar-card {
@@ -593,7 +723,8 @@ button {
 
   .topbar,
   .split-layout,
-  .question-workbench {
+  .question-workbench,
+  .account-layout {
     grid-template-columns: 1fr;
     display: grid;
   }

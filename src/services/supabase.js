@@ -39,3 +39,43 @@ export async function getCurrentSession() {
 
   return supabase.auth.getSession();
 }
+
+export function onAuthStateChange(callback) {
+  if (!supabase) {
+    return { data: { subscription: { unsubscribe: () => {} } } };
+  }
+
+  return supabase.auth.onAuthStateChange(callback);
+}
+
+export async function signInWithEmail(email, password) {
+  if (!supabase) {
+    return { data: null, error: new Error('Supabase is not configured.') };
+  }
+
+  return supabase.auth.signInWithPassword({ email, password });
+}
+
+export async function signUpWithEmail({ email, password, fullName }) {
+  if (!supabase) {
+    return { data: null, error: new Error('Supabase is not configured.') };
+  }
+
+  return supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: {
+        full_name: fullName,
+      },
+    },
+  });
+}
+
+export async function signOut() {
+  if (!supabase) {
+    return { error: null };
+  }
+
+  return supabase.auth.signOut();
+}
