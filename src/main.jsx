@@ -26,6 +26,7 @@ import {
   Video,
 } from 'lucide-react';
 import dashboardImage from './assets/nclex-dashboard.png';
+import { supabaseConfig, yingohTables } from './services/supabase';
 import './styles.css';
 
 const modules = [
@@ -197,6 +198,17 @@ function QuestionBank() {
 }
 
 function AdminConsole() {
+  const requiredTables = [
+    yingohTables.profiles,
+    yingohTables.roles,
+    yingohTables.courses,
+    yingohTables.lessons,
+    yingohTables.questions,
+    yingohTables.attempts,
+    yingohTables.subscriptions,
+    yingohTables.liveSessions,
+  ];
+
   return (
     <section className="content-band">
       <div className="section-title">
@@ -216,6 +228,28 @@ function AdminConsole() {
         <Metric label="Subscriptions" value="Ready" detail="Plans, receipts, and reconciliation" />
         <Metric label="Attendance" value="Tracked" detail="Live class participation records" tone="coral" />
         <Metric label="Intervention" value="Flagged" detail="Students needing coaching support" tone="violet" />
+      </div>
+      <div className="integration-panel">
+        <div>
+          <span className="eyebrow">Supabase Backend</span>
+          <h3>{supabaseConfig.isConfigured ? 'Connected for runtime use' : 'Awaiting environment key'}</h3>
+          <p>
+            {supabaseConfig.isConfigured
+              ? 'The app can create a Supabase client from the deployed environment.'
+              : 'Add the public anon key in Vercel to activate auth, database, and subscription workflows.'}
+          </p>
+        </div>
+        <div className="env-list">
+          <span className={supabaseConfig.hasUrl ? 'status-ok' : 'status-missing'}>
+            <CheckCircle2 size={16} /> VITE_SUPABASE_URL
+          </span>
+          <span className={supabaseConfig.hasAnonKey ? 'status-ok' : 'status-missing'}>
+            <CheckCircle2 size={16} /> VITE_SUPABASE_ANON_KEY
+          </span>
+        </div>
+        <div className="table-list" aria-label="Supabase tables planned for Yingoh">
+          {requiredTables.map((table) => <span key={table}>{table}</span>)}
+        </div>
       </div>
     </section>
   );

@@ -450,6 +450,69 @@ button {
   font-size: 0.86rem;
 }
 
+.integration-panel {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: minmax(260px, 1.2fr) minmax(230px, 0.8fr);
+  gap: 16px;
+  padding: 18px;
+  border-radius: 8px;
+  border: 1px solid #dfe9e7;
+  background: #f8fbfa;
+}
+
+.integration-panel h3 {
+  margin: 8px 0;
+}
+
+.integration-panel p {
+  margin: 0;
+  color: #5b6d72;
+  line-height: 1.5;
+}
+
+.env-list,
+.table-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-content: start;
+}
+
+.env-list span,
+.table-list span {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  padding: 0 10px;
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.status-ok {
+  color: #135f55;
+  background: #e9f6f4;
+  border: 1px solid #b9e3dc;
+}
+
+.status-missing {
+  color: #8a5b12;
+  background: #fff5df;
+  border: 1px solid #ecd49d;
+}
+
+.table-list {
+  grid-column: 1 / -1;
+}
+
+.table-list span {
+  color: #42585e;
+  background: #ffffff;
+  border: 1px solid #dce8e6;
+}
+
 .phase-block {
   margin-top: 18px;
 }
@@ -544,7 +607,8 @@ button {
   .metrics-row,
   .reports-row,
   .module-grid,
-  .admin-grid {
+  .admin-grid,
+  .integration-panel {
     grid-template-columns: 1fr;
   }
 
