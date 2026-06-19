@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import dashboardImage from './assets/nclex-dashboard.png';
 import {
+  checkTableAvailability,
   getCurrentSession,
   onAuthStateChange,
   signInWithEmail,
@@ -216,6 +217,28 @@ function AdminConsole() {
     yingohTables.subscriptions,
     yingohTables.liveSessions,
   ];
+  const [tableHealth, setTableHealth] = useState([]);
+  const [isCheckingTables, setIsCheckingTables] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+
+    async function loadTableHealth() {
+      setIsCheckingTables(true);
+      const nextHealth = await checkTableAvailability(requiredTables);
+
+      if (mounted) {
+        setTableHealth(nextHealth);
+        setIsCheckingTables(false);
+      }
+    }
+
+    loadTableHealth();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   return (
     <section className="content-band">
@@ -256,8 +279,15 @@ function AdminConsole() {
           </span>
         </div>
         <div className="table-list" aria-label="Supabase tables planned for Yingoh">
-          {requiredTables.map((table) => <span key={table}>{table}</span>)}
+          {(tableHealth.length ? tableHealth : requiredTables.map((name) => ({ name, status: 'checking', detail: 'Checking' }))).map((table) => (
+            <span className={`table-${table.status}`} title={table.detail} key={table.name}>
+              {table.name}
+            </span>
+          ))}
         </div>
+        <p className="table-health-note">
+          {isCheckingTables ? 'Checking database tables...' : 'Table chips update from the live Supabase API.'}
+        </p>
       </div>
     </section>
   );

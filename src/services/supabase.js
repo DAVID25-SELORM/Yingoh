@@ -79,3 +79,33 @@ export async function signOut() {
 
   return supabase.auth.signOut();
 }
+
+export async function checkTableAvailability(tableNames) {
+  if (!supabase) {
+    return tableNames.map((name) => ({
+      name,
+      status: 'not_configured',
+      detail: 'Supabase key missing',
+    }));
+  }
+
+  const checks = await Promise.all(tableNames.map(async (name) => {
+    const { error } = await supabase
+      .from(name)
+      .select('*', { count: 'exact', head: true })
+      .limit(1);
+
+    if (!error) {
+      return { name, status: 'ready', detail: 'Table reachable' };
+    }
+
+    const missingCodes = new Set(['42P01', 'PGRST116', 'PGRST205']);
+    if (missingCodes.has(error.code) || error.message?.toLowerCase().includes('does not exist')) {
+      return { name, status: 'missing', detail: 'Apply schema migration' };
+    }
+
+    return { name, status: 'protected', detail: 'Table exists or is RLS-protected' };
+  }));
+
+  return checks;
+}

@@ -522,6 +522,38 @@ input {
   border: 1px solid #dce8e6;
 }
 
+.table-list .table-ready {
+  color: #135f55;
+  background: #e9f6f4;
+  border-color: #b9e3dc;
+}
+
+.table-list .table-protected {
+  color: #51408c;
+  background: #f0edff;
+  border-color: #cec5ff;
+}
+
+.table-list .table-missing {
+  color: #8a2c21;
+  background: #fff0ee;
+  border-color: #f2b7ae;
+}
+
+.table-list .table-not_configured,
+.table-list .table-checking {
+  color: #8a5b12;
+  background: #fff5df;
+  border-color: #ecd49d;
+}
+
+.table-health-note {
+  grid-column: 1 / -1;
+  margin: -4px 0 0;
+  color: #607478;
+  font-size: 0.88rem;
+}
+
 .account-layout {
   display: grid;
   grid-template-columns: minmax(320px, 0.9fr) minmax(0, 1fr);
