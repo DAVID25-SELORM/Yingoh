@@ -1,0 +1,20 @@
+Module,Feature,Priority,Phase
+User Accounts & Identity,"Email, Google, Apple login; profile editing; profile photo; password reset; multi-device login; two-factor authentication; device limits.",High,MVP
+Student Dashboard,"Study progress, exam countdown, daily goals, weak area alerts, recommended lessons, notifications, streaks, recent activity.",High,MVP
+Virtual Classroom,"Built-in HD video, screen share, whiteboard, chat, raise hand, polls, breakout rooms, host controls, waiting room, attendance, recordings, calendar reminders.",Medium,Growth
+Video Learning,"Recorded lectures, playlists, offline downloads for premium users, playback speed, picture-in-picture, resume position, video notes.",Medium,Growth
+NCLEX Question Bank,"Full topic bank with NGN case studies, bow tie, matrix, highlight text, cloze, SATA, drag/drop, ordered response, audio and image questions.",High,MVP
+Practice & Exam Modes,"Practice, tutor mode, timed exams, CAT simulator, custom quiz builder, mock exams, daily quiz, weekly challenge.",Medium,Growth
+Rationales & Review,"Correct/wrong answer explanations, nursing tips, references, bookmarks, personal notes, error reports.",Medium,Growth
+Analytics,"Overall score, topic performance, NGN readiness, pass probability, daily/weekly/monthly reports, at-risk student detection.",Medium,Growth
+AI Learning Assistant,"AI tutor, rationale explainer, AI quiz generator, AI study planner, weak area detector, lesson summarizer, voice assistant.",Medium,Growth
+Flashcards & Pharmacology,"Drug flashcards, disease cards, lab values, spaced repetition, drug classifications, MOA, side effects, contraindications, calculations.",Medium,Growth
+Resources,"Notes, care plans, concept maps, ECG, ABG, isolation precautions, drug handbook, abbreviations, protocols, worksheets.",Medium,Growth
+Community,"Discussion forum, study groups, ask instructors, comments, announcements, mentor groups, success stories.",Medium,Growth
+Assignments,"Homework, quiz submissions, uploads, instructor grading, feedback, deadlines.",Medium,Growth
+Payments,"Free plan, subscription plans, promo codes, referrals, Mobile Money, cards, Stripe, PayPal, receipts, reconciliation.",High,MVP
+Certificates,"Completion, attendance, mock exam certificates with verification code.",Medium,Growth
+Admin & Instructor Tools,"User/instructor management, uploads, exam creation, analytics, subscriptions, announcements, attendance, grading, messages.",High,MVP
+Professional Add-ons,"Sponsor portal, career center, USRN checklist, visa/interview prep, resume builder, job board, CPD and OSCE expansion.",Medium,Growth
+Security,"Encrypted data, 2FA, role-based access, audit logs, backups, screenshot controls, suspicious activity tracking.",Medium,Growth
+Scalability,"Android, iOS, web, cloud database, push notifications, offline capability, AI integration, scalable architecture for thousands of users.",Medium,Growth

@@ -1,0 +1,88 @@
+{
+  "product": "Yingoh NCLEX Coaching Platform",
+  "modules": [
+    {
+      "name": "User Accounts & Identity",
+      "description": "Email, Google, Apple login; profile editing; profile photo; password reset; multi-device login; two-factor authentication; device limits."
+    },
+    {
+      "name": "Student Dashboard",
+      "description": "Study progress, exam countdown, daily goals, weak area alerts, recommended lessons, notifications, streaks, recent activity."
+    },
+    {
+      "name": "Virtual Classroom",
+      "description": "Built-in HD video, screen share, whiteboard, chat, raise hand, polls, breakout rooms, host controls, waiting room, attendance, recordings, calendar reminders."
+    },
+    {
+      "name": "Video Learning",
+      "description": "Recorded lectures, playlists, offline downloads for premium users, playback speed, picture-in-picture, resume position, video notes."
+    },
+    {
+      "name": "NCLEX Question Bank",
+      "description": "Full topic bank with NGN case studies, bow tie, matrix, highlight text, cloze, SATA, drag/drop, ordered response, audio and image questions."
+    },
+    {
+      "name": "Practice & Exam Modes",
+      "description": "Practice, tutor mode, timed exams, CAT simulator, custom quiz builder, mock exams, daily quiz, weekly challenge."
+    },
+    {
+      "name": "Rationales & Review",
+      "description": "Correct/wrong answer explanations, nursing tips, references, bookmarks, personal notes, error reports."
+    },
+    {
+      "name": "Analytics",
+      "description": "Overall score, topic performance, NGN readiness, pass probability, daily/weekly/monthly reports, at-risk student detection."
+    },
+    {
+      "name": "AI Learning Assistant",
+      "description": "AI tutor, rationale explainer, AI quiz generator, AI study planner, weak area detector, lesson summarizer, voice assistant."
+    },
+    {
+      "name": "Flashcards & Pharmacology",
+      "description": "Drug flashcards, disease cards, lab values, spaced repetition, drug classifications, MOA, side effects, contraindications, calculations."
+    },
+    {
+      "name": "Resources",
+      "description": "Notes, care plans, concept maps, ECG, ABG, isolation precautions, drug handbook, abbreviations, protocols, worksheets."
+    },
+    {
+      "name": "Community",
+      "description": "Discussion forum, study groups, ask instructors, comments, announcements, mentor groups, success stories."
+    },
+    {
+      "name": "Assignments",
+      "description": "Homework, quiz submissions, uploads, instructor grading, feedback, deadlines."
+    },
+    {
+      "name": "Payments",
+      "description": "Free plan, subscription plans, promo codes, referrals, Mobile Money, cards, Stripe, PayPal, receipts, reconciliation."
+    },
+    {
+      "name": "Certificates",
+      "description": "Completion, attendance, mock exam certificates with verification code."
+    },
+    {
+      "name": "Admin & Instructor Tools",
+      "description": "User/instructor management, uploads, exam creation, analytics, subscriptions, announcements, attendance, grading, messages."
+    },
+    {
+      "name": "Professional Add-ons",
+      "description": "Sponsor portal, career center, USRN checklist, visa/interview prep, resume builder, job board, CPD and OSCE expansion."
+    },
+    {
+      "name": "Security",
+      "description": "Encrypted data, 2FA, role-based access, audit logs, backups, screenshot controls, suspicious activity tracking."
+    },
+    {
+      "name": "Scalability",
+      "description": "Android, iOS, web, cloud database, push notifications, offline capability, AI integration, scalable architecture for thousands of users."
+    }
+  ],
+  "recommended_phases": [
+    "MVP",
+    "Professional Learning Suite",
+    "AI & Adaptive Learning",
+    "Mobile & Offline",
+    "Enterprise Expansion"
+  ]
+}

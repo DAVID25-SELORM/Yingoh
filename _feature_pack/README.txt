@@ -1,0 +1,11 @@
+Yingoh NCLEX Coaching Platform - Professional Documentation Pack
+
+Files included:
+01_Master_Feature_Specification.docx
+02_User_Roles_and_Permissions.docx
+03_Technical_Architecture_and_Developer_Handoff.docx
+04_Database_Outline_and_Reports.docx
+05_Roadmap_and_Monetization_Plan.docx
+06_Developer_Handoff_Prompt.docx
+feature_checklist.csv
+module_backlog.json
