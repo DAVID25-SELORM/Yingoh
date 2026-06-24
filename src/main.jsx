@@ -8,7 +8,8 @@ import {
 } from 'lucide-react';
 import {
   checkTableAvailability, getCurrentSession, onAuthStateChange,
-  isConfiguredSuperAdmin, signInWithEmail, signOut, signUpWithEmail, supabaseConfig, yingohTables,
+  isConfiguredSuperAdmin, sendPasswordResetEmail, signInWithEmail, signOut,
+  signUpWithEmail, supabaseConfig, updatePassword, yingohTables,
 } from './services/supabase';
 import StudentDashboard from './components/StudentDashboard';
 import QuestionBankView from './components/QuestionBankView';
@@ -158,27 +159,53 @@ function AdminConsole() {
   );
 }
 
-function AccountAccess({ session }) {
+function AccountAccess({ session, isPasswordRecovery }) {
   const [mode, setMode] = useState('signin');
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const userEmail = session?.user?.email;
   const isSuperAdmin = isConfiguredSuperAdmin(userEmail);
 
+  useEffect(() => {
+    if (isPasswordRecovery) {
+      setMode('updatePassword');
+      setMessage('Enter a new password to finish resetting your account.');
+    }
+  }, [isPasswordRecovery]);
+
   async function handleSubmit(e) {
     e.preventDefault();
     setIsSubmitting(true);
     setMessage('');
-    const action = mode === 'signup'
-      ? signUpWithEmail({ email, password, fullName })
-      : signInWithEmail(email, password);
-    const { error } = await action;
-    if (error) setMessage(error.message);
-    else if (mode === 'signup') setMessage('Account created. Check your inbox if email verification is enabled.');
-    else setMessage('Signed in successfully.');
+    if (mode === 'reset') {
+      const { error } = await sendPasswordResetEmail(email);
+      setMessage(error ? error.message : 'Password reset link sent. Check your inbox.');
+    } else if (mode === 'updatePassword') {
+      if (password !== confirmPassword) {
+        setMessage('Passwords do not match.');
+      } else {
+        const { error } = await updatePassword(password);
+        if (error) setMessage(error.message);
+        else {
+          setPassword('');
+          setConfirmPassword('');
+          setMode('signin');
+          setMessage('Password updated. You can continue using your account.');
+        }
+      }
+    } else {
+      const action = mode === 'signup'
+        ? signUpWithEmail({ email, password, fullName })
+        : signInWithEmail(email, password);
+      const { error } = await action;
+      if (error) setMessage(error.message);
+      else if (mode === 'signup') setMessage('Account created. Check your inbox if email verification is enabled.');
+      else setMessage('Signed in successfully.');
+    }
     setIsSubmitting(false);
   }
 
@@ -204,12 +231,22 @@ function AccountAccess({ session }) {
             <div className="setup-alert">Add <strong>VITE_SUPABASE_ANON_KEY</strong> before live authentication can run.</div>
           )}
           {userEmail ? (
-            <div className="session-card">
-              <span>Signed in as</span>
-              <strong>{userEmail}</strong>
-              {isSuperAdmin && <small>Super admin access configured</small>}
-              <button className="ghost-btn" onClick={handleSignOut} disabled={isSubmitting}>Sign out</button>
-            </div>
+            mode === 'updatePassword' ? (
+              <form className="auth-form" onSubmit={handleSubmit}>
+                <label>New password<input type="password" minLength="6" value={password} onChange={(e) => setPassword(e.target.value)} required /></label>
+                <label>Confirm password<input type="password" minLength="6" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required /></label>
+                <button className="primary-btn" type="submit" disabled={!supabaseConfig.isConfigured || isSubmitting}>
+                  {isSubmitting ? 'Working...' : 'Update password'}
+                </button>
+              </form>
+            ) : (
+              <div className="session-card">
+                <span>Signed in as</span>
+                <strong>{userEmail}</strong>
+                {isSuperAdmin && <small>Super admin access configured</small>}
+                <button className="ghost-btn" onClick={handleSignOut} disabled={isSubmitting}>Sign out</button>
+              </div>
+            )
           ) : (
             <form className="auth-form" onSubmit={handleSubmit}>
               <div className="segmented-control">
@@ -220,9 +257,21 @@ function AccountAccess({ session }) {
                 <label>Full name<input value={fullName} onChange={(e) => setFullName(e.target.value)} required /></label>
               )}
               <label>Email<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
-              <label>Password<input type="password" minLength="6" value={password} onChange={(e) => setPassword(e.target.value)} required /></label>
+              {mode !== 'reset' && (
+                <label>Password<input type="password" minLength="6" value={password} onChange={(e) => setPassword(e.target.value)} required /></label>
+              )}
+              {mode === 'reset' && (
+                <button className="primary-btn" type="submit" disabled={!supabaseConfig.isConfigured || isSubmitting}>
+                  {isSubmitting ? 'Working...' : 'Send reset link'}
+                </button>
+              )}
+              {mode !== 'reset' && (
               <button className="primary-btn" type="submit" disabled={!supabaseConfig.isConfigured || isSubmitting}>
                 {isSubmitting ? 'Working…' : mode === 'signup' ? 'Create account' : 'Sign in'}
+              </button>
+              )}
+              <button className="link-btn" type="button" onClick={() => setMode(mode === 'reset' ? 'signin' : 'reset')}>
+                {mode === 'reset' ? 'Back to sign in' : 'Forgot password?'}
               </button>
             </form>
           )}
@@ -231,6 +280,7 @@ function AccountAccess({ session }) {
         <div className="account-checklist">
           {[
             'Email/password authentication wired to Supabase',
+            'Password reset emails and new-password updates enabled',
             'Session persistence and automatic refresh enabled',
             'Profile creation via database trigger',
             `Super admin bootstrap: ${supabaseConfig.superAdminEmail}`,
@@ -263,11 +313,18 @@ const NAV = [
 function App() {
   const [activeView, setActiveView] = useState('Dashboard');
   const [session, setSession] = useState(null);
+  const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
 
   useEffect(() => {
     let mounted = true;
     getCurrentSession().then(({ data }) => { if (mounted) setSession(data.session); });
-    const { data } = onAuthStateChange((_e, s) => setSession(s));
+    const { data } = onAuthStateChange((event, s) => {
+      setSession(s);
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsPasswordRecovery(true);
+        setActiveView('Account');
+      }
+    });
     return () => { mounted = false; data.subscription.unsubscribe(); };
   }, []);
 
@@ -338,7 +395,7 @@ function App() {
         {activeView === 'Planner' && <StudyPlannerView session={session} />}
         {activeView === 'Notebook' && <NotebookView session={session} />}
         {activeView === 'Analytics' && <AnalyticsView session={session} />}
-        {activeView === 'Account' && <AccountAccess session={session} />}
+        {activeView === 'Account' && <AccountAccess session={session} isPasswordRecovery={isPasswordRecovery} />}
         {activeView === 'Operations' && <AdminConsole />}
         {activeView === 'Roadmap' && <ModuleRoadmap />}
       </section>

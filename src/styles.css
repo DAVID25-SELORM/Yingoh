@@ -547,6 +547,8 @@ input, select, textarea { font: inherit; }
 .segmented-control { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 4px; padding: 4px; border-radius: 8px; background: #e9f1ef; }
 .segmented-control button { min-height: 34px; border-radius: 6px; color: #51676c; background: transparent; font-weight: 700; }
 .segmented-control .segment-active { color: #17313a; background: #fff; }
+.link-btn { color: #2b6159; background: transparent; font-weight: 800; text-align: center; }
+.link-btn:hover { color: #17313a; text-decoration: underline; }
 .session-card { margin-top: 14px; display: grid; gap: 8px; padding: 14px; border-radius: 8px; border: 1px solid #dbe6e4; background: #fff; }
 .session-card span { color: #647579; font-size: 0.84rem; }
 .form-message { margin: 10px 0 0; color: #2b6159; font-weight: 700; }
