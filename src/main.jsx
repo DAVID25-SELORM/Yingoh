@@ -1,42 +1,25 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
-  Activity,
-  BarChart3,
-  Bell,
-  BookOpen,
-  Brain,
-  CalendarDays,
-  CheckCircle2,
-  ChevronRight,
-  ClipboardCheck,
-  CreditCard,
-  FileBadge,
-  GraduationCap,
-  LayoutDashboard,
-  LockKeyhole,
-  MessageSquareText,
-  MonitorPlay,
-  PlayCircle,
-  ShieldCheck,
-  Sparkles,
-  Stethoscope,
-  Target,
-  Users,
-  Video,
+  Activity, BarChart3, BookOpen, Brain, CalendarDays, CheckCircle2,
+  ClipboardCheck, CreditCard, FileBadge, GraduationCap, LayoutDashboard,
+  LockKeyhole, MessageSquareText, MonitorPlay, ShieldCheck, Sparkles,
+  Stethoscope, Target, Users, Video, ChevronRight, Bell, CreditCard as PayIcon,
 } from 'lucide-react';
-import dashboardImage from './assets/nclex-dashboard.png';
 import {
-  checkTableAvailability,
-  getCurrentSession,
-  onAuthStateChange,
-  signInWithEmail,
-  signOut,
-  signUpWithEmail,
-  supabaseConfig,
-  yingohTables,
+  checkTableAvailability, getCurrentSession, onAuthStateChange,
+  signInWithEmail, signOut, signUpWithEmail, supabaseConfig, yingohTables,
 } from './services/supabase';
+import StudentDashboard from './components/StudentDashboard';
+import QuestionBankView from './components/QuestionBankView';
+import ExamModeView from './components/ExamModeView';
+import FlashcardsView from './components/FlashcardsView';
+import StudyPlannerView from './components/StudyPlannerView';
+import NotebookView from './components/NotebookView';
+import AnalyticsView from './components/AnalyticsView';
 import './styles.css';
+
+// ─── Existing inline views kept for continuity ─────────────
 
 const modules = [
   { name: 'User Accounts & Identity', phase: 'MVP', priority: 'High', icon: ShieldCheck, summary: 'Email, Google, Apple login, profile editing, 2FA, password reset, and device limits.' },
@@ -69,33 +52,6 @@ const roles = [
   { name: 'Content Reviewer', scope: 'Review questions, rationales, references, and reported errors before publishing.' },
 ];
 
-const topics = [
-  { label: 'Pharmacology', score: 68, status: 'Priority area' },
-  { label: 'Safety and Infection Control', score: 82, status: 'On track' },
-  { label: 'Maternal and Newborn', score: 74, status: 'Building' },
-  { label: 'NGN Case Studies', score: 61, status: 'Coaching focus' },
-];
-
-const questionTypes = ['SATA', 'Bow Tie', 'Matrix', 'Cloze', 'Ordered Response', 'Highlight Text'];
-
-function Metric({ label, value, detail, tone = 'teal' }) {
-  return (
-    <div className={`metric metric-${tone}`}>
-      <span>{label}</span>
-      <strong>{value}</strong>
-      <small>{detail}</small>
-    </div>
-  );
-}
-
-function ProgressBar({ value }) {
-  return (
-    <div className="progress-track" aria-label={`${value}%`}>
-      <span style={{ width: `${value}%` }} />
-    </div>
-  );
-}
-
 function ModuleCard({ module }) {
   const Icon = module.icon;
   return (
@@ -114,138 +70,42 @@ function ModuleCard({ module }) {
   );
 }
 
-function StudentDashboard() {
-  return (
-    <section className="view-grid">
-      <div className="hero-panel">
-        <img src={dashboardImage} alt="Nursing students preparing for NCLEX" />
-        <div className="hero-copy">
-          <span className="eyebrow">Yingoh NCLEX Coaching Platform</span>
-          <h1>Adaptive NCLEX prep, live coaching, and progress intelligence in one workspace.</h1>
-          <p>Personalized study plans, clinical reasoning practice, instructor-led sessions, and readiness tracking for NCLEX candidates.</p>
-          <div className="hero-actions">
-            <button className="primary-btn"><PlayCircle size={18} /> Start learning</button>
-            <button className="icon-btn" aria-label="Notifications"><Bell size={19} /></button>
-          </div>
-        </div>
-      </div>
-
-      <div className="metrics-row">
-        <Metric label="Readiness" value="Adaptive" detail="Performance-based study guidance" />
-        <Metric label="Daily goal" value="Flexible" detail="Question targets by study plan" tone="coral" />
-        <Metric label="Progress" value="Tracked" detail="Topic mastery and activity history" tone="gold" />
-        <Metric label="Exam plan" value="Scheduled" detail="Countdowns and readiness milestones" tone="violet" />
-      </div>
-
-      <div className="split-layout">
-        <section className="surface">
-          <div className="section-title">
-            <h2>Weak Area Planner</h2>
-            <Sparkles size={20} />
-          </div>
-          {topics.map((topic) => (
-            <div className="topic-row" key={topic.label}>
-              <div>
-                <strong>{topic.label}</strong>
-                <span>{topic.status}</span>
-              </div>
-              <ProgressBar value={topic.score} />
-              <b>{topic.score}%</b>
-            </div>
-          ))}
-        </section>
-
-        <section className="surface schedule">
-          <div className="section-title">
-            <h2>Live Coaching</h2>
-            <CalendarDays size={20} />
-          </div>
-          <div className="class-item active">
-            <span>Live session</span>
-            <strong>NGN Case Study Review</strong>
-            <small>Instructor-led review with attendance tracking</small>
-          </div>
-          <div className="class-item">
-            <span>Strategy lab</span>
-            <strong>CAT Strategy Lab</strong>
-            <small>Recording, polls, and breakout rooms supported</small>
-          </div>
-        </section>
-      </div>
-    </section>
-  );
-}
-
-function QuestionBank() {
+function ModuleRoadmap() {
+  const grouped = useMemo(() => ({
+    MVP: modules.filter((m) => m.phase === 'MVP'),
+    Growth: modules.filter((m) => m.phase === 'Growth'),
+    Expansion: modules.filter((m) => m.phase === 'Expansion'),
+  }), []);
   return (
     <section className="content-band">
-      <div className="section-title">
-        <h2>NCLEX/NGN Question Bank</h2>
-        <ClipboardCheck size={22} />
-      </div>
-      <div className="question-workbench">
-        <div className="case-panel">
-          <span className="eyebrow">NGN Case Study</span>
-          <h3>Priority nursing action after a medication reaction</h3>
-          <p>A learner reviews symptoms, vitals, medication history, and lab values before selecting linked actions.</p>
-          <div className="chips">
-            {questionTypes.map((type) => <span key={type}>{type}</span>)}
-          </div>
+      <div className="section-title"><h2>Feature Roadmap</h2><BookOpen size={22} /></div>
+      {Object.entries(grouped).map(([phase, items]) => (
+        <div className="phase-block" key={phase}>
+          <h3>{phase}</h3>
+          <div className="module-grid">{items.map((m) => <ModuleCard key={m.name} module={m} />)}</div>
         </div>
-        <div className="answer-panel">
-          <div className="answer-row selected"><CheckCircle2 size={18} /> Stop infusion and assess airway</div>
-          <div className="answer-row"><CheckCircle2 size={18} /> Notify provider after stabilization</div>
-          <div className="answer-row muted"><CheckCircle2 size={18} /> Document findings in chart</div>
-          <div className="rationale">
-            <strong>Rationale engine</strong>
-            <p>Shows why each response is safe or unsafe, links nursing tips, and flags topics for spaced review.</p>
-          </div>
-        </div>
-      </div>
+      ))}
     </section>
   );
 }
 
 function AdminConsole() {
-  const requiredTables = [
-    yingohTables.profiles,
-    yingohTables.roles,
-    yingohTables.courses,
-    yingohTables.lessons,
-    yingohTables.questions,
-    yingohTables.attempts,
-    yingohTables.subscriptions,
-    yingohTables.liveSessions,
-  ];
+  const requiredTables = Object.values(yingohTables);
   const [tableHealth, setTableHealth] = useState([]);
-  const [isCheckingTables, setIsCheckingTables] = useState(false);
+  const [isChecking, setIsChecking] = useState(false);
 
   useEffect(() => {
     let mounted = true;
-
-    async function loadTableHealth() {
-      setIsCheckingTables(true);
-      const nextHealth = await checkTableAvailability(requiredTables);
-
-      if (mounted) {
-        setTableHealth(nextHealth);
-        setIsCheckingTables(false);
-      }
-    }
-
-    loadTableHealth();
-
-    return () => {
-      mounted = false;
-    };
+    setIsChecking(true);
+    checkTableAvailability(requiredTables).then((health) => {
+      if (mounted) { setTableHealth(health); setIsChecking(false); }
+    });
+    return () => { mounted = false; };
   }, []);
 
   return (
     <section className="content-band">
-      <div className="section-title">
-        <h2>Admin, Instructor, Finance</h2>
-        <ShieldCheck size={22} />
-      </div>
+      <div className="section-title"><h2>Admin, Instructor, Finance</h2><ShieldCheck size={22} /></div>
       <div className="admin-grid">
         {roles.map((role) => (
           <article className="role-card" key={role.name}>
@@ -256,18 +116,17 @@ function AdminConsole() {
         ))}
       </div>
       <div className="reports-row">
-        <Metric label="Subscriptions" value="Ready" detail="Plans, receipts, and reconciliation" />
-        <Metric label="Attendance" value="Tracked" detail="Live class participation records" tone="coral" />
-        <Metric label="Intervention" value="Flagged" detail="Students needing coaching support" tone="violet" />
+        <div className="metric"><span>Subscriptions</span><strong>Ready</strong><small>Plans, receipts, and reconciliation</small></div>
+        <div className="metric metric-coral"><span>Attendance</span><strong>Tracked</strong><small>Live class participation records</small></div>
+        <div className="metric metric-violet"><span>Intervention</span><strong>Flagged</strong><small>Students needing coaching support</small></div>
       </div>
       <div className="integration-panel">
         <div>
           <span className="eyebrow">Supabase Backend</span>
           <h3>{supabaseConfig.isConfigured ? 'Connected for runtime use' : 'Awaiting environment key'}</h3>
-          <p>
-            {supabaseConfig.isConfigured
-              ? 'The app can create a Supabase client from the deployed environment.'
-              : 'Add the public anon key in Vercel to activate auth, database, and subscription workflows.'}
+          <p>{supabaseConfig.isConfigured
+            ? 'The app can create a Supabase client from the deployed environment.'
+            : 'Add VITE_SUPABASE_ANON_KEY in your environment to activate auth, database, and subscription workflows.'}
           </p>
         </div>
         <div className="env-list">
@@ -278,42 +137,18 @@ function AdminConsole() {
             <CheckCircle2 size={16} /> VITE_SUPABASE_ANON_KEY
           </span>
         </div>
-        <div className="table-list" aria-label="Supabase tables planned for Yingoh">
-          {(tableHealth.length ? tableHealth : requiredTables.map((name) => ({ name, status: 'checking', detail: 'Checking' }))).map((table) => (
-            <span className={`table-${table.status}`} title={table.detail} key={table.name}>
-              {table.name}
-            </span>
+        <div className="table-list" aria-label="Supabase tables">
+          {(tableHealth.length
+            ? tableHealth
+            : requiredTables.map((name) => ({ name, status: 'checking', detail: 'Checking' }))
+          ).map((table) => (
+            <span className={`table-${table.status}`} title={table.detail} key={table.name}>{table.name}</span>
           ))}
         </div>
         <p className="table-health-note">
-          {isCheckingTables ? 'Checking database tables...' : 'Table chips update from the live Supabase API.'}
+          {isChecking ? 'Checking database tables…' : 'Table chips update from the live Supabase API.'}
         </p>
       </div>
-    </section>
-  );
-}
-
-function ModuleRoadmap() {
-  const grouped = useMemo(() => ({
-    MVP: modules.filter((module) => module.phase === 'MVP'),
-    Growth: modules.filter((module) => module.phase === 'Growth'),
-    Expansion: modules.filter((module) => module.phase === 'Expansion'),
-  }), []);
-
-  return (
-    <section className="content-band">
-      <div className="section-title">
-        <h2>Feature Roadmap From Pack</h2>
-        <BookOpen size={22} />
-      </div>
-      {Object.entries(grouped).map(([phase, items]) => (
-        <div className="phase-block" key={phase}>
-          <h3>{phase}</h3>
-          <div className="module-grid">
-            {items.map((module) => <ModuleCard key={module.name} module={module} />)}
-          </div>
-        </div>
-      ))}
     </section>
   );
 }
@@ -327,24 +162,17 @@ function AccountAccess({ session }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const userEmail = session?.user?.email;
 
-  async function handleSubmit(event) {
-    event.preventDefault();
+  async function handleSubmit(e) {
+    e.preventDefault();
     setIsSubmitting(true);
     setMessage('');
-
     const action = mode === 'signup'
       ? signUpWithEmail({ email, password, fullName })
       : signInWithEmail(email, password);
     const { error } = await action;
-
-    if (error) {
-      setMessage(error.message);
-    } else if (mode === 'signup') {
-      setMessage('Account created. Check the inbox for confirmation if email verification is enabled.');
-    } else {
-      setMessage('Signed in successfully.');
-    }
-
+    if (error) setMessage(error.message);
+    else if (mode === 'signup') setMessage('Account created. Check your inbox if email verification is enabled.');
+    else setMessage('Signed in successfully.');
     setIsSubmitting(false);
   }
 
@@ -357,168 +185,151 @@ function AccountAccess({ session }) {
 
   return (
     <section className="content-band">
-      <div className="section-title">
-        <h2>Account Access</h2>
-        <LockKeyhole size={22} />
-      </div>
+      <div className="section-title"><h2>Account Access</h2><LockKeyhole size={22} /></div>
       <div className="account-layout">
         <div className="account-panel">
           <span className="eyebrow">Supabase Auth</span>
-          <h3>{userEmail ? 'Session active' : mode === 'signup' ? 'Create student account' : 'Sign in to Yingoh'}</h3>
-          <p>
-            {userEmail
-              ? 'The current browser has an active Supabase session.'
-              : 'Use email and password access for students, instructors, finance, and administrators.'}
+          <h3>{userEmail ? 'Session active' : mode === 'signup' ? 'Create account' : 'Sign in to Yingoh'}</h3>
+          <p>{userEmail
+            ? 'The current browser has an active Supabase session.'
+            : 'Email and password access for students, instructors, finance, and administrators.'}
           </p>
-
           {!supabaseConfig.isConfigured && (
-            <div className="setup-alert">
-              Add <strong>VITE_SUPABASE_ANON_KEY</strong> in Vercel before live authentication can run.
-            </div>
+            <div className="setup-alert">Add <strong>VITE_SUPABASE_ANON_KEY</strong> before live authentication can run.</div>
           )}
-
           {userEmail ? (
             <div className="session-card">
               <span>Signed in as</span>
               <strong>{userEmail}</strong>
-              <button className="ghost-btn" onClick={handleSignOut} disabled={isSubmitting}>
-                Sign out
-              </button>
+              <button className="ghost-btn" onClick={handleSignOut} disabled={isSubmitting}>Sign out</button>
             </div>
           ) : (
             <form className="auth-form" onSubmit={handleSubmit}>
-              <div className="segmented-control" aria-label="Account mode">
-                <button type="button" className={mode === 'signin' ? 'segment-active' : ''} onClick={() => setMode('signin')}>
-                  Sign in
-                </button>
-                <button type="button" className={mode === 'signup' ? 'segment-active' : ''} onClick={() => setMode('signup')}>
-                  Sign up
-                </button>
+              <div className="segmented-control">
+                <button type="button" className={mode === 'signin' ? 'segment-active' : ''} onClick={() => setMode('signin')}>Sign in</button>
+                <button type="button" className={mode === 'signup' ? 'segment-active' : ''} onClick={() => setMode('signup')}>Sign up</button>
               </div>
               {mode === 'signup' && (
-                <label>
-                  Full name
-                  <input value={fullName} onChange={(event) => setFullName(event.target.value)} required />
-                </label>
+                <label>Full name<input value={fullName} onChange={(e) => setFullName(e.target.value)} required /></label>
               )}
-              <label>
-                Email
-                <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} required />
-              </label>
-              <label>
-                Password
-                <input type="password" minLength="6" value={password} onChange={(event) => setPassword(event.target.value)} required />
-              </label>
+              <label>Email<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
+              <label>Password<input type="password" minLength="6" value={password} onChange={(e) => setPassword(e.target.value)} required /></label>
               <button className="primary-btn" type="submit" disabled={!supabaseConfig.isConfigured || isSubmitting}>
-                {isSubmitting ? 'Working...' : mode === 'signup' ? 'Create account' : 'Sign in'}
+                {isSubmitting ? 'Working…' : mode === 'signup' ? 'Create account' : 'Sign in'}
               </button>
             </form>
           )}
-
           {message && <p className="form-message">{message}</p>}
         </div>
-
         <div className="account-checklist">
-          <div>
-            <CheckCircle2 size={18} />
-            <span>Email/password authentication wired to Supabase</span>
-          </div>
-          <div>
-            <CheckCircle2 size={18} />
-            <span>Session persistence and automatic refresh enabled</span>
-          </div>
-          <div>
-            <CheckCircle2 size={18} />
-            <span>Profile creation supported through the database trigger</span>
-          </div>
-          <div>
-            <CheckCircle2 size={18} />
-            <span>Role tables ready for student, instructor, admin, finance, and content review access</span>
-          </div>
+          {[
+            'Email/password authentication wired to Supabase',
+            'Session persistence and automatic refresh enabled',
+            'Profile creation via database trigger',
+            'Role tables: student, instructor, admin, finance, content reviewer',
+            'Question bookmarks, flashcard progress, exam sessions — all user-scoped',
+            'Notebook and study plan saved per user account',
+          ].map((item) => (
+            <div key={item}><CheckCircle2 size={18} /><span>{item}</span></div>
+          ))}
         </div>
       </div>
     </section>
   );
 }
 
+// ─── Navigation config ─────────────────────────────────────
+const NAV = [
+  { label: 'Dashboard', icon: LayoutDashboard, group: 'learn' },
+  { label: 'Questions', icon: ClipboardCheck, group: 'learn' },
+  { label: 'Exam', icon: Target, group: 'learn' },
+  { label: 'Flashcards', icon: Brain, group: 'learn' },
+  { label: 'Planner', icon: CalendarDays, group: 'learn' },
+  { label: 'Notebook', icon: Sparkles, group: 'learn' },
+  { label: 'Analytics', icon: BarChart3, group: 'learn' },
+  { label: 'Account', icon: LockKeyhole, group: 'manage' },
+  { label: 'Operations', icon: Users, group: 'manage' },
+  { label: 'Roadmap', icon: BookOpen, group: 'manage' },
+];
+
 function App() {
-  const [activeView, setActiveView] = useState('Student');
+  const [activeView, setActiveView] = useState('Dashboard');
   const [session, setSession] = useState(null);
-  const nav = [
-    { label: 'Student', icon: LayoutDashboard },
-    { label: 'Questions', icon: ClipboardCheck },
-    { label: 'Account', icon: LockKeyhole },
-    { label: 'Operations', icon: Users },
-    { label: 'Roadmap', icon: BookOpen },
-  ];
 
   useEffect(() => {
     let mounted = true;
-
-    getCurrentSession().then(({ data }) => {
-      if (mounted) {
-        setSession(data.session);
-      }
-    });
-
-    const { data } = onAuthStateChange((_event, nextSession) => {
-      setSession(nextSession);
-    });
-
-    return () => {
-      mounted = false;
-      data.subscription.unsubscribe();
-    };
+    getCurrentSession().then(({ data }) => { if (mounted) setSession(data.session); });
+    const { data } = onAuthStateChange((_e, s) => setSession(s));
+    return () => { mounted = false; data.subscription.unsubscribe(); };
   }, []);
+
+  const learnNav = NAV.filter((n) => n.group === 'learn');
+  const manageNav = NAV.filter((n) => n.group === 'manage');
 
   return (
     <main className="app-shell">
       <aside className="sidebar">
         <div className="brand">
           <span><Stethoscope size={24} /></span>
-          <div>
-            <strong>Yingoh</strong>
-            <small>NCLEX Coaching</small>
-          </div>
+          <div><strong>Yingoh</strong><small>NCLEX Coaching</small></div>
         </div>
+
         <nav>
-          {nav.map((item) => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.label}
-                className={activeView === item.label ? 'nav-active' : ''}
-                onClick={() => setActiveView(item.label)}
-              >
-                <Icon size={19} />
-                {item.label}
-              </button>
-            );
-          })}
+          <div className="nav-group-label">STUDY</div>
+          {learnNav.map(({ label, icon: Icon }) => (
+            <button
+              key={label}
+              className={activeView === label ? 'nav-active' : ''}
+              onClick={() => setActiveView(label)}
+            >
+              <Icon size={18} />{label}
+            </button>
+          ))}
+          <div className="nav-group-label" style={{ marginTop: 8 }}>MANAGE</div>
+          {manageNav.map(({ label, icon: Icon }) => (
+            <button
+              key={label}
+              className={activeView === label ? 'nav-active' : ''}
+              onClick={() => setActiveView(label)}
+            >
+              <Icon size={18} />{label}
+            </button>
+          ))}
         </nav>
+
         <div className="sidebar-card">
           <span className="eyebrow">Platform Status</span>
-          <strong>Launch-ready interface</strong>
-          <p>Auth, dashboard, payments, question bank, and admin workflows are organized for implementation handoff.</p>
+          <strong>Full-featured build</strong>
+          <p>Question bank, CAT exam, spaced-repetition flashcards, study planner, digital notebook, and analytics are live.</p>
         </div>
       </aside>
 
       <section className="workspace">
         <header className="topbar">
           <div>
-            <span className="eyebrow">Professional Learning Suite</span>
+            <span className="eyebrow">Yingoh NCLEX Coaching</span>
             <h2>{activeView}</h2>
           </div>
           <div className="topbar-actions">
-            <button className="ghost-btn"><Brain size={18} /> AI planner</button>
+            <button className="ghost-btn" onClick={() => setActiveView('Analytics')}>
+              <BarChart3 size={18} /> Analytics
+            </button>
+            <button className="ghost-btn" onClick={() => setActiveView('Planner')}>
+              <CalendarDays size={18} /> Planner
+            </button>
             <button className="primary-btn" onClick={() => setActiveView('Account')}>
-              <CreditCard size={18} /> {session ? 'Account' : 'Sign in'}
+              <LockKeyhole size={18} /> {session ? session.user.email?.split('@')[0] : 'Sign in'}
             </button>
           </div>
         </header>
 
-        {activeView === 'Student' && <StudentDashboard />}
-        {activeView === 'Questions' && <QuestionBank />}
+        {activeView === 'Dashboard' && <StudentDashboard session={session} onNavigate={setActiveView} />}
+        {activeView === 'Questions' && <QuestionBankView session={session} />}
+        {activeView === 'Exam' && <ExamModeView session={session} />}
+        {activeView === 'Flashcards' && <FlashcardsView session={session} />}
+        {activeView === 'Planner' && <StudyPlannerView session={session} />}
+        {activeView === 'Notebook' && <NotebookView session={session} />}
+        {activeView === 'Analytics' && <AnalyticsView session={session} />}
         {activeView === 'Account' && <AccountAccess session={session} />}
         {activeView === 'Operations' && <AdminConsole />}
         {activeView === 'Roadmap' && <ModuleRoadmap />}
