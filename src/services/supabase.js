@@ -4,6 +4,8 @@ const defaultSupabaseUrl = 'https://mcbfqgyosdklnzbagobp.supabase.co';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim() || defaultSupabaseUrl;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim() || '';
 const superAdminEmail = (import.meta.env.VITE_SUPER_ADMIN_EMAIL?.trim() || 'cryxtalcfc@gmail.com').toLowerCase();
+const authRedirectUrl = import.meta.env.VITE_AUTH_REDIRECT_URL?.trim()
+  || (typeof window !== 'undefined' ? window.location.origin : 'https://yingoh.vercel.app');
 
 export const supabaseConfig = {
   url: supabaseUrl,
@@ -11,6 +13,7 @@ export const supabaseConfig = {
   hasAnonKey: Boolean(supabaseAnonKey),
   isConfigured: Boolean(supabaseUrl && supabaseAnonKey),
   superAdminEmail,
+  authRedirectUrl,
 };
 
 export function isConfiguredSuperAdmin(email) {
@@ -66,7 +69,7 @@ export async function signUpWithEmail({ email, password, fullName }) {
 export async function sendPasswordResetEmail(email) {
   if (!supabase) return { data: null, error: new Error('Supabase is not configured.') };
   return supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: window.location.origin,
+    redirectTo: authRedirectUrl,
   });
 }
 
