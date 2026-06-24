@@ -105,6 +105,24 @@ alter table public.video_progress enable row level security;
 alter table public.notifications enable row level security;
 alter table public.user_certificates enable row level security;
 
+-- Server-side admin guard. Defined here too so this migration can run
+-- even if it is pasted manually before the admin migration.
+create or replace function public.is_super_admin()
+returns boolean
+language sql
+security definer
+set search_path = public
+as $$
+  select exists (
+    select 1
+    from public.user_roles ur
+    join public.roles r on r.id = ur.role_id
+    where ur.user_id = auth.uid()
+      and r.name = 'super_admin'
+  );
+$$;
+grant execute on function public.is_super_admin() to authenticated;
+
 drop policy if exists "invites_admin_all" on public.pending_invites;
 drop policy if exists "threads_read" on public.forum_threads;
 drop policy if exists "threads_insert" on public.forum_threads;
