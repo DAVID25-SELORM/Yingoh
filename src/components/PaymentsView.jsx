@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { CheckCircle2, DollarSign, Tag, FileText, PlusCircle, Sparkles, ToggleLeft, ToggleRight, X } from 'lucide-react';
+import { CheckCircle2, DollarSign, Tag, FileText, PlusCircle, Sparkles, ToggleLeft, ToggleRight, X, Smartphone } from 'lucide-react';
 import { supabase } from '../services/supabase';
 import { useSubscription, createCheckoutSession } from '../hooks/useSubscription';
 
@@ -46,6 +46,10 @@ export default function PaymentsView({ session }) {
   const [promos, setPromos] = useState(DEMO_PROMOS);
   const [newPromo, setNewPromo] = useState({ code: '', discount_pct: 10, max_uses: '', expires_at: '' });
   const [showPromoForm, setShowPromoForm] = useState(false);
+  const [mmPlan, setMmPlan] = useState('basic');
+  const [mmPhone, setMmPhone] = useState('');
+  const [mmChannel, setMmChannel] = useState('mtn');
+  const [mmLoading, setMmLoading] = useState(false);
 
   useEffect(() => {
     if (!supabase) return;
@@ -82,6 +86,31 @@ export default function PaymentsView({ session }) {
     setShowPromoForm(false);
   }
 
+  async function handleMobileMoney() {
+    if (!session) { alert('Sign in to subscribe.'); return; }
+    if (!mmPhone.trim()) { alert('Enter your mobile money phone number.'); return; }
+    setMmLoading(true);
+    try {
+      const { data: { session: authSession } } = await supabase.auth.getSession();
+      const token = authSession?.access_token;
+      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-paystack-order`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ planId: mmPlan, channel: mmChannel, phone: mmPhone, callbackUrl: window.location.origin }),
+      });
+      const result = await res.json();
+      if (result.url) {
+        window.location.href = result.url;
+      } else {
+        alert(result.error ?? 'Paystack not configured. Add PAYSTACK_SECRET_KEY to your Supabase Edge Function secrets.');
+      }
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setMmLoading(false);
+    }
+  }
+
   return (
     <section className="content-band">
       <div className="section-title">
@@ -106,7 +135,7 @@ export default function PaymentsView({ session }) {
 
       {/* Tabs */}
       <div className="tab-bar" style={{ marginBottom: 16 }}>
-        {[['plans', 'Plans'], ['invoices', 'Invoices'], ['promos', 'Promo Codes']].map(([key, label]) => (
+        {[['plans', 'Plans (Stripe)'], ['mobile-money', 'Mobile Money'], ['invoices', 'Invoices'], ['promos', 'Promo Codes']].map(([key, label]) => (
           <button key={key} className={`tab-btn ${tab === key ? 'tab-active' : ''}`} onClick={() => setTab(key)}>{label}</button>
         ))}
       </div>
@@ -154,6 +183,44 @@ export default function PaymentsView({ session }) {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* Mobile Money tab */}
+      {tab === 'mobile-money' && (
+        <div style={{ maxWidth: 480 }}>
+          <div style={{ padding: '12px 16px', background: '#e9f1ef', borderRadius: 10, fontSize: '0.85rem', color: '#135f55', marginBottom: 18, lineHeight: 1.6 }}>
+            <Smartphone size={14} style={{ display: 'inline', marginRight: 6 }} />
+            Pay with MTN Mobile Money, Vodafone Cash, or AirtelTigo Money. You will be redirected to a secure Paystack payment page to authorize the transaction.
+          </div>
+          <div style={{ display: 'grid', gap: 14 }}>
+            <div>
+              <label style={{ fontWeight: 600, fontSize: '0.9rem', display: 'block', marginBottom: 6 }}>Select Plan</label>
+              <select value={mmPlan} onChange={(e) => setMmPlan(e.target.value)} style={{ width: '100%', height: 42, borderRadius: 10, border: '1.5px solid #dbe6e4', padding: '0 14px', fontSize: '0.9rem' }}>
+                <option value="basic">Basic — GHS {Math.round(19.99 * 15)}/mo</option>
+                <option value="pro">Pro — GHS {Math.round(39.99 * 15)}/mo</option>
+                <option value="premium">Premium — GHS {Math.round(59.99 * 15)}/mo</option>
+              </select>
+            </div>
+            <div>
+              <label style={{ fontWeight: 600, fontSize: '0.9rem', display: 'block', marginBottom: 6 }}>Mobile Network</label>
+              <div style={{ display: 'flex', gap: 10 }}>
+                {[['mtn', 'MTN', '#ffcc00'], ['vodafone', 'Vodafone', '#e60000'], ['tigo', 'AirtelTigo', '#ff6600']].map(([val, label, color]) => (
+                  <button key={val} onClick={() => setMmChannel(val)} style={{ flex: 1, padding: '10px 0', borderRadius: 10, border: `2px solid ${mmChannel === val ? color : '#dbe6e4'}`, background: mmChannel === val ? `${color}18` : '#fff', fontWeight: 700, fontSize: '0.88rem', color: mmChannel === val ? color : '#607478', cursor: 'pointer' }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <label style={{ fontWeight: 600, fontSize: '0.9rem', display: 'block', marginBottom: 6 }}>Mobile Money Number</label>
+              <input value={mmPhone} onChange={(e) => setMmPhone(e.target.value)} placeholder="e.g. 0244123456" style={{ width: '100%', height: 42, borderRadius: 10, border: '1.5px solid #dbe6e4', padding: '0 14px', fontSize: '0.95rem', boxSizing: 'border-box' }} />
+            </div>
+            <button className="primary-btn" onClick={handleMobileMoney} disabled={mmLoading || !mmPhone.trim()} style={{ width: '100%', justifyContent: 'center', fontSize: '0.95rem', height: 46 }}>
+              <Smartphone size={16} /> {mmLoading ? 'Redirecting to Paystack…' : 'Pay with Mobile Money'}
+            </button>
+            <p style={{ margin: 0, fontSize: '0.78rem', color: '#8a999c', textAlign: 'center' }}>Secured by Paystack · GHS pricing · Exchange rate applied at checkout</p>
+          </div>
         </div>
       )}
 

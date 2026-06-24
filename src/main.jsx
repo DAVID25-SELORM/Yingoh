@@ -32,6 +32,11 @@ import CommunityForum from './components/CommunityForum';
 import CertificatesView from './components/CertificatesView';
 import NotificationsBell from './components/NotificationsBell';
 import VideoManager from './components/VideoManager';
+import AITutorView from './components/AITutorView';
+import ResourcesView from './components/ResourcesView';
+import ProfessionalAddons from './components/ProfessionalAddons';
+import AssignmentsView from './components/AssignmentsView';
+import AuditLogView from './components/AuditLogView';
 import './styles.css';
 
 // ─── Existing inline views kept for continuity ─────────────
@@ -323,6 +328,10 @@ const NAV = [
   { label: 'Quiz Builder', icon: Target, group: 'learn' },
   { label: 'Community', icon: MessageSquareText, group: 'learn' },
   { label: 'Certificates', icon: FileBadge, group: 'learn' },
+  { label: 'AI Tutor', icon: Brain, group: 'learn' },
+  { label: 'Resources', icon: BookOpen, group: 'learn' },
+  { label: 'Assignments', icon: ClipboardCheck, group: 'learn' },
+  { label: 'Professional', icon: GraduationCap, group: 'learn' },
   { label: 'Account', icon: LockKeyhole, group: 'manage' },
   { label: 'Operations', icon: Users, group: 'manage' },
   { label: 'Roadmap', icon: BookOpen, group: 'manage' },
@@ -335,6 +344,7 @@ const NAV = [
   { label: 'Announcements', icon: Bell, group: 'admin' },
   { label: 'Classroom', icon: Video, group: 'admin' },
   { label: 'Video Manager', icon: MonitorPlay, group: 'admin' },
+  { label: 'Audit Logs', icon: ShieldCheck, group: 'admin' },
 ];
 
 function App() {
@@ -455,6 +465,11 @@ function App() {
         {activeView === 'Announcements' && <AnnouncementsView session={session} />}
         {activeView === 'Classroom' && <VirtualClassroom session={session} />}
         {activeView === 'Video Manager' && <VideoManager session={session} />}
+        {activeView === 'Audit Logs' && <AuditLogView session={session} />}
+        {activeView === 'AI Tutor' && <AITutorView session={session} />}
+        {activeView === 'Resources' && <ResourcesView />}
+        {activeView === 'Assignments' && <AssignmentsView session={session} />}
+        {activeView === 'Professional' && <ProfessionalAddons session={session} />}
       </section>
     </main>
   );
