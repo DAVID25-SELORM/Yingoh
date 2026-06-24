@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import {
   checkTableAvailability, getCurrentSession, onAuthStateChange,
-  signInWithEmail, signOut, signUpWithEmail, supabaseConfig, yingohTables,
+  isConfiguredSuperAdmin, signInWithEmail, signOut, signUpWithEmail, supabaseConfig, yingohTables,
 } from './services/supabase';
 import StudentDashboard from './components/StudentDashboard';
 import QuestionBankView from './components/QuestionBankView';
@@ -120,6 +120,11 @@ function AdminConsole() {
         <div className="metric metric-coral"><span>Attendance</span><strong>Tracked</strong><small>Live class participation records</small></div>
         <div className="metric metric-violet"><span>Intervention</span><strong>Flagged</strong><small>Students needing coaching support</small></div>
       </div>
+      <div className="surface">
+        <span className="eyebrow">Super Admin</span>
+        <h3>{supabaseConfig.superAdminEmail}</h3>
+        <p>This email is configured as the bootstrap owner for admin access in Supabase and the deployed app environment.</p>
+      </div>
       <div className="integration-panel">
         <div>
           <span className="eyebrow">Supabase Backend</span>
@@ -161,6 +166,7 @@ function AccountAccess({ session }) {
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const userEmail = session?.user?.email;
+  const isSuperAdmin = isConfiguredSuperAdmin(userEmail);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -201,6 +207,7 @@ function AccountAccess({ session }) {
             <div className="session-card">
               <span>Signed in as</span>
               <strong>{userEmail}</strong>
+              {isSuperAdmin && <small>Super admin access configured</small>}
               <button className="ghost-btn" onClick={handleSignOut} disabled={isSubmitting}>Sign out</button>
             </div>
           ) : (
@@ -226,7 +233,8 @@ function AccountAccess({ session }) {
             'Email/password authentication wired to Supabase',
             'Session persistence and automatic refresh enabled',
             'Profile creation via database trigger',
-            'Role tables: student, instructor, admin, finance, content reviewer',
+            `Super admin bootstrap: ${supabaseConfig.superAdminEmail}`,
+            'Role tables: student, instructor, admin, finance, content reviewer, super admin',
             'Question bookmarks, flashcard progress, exam sessions — all user-scoped',
             'Notebook and study plan saved per user account',
           ].map((item) => (

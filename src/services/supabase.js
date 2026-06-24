@@ -3,13 +3,19 @@ import { createClient } from '@supabase/supabase-js';
 const defaultSupabaseUrl = 'https://mcbfqgyosdklnzbagobp.supabase.co';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim() || defaultSupabaseUrl;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim() || '';
+const superAdminEmail = (import.meta.env.VITE_SUPER_ADMIN_EMAIL?.trim() || 'cryxtalcfc@gmail.com').toLowerCase();
 
 export const supabaseConfig = {
   url: supabaseUrl,
   hasUrl: Boolean(supabaseUrl),
   hasAnonKey: Boolean(supabaseAnonKey),
   isConfigured: Boolean(supabaseUrl && supabaseAnonKey),
+  superAdminEmail,
 };
+
+export function isConfiguredSuperAdmin(email) {
+  return Boolean(email && email.toLowerCase() === superAdminEmail);
+}
 
 export const supabase = supabaseConfig.isConfigured
   ? createClient(supabaseUrl, supabaseAnonKey, {

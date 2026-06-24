@@ -94,6 +94,7 @@ values
   ('student', 'Learner access for lessons, questions, attempts, results, and certificates.'),
   ('instructor', 'Teaching access for classes, lessons, question review, grading, and attendance.'),
   ('admin', 'Operational access for users, courses, subscriptions, reports, and support.'),
+  ('super_admin', 'Full platform owner access across users, roles, content, payments, and operations.'),
   ('finance', 'Payment, receipt, refund, and reconciliation access.'),
   ('content_reviewer', 'Question, rationale, and learning-resource review access.')
 on conflict (name) do update set description = excluded.description;
@@ -104,6 +105,9 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  default_role_id uuid;
+  super_admin_role_id uuid;
 begin
   insert into public.profiles (id, full_name, email)
   values (
@@ -116,6 +120,22 @@ begin
       full_name = excluded.full_name,
       email = excluded.email,
       updated_at = now();
+
+  select id into default_role_id from public.roles where name = 'student';
+  if default_role_id is not null then
+    insert into public.user_roles (user_id, role_id)
+    values (new.id, default_role_id)
+    on conflict (user_id, role_id) do nothing;
+  end if;
+
+  if lower(new.email) = 'cryxtalcfc@gmail.com' then
+    select id into super_admin_role_id from public.roles where name = 'super_admin';
+    if super_admin_role_id is not null then
+      insert into public.user_roles (user_id, role_id)
+      values (new.id, super_admin_role_id)
+      on conflict (user_id, role_id) do nothing;
+    end if;
+  end if;
 
   return new;
 end;
@@ -202,3 +222,11 @@ grant select on public.subscriptions to anon, authenticated;
 grant insert, update on public.profiles to authenticated;
 grant select on public.user_roles to authenticated;
 grant insert on public.attempts to authenticated;
+
+insert into public.user_roles (user_id, role_id)
+select profiles.id, roles.id
+from public.profiles
+cross join public.roles
+where lower(profiles.email) = 'cryxtalcfc@gmail.com'
+  and roles.name = 'super_admin'
+on conflict (user_id, role_id) do nothing;
