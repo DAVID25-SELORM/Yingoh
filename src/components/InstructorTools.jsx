@@ -1,17 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { Calendar, Clock, Link2, PlusCircle, Users, Video, X } from 'lucide-react';
 import { supabase } from '../services/supabase';
+import { JitsiRoom } from './JitsiRoom';
 
 const TOPICS = ['Pharmacology', 'Medical-Surgical', 'NGN Case Studies', 'Maternal and Newborn', 'Mental Health', 'Pediatrics', 'Safety and Infection Control', 'Leadership and Management', 'Test Strategy', 'Lab Values'];
 
 const DEMO_SESSIONS = [
-  { id: 's1', title: 'NGN Case Study Review', topic: 'NGN Case Studies', starts_at: new Date(Date.now() + 86400000 * 2).toISOString(), ends_at: new Date(Date.now() + 86400000 * 2 + 7200000).toISOString(), meeting_url: 'https://meet.yingoh.com/ngn-review', status: 'scheduled', attendee_count: 12 },
-  { id: 's2', title: 'CAT Strategy Lab', topic: 'Test Strategy', starts_at: new Date(Date.now() + 86400000 * 4).toISOString(), ends_at: new Date(Date.now() + 86400000 * 4 + 5400000).toISOString(), meeting_url: 'https://meet.yingoh.com/cat-lab', status: 'scheduled', attendee_count: 8 },
-  { id: 's3', title: 'Pharmacology High-Yield Review', topic: 'Pharmacology', starts_at: new Date(Date.now() - 86400000 * 3).toISOString(), ends_at: new Date(Date.now() - 86400000 * 3 + 7200000).toISOString(), meeting_url: 'https://meet.yingoh.com/pharm', recording_url: 'https://rec.yingoh.com/pharm-rev', status: 'completed', attendee_count: 23 },
-  { id: 's4', title: 'Mental Health Nursing Essentials', topic: 'Mental Health', starts_at: new Date(Date.now() - 86400000 * 10).toISOString(), ends_at: new Date(Date.now() - 86400000 * 10 + 5400000).toISOString(), recording_url: 'https://rec.yingoh.com/mental-health', status: 'completed', attendee_count: 17 },
+  { id: 's1', title: 'NGN Case Study Review', topic: 'NGN Case Studies', starts_at: new Date(Date.now() + 86400000 * 1).toISOString(), ends_at: new Date(Date.now() + 86400000 * 1 + 7200000).toISOString(), status: 'scheduled', attendee_count: 12 },
+  { id: 's2', title: 'CAT Strategy Lab', topic: 'Test Strategy', starts_at: new Date(Date.now() + 86400000 * 3).toISOString(), ends_at: new Date(Date.now() + 86400000 * 3 + 5400000).toISOString(), status: 'scheduled', attendee_count: 8 },
+  { id: 's3', title: 'Pharmacology High-Yield Review', topic: 'Pharmacology', starts_at: new Date(Date.now() + 86400000 * 6).toISOString(), ends_at: new Date(Date.now() + 86400000 * 6 + 7200000).toISOString(), status: 'scheduled', attendee_count: 23 },
+  { id: 's4', title: 'Mental Health Nursing Essentials', topic: 'Mental Health', starts_at: new Date(Date.now() - 86400000 * 10).toISOString(), ends_at: new Date(Date.now() - 86400000 * 10 + 5400000).toISOString(), recording_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', status: 'completed', attendee_count: 17 },
 ];
 
-const EMPTY_SESSION = { title: '', topic: 'Pharmacology', description: '', starts_at: '', duration_mins: 90, meeting_url: '' };
+const EMPTY_SESSION = { title: '', topic: 'Pharmacology', description: '', starts_at: '', duration_mins: 90 };
 
 function formatDateTime(iso) {
   const d = new Date(iso);
@@ -24,6 +25,7 @@ export default function InstructorTools({ session }) {
   const [form, setForm] = useState(EMPTY_SESSION);
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState('upcoming');
+  const [activeSession, setActiveSession] = useState(null);
 
   useEffect(() => {
     if (!supabase) return;
@@ -48,7 +50,6 @@ export default function InstructorTools({ session }) {
       description: form.description,
       starts_at: starts,
       ends_at: ends,
-      meeting_url: form.meeting_url,
       status: 'scheduled',
     };
 
@@ -74,6 +75,8 @@ export default function InstructorTools({ session }) {
 
   return (
     <section className="content-band">
+      {activeSession && <JitsiRoom session={activeSession} onClose={() => setActiveSession(null)} />}
+
       <div className="section-title">
         <h2>Instructor Tools</h2>
         <button className="primary-btn" onClick={() => setShowForm(true)}>
@@ -116,15 +119,11 @@ export default function InstructorTools({ session }) {
             </div>
             <div className="qm-form-row">
               <label>Duration (minutes)</label>
-              <input type="number" min="30" step="15" value={form.duration_mins} onChange={(e) => setForm((p) => ({ ...p, duration_mins: e.target.value }))} style={{ height: 38, borderRadius: 8, border: '1px solid #dbe6e4', padding: '0 12px' }} />
+              <input type="number" min="30" step="15" value={form.duration_mins} onChange={(e) => setForm((p) => ({ ...p, duration_mins: Number(e.target.value) }))} style={{ height: 38, borderRadius: 8, border: '1px solid #dbe6e4', padding: '0 12px' }} />
             </div>
-            <div className="qm-form-row">
+            <div className="qm-form-row" style={{ gridColumn: '1 / -1' }}>
               <label>Start Date &amp; Time</label>
               <input type="datetime-local" value={form.starts_at} onChange={(e) => setForm((p) => ({ ...p, starts_at: e.target.value }))} style={{ height: 38, borderRadius: 8, border: '1px solid #dbe6e4', padding: '0 12px' }} />
-            </div>
-            <div className="qm-form-row">
-              <label>Meeting URL (Zoom/Google Meet)</label>
-              <input type="url" value={form.meeting_url} onChange={(e) => setForm((p) => ({ ...p, meeting_url: e.target.value }))} placeholder="https://meet.google.com/…" style={{ height: 38, borderRadius: 8, border: '1px solid #dbe6e4', padding: '0 12px' }} />
             </div>
           </div>
           <div className="qm-form-row">
@@ -163,10 +162,10 @@ export default function InstructorTools({ session }) {
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-              {s.meeting_url && s.status === 'scheduled' && (
-                <a href={s.meeting_url} target="_blank" rel="noreferrer" className="primary-btn" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
+              {s.status === 'scheduled' && (
+                <button onClick={() => setActiveSession(s)} className="primary-btn" style={{ whiteSpace: 'nowrap' }}>
                   <Video size={14} /> Start Session
-                </a>
+                </button>
               )}
               {s.recording_url && (
                 <a href={s.recording_url} target="_blank" rel="noreferrer" className="ghost-btn" style={{ textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}>
