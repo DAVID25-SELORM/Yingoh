@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import {
-  BookmarkPlus, BookmarkCheck, ChevronLeft, ChevronRight,
+  BookmarkCheck, BookmarkPlus, ChevronLeft, ChevronRight,
   CheckCircle2, XCircle, Filter, RefreshCw,
 } from 'lucide-react';
 import {
@@ -8,14 +8,27 @@ import {
   submitAttempt, unbookmarkQuestion,
 } from '../services/supabase';
 import { DEMO_QUESTIONS } from '../data/demoQuestions';
+import {
+  BowTieQuestion, bowTieIsCorrect, bowTieHasAnswer,
+  MatrixQuestion, matrixIsCorrect, matrixHasAnswer,
+  OrderedResponseQuestion, orderedIsCorrect,
+  HighlightQuestion, highlightIsCorrect,
+} from './NGNRenderer';
 
 const TOPICS = [
   'All Topics', 'Pharmacology', 'Safety and Infection Control', 'Medical-Surgical',
   'NGN Case Studies', 'Maternal and Newborn', 'Mental Health', 'Pediatrics',
   'Leadership and Management',
 ];
-const TYPES = ['All Types', 'mcq', 'sata'];
-const TYPE_LABELS = { mcq: 'Multiple Choice', sata: 'Select All That Apply' };
+const TYPES = ['All Types', 'mcq', 'sata', 'bow_tie', 'matrix', 'ordered_response', 'highlight'];
+const TYPE_LABELS = {
+  mcq: 'Multiple Choice',
+  sata: 'Select All That Apply',
+  bow_tie: 'Bow Tie (NGN)',
+  matrix: 'Matrix (NGN)',
+  ordered_response: 'Ordered Response (NGN)',
+  highlight: 'Highlight (NGN)',
+};
 
 function isSATACorrect(selected, correct) {
   const s = [...selected].sort();
@@ -31,7 +44,8 @@ export default function QuestionBankView({ session }) {
   const [questions, setQuestions] = useState([]);
   const [filtered, setFiltered] = useState([]);
   const [index, setIndex] = useState(0);
-  const [selected, setSelected] = useState([]);
+  const [selected, setSelected] = useState([]);       // MCQ / SATA
+  const [ngnAnswer, setNgnAnswer] = useState(null);   // bow_tie / matrix / ordered / highlight
   const [submitted, setSubmitted] = useState(false);
   const [bookmarks, setBookmarks] = useState(new Set());
   const [topicFilter, setTopicFilter] = useState('All Topics');
@@ -45,7 +59,7 @@ export default function QuestionBankView({ session }) {
   useEffect(() => {
     async function load() {
       setLoading(true);
-      const { data } = await getQuestions({ limit: 100 });
+      const { data } = await getQuestions({ limit: 200 });
       const qs = data?.length ? data : DEMO_QUESTIONS;
       setQuestions(qs);
       if (userId) {
@@ -65,6 +79,7 @@ export default function QuestionBankView({ session }) {
     setFiltered(qs);
     setIndex(0);
     setSelected([]);
+    setNgnAnswer(null);
     setSubmitted(false);
   }, [questions, topicFilter, typeFilter, showBookmarked, bookmarks]);
 
@@ -72,23 +87,37 @@ export default function QuestionBankView({ session }) {
 
   function toggleChoice(id) {
     if (submitted) return;
-    if (question.question_type === 'mcq') {
-      setSelected([id]);
-    } else {
-      setSelected((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
-    }
+    if (question.question_type === 'mcq') setSelected([id]);
+    else setSelected((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+  }
+
+  function checkIsCorrect() {
+    const qt = question.question_type;
+    if (qt === 'sata') return isSATACorrect(selected, question.correct_answer);
+    if (qt === 'mcq') return isMCQCorrect(selected, question.correct_answer);
+    if (qt === 'bow_tie') return bowTieIsCorrect(question, ngnAnswer);
+    if (qt === 'matrix') return matrixIsCorrect(question, ngnAnswer);
+    if (qt === 'ordered_response') return orderedIsCorrect(question, ngnAnswer);
+    if (qt === 'highlight') return highlightIsCorrect(question, ngnAnswer);
+    return false;
+  }
+
+  function hasAnswer() {
+    const qt = question.question_type;
+    if (qt === 'mcq' || qt === 'sata') return selected.length > 0;
+    if (qt === 'bow_tie') return bowTieHasAnswer(ngnAnswer);
+    if (qt === 'matrix') return matrixHasAnswer(ngnAnswer);
+    if (qt === 'ordered_response') return (ngnAnswer?.length ?? 0) > 0;
+    if (qt === 'highlight') return (ngnAnswer?.length ?? 0) > 0;
+    return false;
   }
 
   async function handleSubmit() {
-    if (!selected.length) return;
+    if (!hasAnswer()) return;
     setSubmitted(true);
-    const correct = question.question_type === 'sata'
-      ? isSATACorrect(selected, question.correct_answer)
-      : isMCQCorrect(selected, question.correct_answer);
+    const correct = checkIsCorrect();
     setSessionStats((prev) => ({ correct: prev.correct + (correct ? 1 : 0), total: prev.total + 1 }));
-    if (userId) {
-      await submitAttempt(userId, question.id, { ids: selected }, correct);
-    }
+    if (userId) await submitAttempt(userId, question.id, { ids: selected, ngn: ngnAnswer }, correct);
   }
 
   async function toggleBookmark() {
@@ -106,22 +135,20 @@ export default function QuestionBankView({ session }) {
   function goNext() {
     setIndex((i) => Math.min(i + 1, filtered.length - 1));
     setSelected([]);
+    setNgnAnswer(null);
     setSubmitted(false);
   }
 
   function goPrev() {
     setIndex((i) => Math.max(i - 1, 0));
     setSelected([]);
+    setNgnAnswer(null);
     setSubmitted(false);
   }
 
-  const isCorrectAnswer = useCallback((id) => {
-    return question?.correct_answer?.ids?.includes(id) ?? false;
-  }, [question]);
+  const isCorrectAnswer = useCallback((id) => question?.correct_answer?.ids?.includes(id) ?? false, [question]);
 
-  if (loading) {
-    return <div className="content-band" style={{ textAlign: 'center', padding: 48, color: '#607478' }}>Loading questions…</div>;
-  }
+  if (loading) return <div className="content-band" style={{ textAlign: 'center', padding: 48, color: '#607478' }}>Loading questions…</div>;
 
   if (!filtered.length) {
     return (
@@ -138,9 +165,9 @@ export default function QuestionBankView({ session }) {
 
   const isBookmarked = bookmarks.has(question?.id);
   const correctIds = question?.correct_answer?.ids ?? [];
-  const isAnswerCorrect = submitted
-    ? (question.question_type === 'sata' ? isSATACorrect(selected, question.correct_answer) : isMCQCorrect(selected, question.correct_answer))
-    : null;
+  const qt = question?.question_type;
+  const isNGN = ['bow_tie', 'matrix', 'ordered_response', 'highlight'].includes(qt);
+  const isAnswerCorrect = submitted ? checkIsCorrect() : null;
 
   return (
     <section className="content-band">
@@ -172,58 +199,68 @@ export default function QuestionBankView({ session }) {
 
       {/* Question header */}
       <div className="qb-header">
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <span className="chips"><span>{question.topic}</span></span>
-          <span className="chips"><span>{TYPE_LABELS[question.question_type] ?? question.question_type}</span></span>
+          <span className="chips" style={isNGN ? { background: '#e9f0ff', color: '#3a5ca8' } : {}}>
+            <span>{TYPE_LABELS[qt] ?? qt}</span>
+          </span>
+          {isNGN && <span style={{ fontSize: '0.74rem', fontWeight: 700, padding: '2px 8px', background: '#e9f0ff', color: '#3a5ca8', borderRadius: 12 }}>NGN Item</span>}
         </div>
         <button
           className="icon-btn"
           onClick={toggleBookmark}
           disabled={!userId}
-          title={userId ? (isBookmarked ? 'Remove bookmark' : 'Bookmark question') : 'Sign in to bookmark'}
+          title={userId ? (isBookmarked ? 'Remove bookmark' : 'Bookmark') : 'Sign in to bookmark'}
           style={{ color: isBookmarked ? '#e3a72f' : undefined }}
         >
           {isBookmarked ? <BookmarkCheck size={18} /> : <BookmarkPlus size={18} />}
         </button>
       </div>
 
-      {/* Question prompt */}
+      {/* Prompt */}
       <div className="qb-prompt">
         <p>{question.prompt}</p>
-        {question.question_type === 'sata' && (
-          <div className="sata-hint">Select all that apply — there may be more than one correct answer.</div>
-        )}
+        {qt === 'sata' && <div className="sata-hint">Select all that apply — there may be more than one correct answer.</div>}
+        {isNGN && <div className="sata-hint" style={{ background: '#eef1ff', color: '#3a5ca8', borderColor: '#c5cef5' }}>
+          Next Generation NCLEX item — use clinical judgment to complete all sections.
+        </div>}
       </div>
 
-      {/* Answer choices */}
-      <div className="qb-choices">
-        {(question.choices ?? []).map((choice) => {
-          const isSelected = selected.includes(choice.id);
-          const isCorrect = isCorrectAnswer(choice.id);
-          let cls = 'qb-choice';
-          if (submitted) {
-            if (isCorrect) cls += ' choice-correct';
-            else if (isSelected && !isCorrect) cls += ' choice-wrong';
-          } else if (isSelected) {
-            cls += ' choice-selected';
-          }
-          return (
-            <button key={choice.id} className={cls} onClick={() => toggleChoice(choice.id)} disabled={submitted}>
-              <span className="choice-letter">{choice.id.toUpperCase()}</span>
-              <span className="choice-text">{choice.text}</span>
-              {submitted && isCorrect && <CheckCircle2 size={18} style={{ marginLeft: 'auto', color: '#135f55', flexShrink: 0 }} />}
-              {submitted && isSelected && !isCorrect && <XCircle size={18} style={{ marginLeft: 'auto', color: '#8a2c21', flexShrink: 0 }} />}
-            </button>
-          );
-        })}
-      </div>
+      {/* Answer area — MCQ / SATA */}
+      {(qt === 'mcq' || qt === 'sata') && (
+        <div className="qb-choices">
+          {(question.choices ?? []).map((choice) => {
+            const isSelected = selected.includes(choice.id);
+            const isCorrect = isCorrectAnswer(choice.id);
+            let cls = 'qb-choice';
+            if (submitted) {
+              if (isCorrect) cls += ' choice-correct';
+              else if (isSelected && !isCorrect) cls += ' choice-wrong';
+            } else if (isSelected) cls += ' choice-selected';
+            return (
+              <button key={choice.id} className={cls} onClick={() => toggleChoice(choice.id)} disabled={submitted}>
+                <span className="choice-letter">{choice.id.toUpperCase()}</span>
+                <span className="choice-text">{choice.text}</span>
+                {submitted && isCorrect && <CheckCircle2 size={18} style={{ marginLeft: 'auto', color: '#135f55', flexShrink: 0 }} />}
+                {submitted && isSelected && !isCorrect && <XCircle size={18} style={{ marginLeft: 'auto', color: '#8a2c21', flexShrink: 0 }} />}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      {/* NGN renderers */}
+      {qt === 'bow_tie' && <BowTieQuestion question={question} submitted={submitted} onAnswer={setNgnAnswer} />}
+      {qt === 'matrix' && <MatrixQuestion question={question} submitted={submitted} onAnswer={setNgnAnswer} />}
+      {qt === 'ordered_response' && <OrderedResponseQuestion question={question} submitted={submitted} onAnswer={setNgnAnswer} />}
+      {qt === 'highlight' && <HighlightQuestion question={question} submitted={submitted} onAnswer={setNgnAnswer} />}
 
       {/* Submit / result */}
       {!submitted ? (
         <button
           className="primary-btn"
           onClick={handleSubmit}
-          disabled={!selected.length}
+          disabled={!hasAnswer()}
           style={{ marginTop: 16, width: '100%', justifyContent: 'center' }}
         >
           Submit Answer
@@ -239,11 +276,11 @@ export default function QuestionBankView({ session }) {
       )}
 
       {/* Rationale */}
-      {submitted && (
+      {submitted && question.rationale && (
         <div className="rationale">
           <strong>Rationale</strong>
           <p>{question.rationale}</p>
-          {question.question_type === 'sata' && (
+          {qt === 'sata' && (
             <div style={{ marginTop: 10, fontSize: '0.88rem', color: '#607478' }}>
               <strong>Correct answers:</strong> {correctIds.map((id) => id.toUpperCase()).join(', ')}
             </div>

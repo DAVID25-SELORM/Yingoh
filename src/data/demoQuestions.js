@@ -257,4 +257,94 @@ export const DEMO_QUESTIONS = [
     correct_answer: { ids: ['a', 'c', 'e'] },
     rationale: 'UAPs can measure and record I&O, obtain vital signs on stable patients, and report objective measurements. Assessment, teaching, and ambulating post-stroke patients require nursing judgment and cannot be delegated.',
   },
+
+  // ── NGN: BOW TIE ─────────────────────────────────────────────────────────
+  {
+    id: 'dq21', topic: 'NGN Case Studies', question_type: 'bow_tie', status: 'published',
+    prompt: 'A 68-year-old client is admitted to the ICU with a 3-day history of productive cough, fever of 39.2°C, and confusion. Oxygen saturation is 88% on room air. BP is 88/54 mmHg. The client\'s family reports he lives alone and has type 2 diabetes and COPD. ABGs: pH 7.28, PaCO2 52, HCO3 22. WBC 22,000. Chest X-ray shows bilateral infiltrates.',
+    choices: [],
+    correct_answer: { ids: [] },
+    rationale: 'This client meets criteria for septic shock secondary to pneumonia with concurrent respiratory acidosis and hypoxemia. Priority actions: administer supplemental oxygen and position HOB 30–45°, initiate broad-spectrum antibiotics within the first hour, and establish IV access for fluid resuscitation. Key parameters to monitor: oxygen saturation and ABGs (respiratory status), blood pressure and MAP (hemodynamic stability), and blood cultures (source identification). Avoid vasopressors before adequate fluid resuscitation.',
+    ngn_data: {
+      condition: 'Septic Shock\nfrom Pneumonia',
+      left_label: 'Priority Actions to Take',
+      right_label: 'Parameters to Monitor',
+      left_choices: [
+        { id: 'l1', text: 'Administer O₂ and elevate HOB 30–45°' },
+        { id: 'l2', text: 'Initiate broad-spectrum antibiotics STAT' },
+        { id: 'l3', text: 'Administer oral fluids to treat dehydration' },
+        { id: 'l4', text: 'Restrict IV fluids to prevent fluid overload' },
+        { id: 'l5', text: 'Obtain blood cultures before antibiotic administration' },
+      ],
+      right_choices: [
+        { id: 'r1', text: 'SpO₂ and arterial blood gases' },
+        { id: 'r2', text: 'Blood pressure and mean arterial pressure (MAP)' },
+        { id: 'r3', text: 'Blood glucose (client has diabetes)' },
+        { id: 'r4', text: 'Urine output (goal ≥0.5 mL/kg/hr)' },
+        { id: 'r5', text: 'Serum LDL cholesterol' },
+      ],
+      correct_left: ['l1', 'l2', 'l5'],
+      correct_right: ['r1', 'r2', 'r4'],
+    },
+  },
+
+  // ── NGN: MATRIX ──────────────────────────────────────────────────────────
+  {
+    id: 'dq22', topic: 'NGN Case Studies', question_type: 'matrix', status: 'published',
+    prompt: 'A nurse is caring for a 54-year-old client admitted for acute decompensated heart failure. Vitals: BP 156/98, HR 108, RR 26, SpO₂ 90%, temp 37.1°C. The client has 3+ pitting edema in bilateral lower extremities, JVD, and audible crackles bilaterally. Orders include: IV furosemide 40 mg, continuous cardiac monitoring, daily weights, sodium restriction 2g/day, and supplemental oxygen. For each nursing intervention, indicate whether it is Indicated, Contraindicated, or Not Applicable.',
+    choices: [],
+    correct_answer: { ids: [] },
+    rationale: 'In acute decompensated HF: IV furosemide reduces fluid overload (Indicated); positioning HOB 45° reduces preload and improves oxygenation (Indicated); daily weights monitor fluid status (Indicated). Encouraging oral fluid intake worsens fluid overload (Contraindicated). Sodium restriction is already ordered and would be managed by dietary team, not a direct nursing intervention in this context (Not Applicable as a nursing action; it is a dietary order). Ambulating in the acute decompensated phase with SpO₂ 90% is Contraindicated.',
+    ngn_data: {
+      columns: [
+        { id: 'c1', text: 'Indicated' },
+        { id: 'c2', text: 'Contraindicated' },
+        { id: 'c3', text: 'Not Applicable' },
+      ],
+      rows: [
+        { id: 'r1', text: 'Administer IV furosemide 40 mg as ordered' },
+        { id: 'r2', text: 'Position the client with HOB elevated to 45°' },
+        { id: 'r3', text: 'Weigh the client daily at the same time' },
+        { id: 'r4', text: 'Encourage fluid intake of 3L/day to prevent dehydration' },
+        { id: 'r5', text: 'Ambulate client in the hallway three times per shift' },
+      ],
+      correct: { r1: 'c1', r2: 'c1', r3: 'c1', r4: 'c2', r5: 'c2' },
+    },
+  },
+
+  // ── NGN: ORDERED RESPONSE ─────────────────────────────────────────────────
+  {
+    id: 'dq23', topic: 'NGN Case Studies', question_type: 'ordered_response', status: 'published',
+    prompt: 'A nurse receives a shift report on a client who had an emergency appendectomy 6 hours ago. On assessment, the nurse notes sudden onset of tachycardia (HR 128), diaphoresis, abdominal rigidity, and temperature 38.9°C. The client states the pain has changed from 4/10 to 9/10 and feels "different." Place the following nursing actions in the correct order of priority (1 = first action, 5 = last action).',
+    choices: [
+      { id: 'a', text: 'Notify the surgeon immediately of assessment findings' },
+      { id: 'b', text: 'Assess the client\'s airway, breathing, and circulation' },
+      { id: 'c', text: 'Obtain vital signs and oxygen saturation' },
+      { id: 'd', text: 'Prepare the client for potential return to the OR' },
+      { id: 'e', text: 'Document all findings and interventions in the medical record' },
+    ],
+    correct_answer: { ids: [], order: ['b', 'c', 'a', 'd', 'e'] },
+    rationale: 'Use the nursing process and ABCs. First: assess ABCs (B) — immediate threat identification. Second: obtain full vital signs and SpO₂ to quantify deterioration (C). Third: notify the surgeon with complete SBAR — these findings suggest peritonitis from anastomotic leak (A). Fourth: prepare client for surgical intervention which may be imminent (D). Finally: document all findings and the chain of communication (E).',
+    ngn_data: null,
+  },
+
+  // ── NGN: HIGHLIGHT ────────────────────────────────────────────────────────
+  {
+    id: 'dq24', topic: 'NGN Case Studies', question_type: 'highlight', status: 'published',
+    prompt: 'A nurse reviews the following nursing note for a 72-year-old client admitted for a right hip replacement performed this morning. Highlight all findings that require immediate follow-up.',
+    choices: [],
+    correct_answer: { ids: [] },
+    rationale: 'Immediate follow-up required: SpO₂ 88% on room air (below acceptable threshold, risk of hypoxia), urine output of 15 mL/hr for 3 hours (oliguria, less than 0.5 mL/kg/hr — indicates hypovolemia or AKI), and right calf pain and warmth (classic signs of DVT, a major post-op complication of hip replacement). Temperature 38.1°C and mild incision oozing are expected within first 24 hours post-op and require monitoring, not immediate intervention. HR 88 is within normal limits for a post-op client.',
+    ngn_data: {
+      passage: '1600: Client is alert and oriented x2, appears restless. Temperature 38.1°C, HR 88, BP 102/64 mmHg, RR 18, SpO₂ 88% on room air. Client reports pain 6/10 at right hip incision site and right calf pain and warmth noted on assessment. Urine output has been 15 mL/hr for the past 3 hours via Foley catheter. Dressing at surgical site has small area of oozing approximately 2 cm. Client requesting oral fluids. IV site patent, infusing D5 0.45% NS at 75 mL/hr.',
+      highlights: [
+        { id: 'h1', text: 'restless', correct: false },
+        { id: 'h2', text: 'Temperature 38.1°C', correct: false },
+        { id: 'h3', text: 'SpO₂ 88% on room air', correct: true },
+        { id: 'h4', text: 'right calf pain and warmth', correct: true },
+        { id: 'h5', text: 'urine output has been 15 mL/hr for the past 3 hours', correct: true },
+        { id: 'h6', text: 'small area of oozing approximately 2 cm', correct: false },
+      ],
+    },
+  },
 ];

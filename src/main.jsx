@@ -31,6 +31,7 @@ import VideoLearning from './components/VideoLearning';
 import CommunityForum from './components/CommunityForum';
 import CertificatesView from './components/CertificatesView';
 import NotificationsBell from './components/NotificationsBell';
+import VideoManager from './components/VideoManager';
 import './styles.css';
 
 // ─── Existing inline views kept for continuity ─────────────
@@ -333,6 +334,7 @@ const NAV = [
   { label: 'Content Review', icon: CheckCircle2, group: 'admin' },
   { label: 'Announcements', icon: Bell, group: 'admin' },
   { label: 'Classroom', icon: Video, group: 'admin' },
+  { label: 'Video Manager', icon: MonitorPlay, group: 'admin' },
 ];
 
 function App() {
@@ -436,7 +438,7 @@ function App() {
         {activeView === 'Flashcards' && <FlashcardsView session={session} />}
         {activeView === 'Planner' && <StudyPlannerView session={session} />}
         {activeView === 'Notebook' && <NotebookView session={session} />}
-        {activeView === 'Analytics' && <AnalyticsView session={session} />}
+        {activeView === 'Analytics' && <AnalyticsView session={session} onNavigate={setActiveView} />}
         {activeView === 'Account' && <AccountAccess session={session} isPasswordRecovery={isPasswordRecovery} />}
         {activeView === 'Operations' && <AdminConsole />}
         {activeView === 'Roadmap' && <ModuleRoadmap />}
@@ -452,6 +454,7 @@ function App() {
         {activeView === 'Content Review' && <ContentReviewer session={session} />}
         {activeView === 'Announcements' && <AnnouncementsView session={session} />}
         {activeView === 'Classroom' && <VirtualClassroom session={session} />}
+        {activeView === 'Video Manager' && <VideoManager session={session} />}
       </section>
     </main>
   );

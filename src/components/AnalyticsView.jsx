@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Activity, BarChart3, Target, TrendingUp, Users } from 'lucide-react';
+import { Activity, AlertTriangle, BarChart3, Target, TrendingUp, Users, Zap } from 'lucide-react';
 import { calculatePassProbability, getAttemptStats, getExamHistory } from '../services/supabase';
 
 const DEMO_TOPIC_STATS = [
@@ -107,7 +107,7 @@ function MiniBarChart({ data, label }) {
 
 const MODE_LABELS = { practice: 'Practice', timed: 'Timed', cat: 'CAT', assessment: 'Assessment' };
 
-export default function AnalyticsView({ session }) {
+export default function AnalyticsView({ session, onNavigate }) {
   const [topicStats, setTopicStats] = useState(DEMO_TOPIC_STATS);
   const [passProbability, setPassProbability] = useState(74);
   const [totalAttempts, setTotalAttempts] = useState(244);
@@ -289,6 +289,56 @@ export default function AnalyticsView({ session }) {
           </span>
         </div>
       </div>
+
+      {/* Weakness Detector */}
+      {weakTopics.length > 0 && (
+        <div className="surface" style={{ marginTop: 16, borderLeft: '4px solid #e85d4f' }}>
+          <div className="section-title" style={{ marginBottom: 12 }}>
+            <h3 style={{ display: 'flex', gap: 8, alignItems: 'center' }}><AlertTriangle size={18} color="#e85d4f" /> Weakness Detector</h3>
+          </div>
+          <p style={{ margin: '0 0 14px', color: '#607478', fontSize: '0.88rem' }}>
+            These topics are below the 72% NCLEX passing threshold. Prioritize them in your study plan.
+          </p>
+          <div style={{ display: 'grid', gap: 12 }}>
+            {weakTopics.map((t) => {
+              const pct = Math.round((t.correct / t.total) * 100);
+              const gap = 72 - pct;
+              const severity = pct < 50 ? 'critical' : pct < 60 ? 'high' : 'medium';
+              const color = severity === 'critical' ? '#e85d4f' : severity === 'high' ? '#e3a72f' : '#c17f44';
+              return (
+                <div key={t.topic} style={{ padding: '14px 16px', borderRadius: 10, border: `1.5px solid ${color}33`, background: color + '08' }}>
+                  <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div style={{ flex: 1, minWidth: 160 }}>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 6 }}>
+                        <strong style={{ fontSize: '0.92rem' }}>{t.topic}</strong>
+                        <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 700, background: color + '22', color }}>{severity.toUpperCase()}</span>
+                      </div>
+                      <div style={{ display: 'flex', gap: 3, height: 8, marginBottom: 4, borderRadius: 4, overflow: 'hidden', background: '#e9f1ef' }}>
+                        <div style={{ width: `${pct}%`, background: color, borderRadius: 4 }} />
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: '#607478' }}>
+                        <strong style={{ color }}>{pct}%</strong> correct ({t.correct}/{t.total}) · Need <strong>{gap}%</strong> more to pass threshold
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                      <button className="ghost-btn" style={{ fontSize: '0.8rem', padding: '6px 12px' }} onClick={() => onNavigate?.('Questions')}>
+                        Practice Now
+                      </button>
+                      <button className="ghost-btn" style={{ fontSize: '0.8rem', padding: '6px 12px' }} onClick={() => onNavigate?.('Videos')}>
+                        <Zap size={13} /> Watch Video
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ marginTop: 14, padding: '10px 14px', background: '#f7faf9', borderRadius: 8, fontSize: '0.84rem', color: '#607478' }}>
+            <strong>Recommended daily target:</strong> Answer 20+ questions per weak topic. Use the Study Planner to schedule these automatically.
+            <button className="ghost-btn" style={{ marginLeft: 10, fontSize: '0.78rem', padding: '4px 10px' }} onClick={() => onNavigate?.('Planner')}>Open Planner →</button>
+          </div>
+        </div>
+      )}
 
       {/* Exam history */}
       {examHistory.length > 0 && (

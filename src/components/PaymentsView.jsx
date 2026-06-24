@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { CheckCircle2, DollarSign, Tag, FileText, PlusCircle, ToggleLeft, ToggleRight, X } from 'lucide-react';
+import { CheckCircle2, DollarSign, Tag, FileText, PlusCircle, Sparkles, ToggleLeft, ToggleRight, X } from 'lucide-react';
 import { supabase } from '../services/supabase';
+import { useSubscription, createCheckoutSession } from '../hooks/useSubscription';
 
 const DEMO_PLANS = [
   { id: 'free', name: 'Free', price_usd: 0, duration_days: 36500, features: ['20 sample questions', 'Basic dashboard', 'Limited flashcards'], is_active: true, sort_order: 1 },
@@ -24,8 +25,22 @@ const DEMO_PROMOS = [
 
 const PLAN_COLORS = { Free: '#8a999c', Basic: '#2b8a7d', Pro: '#e3a72f', Premium: '#c17f44' };
 
-export default function PaymentsView() {
-  const [tab, setTab] = useState('plans'); // plans | invoices | promos
+export default function PaymentsView({ session }) {
+  const { plan: currentPlan, loading: subLoading } = useSubscription(session);
+  const [checkingOut, setCheckingOut] = useState('');
+  const [tab, setTab] = useState('plans');
+
+  async function handleCheckout(planName) {
+    if (!session) { alert('Sign in to subscribe.'); return; }
+    setCheckingOut(planName);
+    const { url, error } = await createCheckoutSession(planName.toLowerCase(), session);
+    if (error || !url) {
+      alert(error?.message ?? 'Stripe not configured. Add STRIPE_SECRET_KEY and price IDs to your Supabase Edge Function secrets.');
+      setCheckingOut('');
+      return;
+    }
+    window.location.href = url;
+  }
   const [plans, setPlans] = useState(DEMO_PLANS);
   const [invoices, setInvoices] = useState(DEMO_INVOICES);
   const [promos, setPromos] = useState(DEMO_PROMOS);
@@ -111,12 +126,25 @@ export default function PaymentsView() {
                       {plan.price_usd === 0 ? 'Free' : `$${Number(plan.price_usd).toFixed(2)}`}
                       {plan.price_usd > 0 && <span style={{ fontSize: '0.75rem', fontWeight: 500, color: '#607478' }}>/mo</span>}
                     </div>
+                    {!subLoading && currentPlan === plan.name.toLowerCase() && (
+                      <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '2px 8px', background: '#e2f5f2', color: '#135f55', borderRadius: 12 }}>Current Plan</span>
+                    )}
                   </div>
                   <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: '0.74rem', fontWeight: 700, background: plan.is_active ? '#e2f5f2' : '#f2e2e1', color: plan.is_active ? '#135f55' : '#8a2c21' }}>
                     {plan.is_active ? 'Active' : 'Inactive'}
                   </span>
                 </div>
                 <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 5 }}>
+                {plan.price_usd > 0 && currentPlan !== plan.name.toLowerCase() && (
+                  <button
+                    className="primary-btn"
+                    style={{ width: '100%', justifyContent: 'center', background: color, marginBottom: 8 }}
+                    onClick={() => handleCheckout(plan.name)}
+                    disabled={checkingOut === plan.name}
+                  >
+                    <Sparkles size={14} /> {checkingOut === plan.name ? 'Redirecting…' : `Subscribe — $${Number(plan.price_usd).toFixed(2)}/mo`}
+                  </button>
+                )}
                   {features.map((f, i) => (
                     <li key={i} style={{ display: 'flex', gap: 7, fontSize: '0.83rem', color: '#42585e' }}>
                       <CheckCircle2 size={13} color={color} style={{ flexShrink: 0, marginTop: 2 }} /> {f}
