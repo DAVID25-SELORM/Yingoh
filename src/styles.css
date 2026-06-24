@@ -570,6 +570,55 @@ input, select, textarea { font: inherit; }
 .class-item.active { background: #eefaf8; border-color: #a6dfd5; }
 .class-item span, .class-item small { color: #607478; font-size: 0.84rem; }
 
+/* ─── Question Manager ───────────────────────────── */
+.qm-stat { padding: 12px 18px; border-radius: 10px; border: 2px solid #dbe6e4; background: #fff; display: flex; flex-direction: column; gap: 2px; min-width: 90px; }
+.qm-stat strong { font-size: 1.5rem; font-weight: 800; color: #17212f; }
+.qm-stat span { font-size: 0.8rem; color: #607478; }
+.qm-editor { background: #fff; border: 1.5px solid #c8deda; border-radius: 14px; padding: 20px; box-shadow: 0 2px 12px rgba(41,183,163,0.08); }
+.qm-editor-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.qm-editor-header strong { font-size: 1rem; }
+.qm-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+.qm-form-row { display: grid; gap: 6px; margin-bottom: 14px; }
+.qm-form-row label { font-size: 0.82rem; font-weight: 700; color: #42585e; }
+.qm-form-row select, .qm-form-row input { height: 38px; border-radius: 8px; border: 1px solid #dbe6e4; padding: 0 12px; background: #fff; width: 100%; font-size: 0.9rem; }
+.editor-textarea { width: 100%; border-radius: 10px; border: 1px solid #dbe6e4; padding: 10px 14px; font-size: 0.9rem; resize: vertical; line-height: 1.55; font-family: inherit; background: #fafcfb; box-sizing: border-box; }
+.editor-footer { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; flex-wrap: wrap; }
+.qm-question-row { display: flex; gap: 12px; align-items: flex-start; padding: 14px 16px; background: #fff; border: 1px solid #dbe6e4; border-radius: 12px; flex-wrap: wrap; }
+.qm-status { padding: 2px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 700; text-transform: uppercase; }
+.qm-status-published { background: #e2f5f2; color: #135f55; }
+.qm-status-draft { background: #fff6df; color: #875f08; }
+.qm-status-rejected { background: #fce8e6; color: #8a2c21; }
+
+/* ─── Status badges ──────────────────────────────── */
+.status-badge { padding: 2px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 700; text-transform: capitalize; }
+.status-paid { background: #e2f5f2; color: #135f55; }
+.status-pending { background: #fff6df; color: #875f08; }
+.status-failed, .status-refunded { background: #fce8e6; color: #8a2c21; }
+.status-scheduled { background: #e0f0ff; color: #1a5a8a; }
+.status-completed { background: #e2f5f2; color: #135f55; }
+.status-cancelled { background: #f2edf9; color: #5c3b7a; }
+
+/* ─── Payments ───────────────────────────────────── */
+.payment-plan-card { background: #fff; border: 1.5px solid #dbe6e4; border-radius: 14px; padding: 18px; display: grid; gap: 10px; }
+
+/* ─── Instructor / Classroom cards ──────────────── */
+.classroom-card { background: #fff; border: 1px solid #dbe6e4; border-radius: 12px; padding: 16px 18px; display: flex; gap: 16px; align-items: flex-start; flex-wrap: wrap; }
+.classroom-card h4 { margin: 0; font-size: 0.98rem; }
+
+/* ─── Announcements ──────────────────────────────── */
+.announcement-card { background: #fff; border: 1px solid #dbe6e4; border-radius: 12px; padding: 16px 18px; }
+
+/* ─── Tab bar ────────────────────────────────────── */
+.tab-bar { display: flex; gap: 6px; border-bottom: 2px solid #e5eeec; padding-bottom: 0; flex-wrap: wrap; }
+.tab-btn { padding: 8px 16px; background: transparent; border: none; border-bottom: 3px solid transparent; font-weight: 700; font-size: 0.9rem; color: #607478; cursor: pointer; margin-bottom: -2px; transition: color 0.15s, border-color 0.15s; }
+.tab-btn:hover { color: #29b7a3; }
+.tab-active { color: #135f55 !important; border-bottom-color: #29b7a3 !important; }
+
+/* ─── Ghost btn ──────────────────────────────────── */
+.ghost-btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 8px; border: 1.5px solid #c8deda; background: transparent; color: #2b6159; font-weight: 700; font-size: 0.88rem; cursor: pointer; transition: background 0.15s; }
+.ghost-btn:hover { background: #edf7f5; }
+.ghost-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
 /* ─── Responsive ─────────────────────────────────── */
 @media (max-width: 1100px) {
   .app-shell { grid-template-columns: 1fr; }

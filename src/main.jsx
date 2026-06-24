@@ -18,6 +18,13 @@ import FlashcardsView from './components/FlashcardsView';
 import StudyPlannerView from './components/StudyPlannerView';
 import NotebookView from './components/NotebookView';
 import AnalyticsView from './components/AnalyticsView';
+import SuperAdminPanel from './components/SuperAdminPanel';
+import QuestionManager from './components/QuestionManager';
+import PaymentsView from './components/PaymentsView';
+import InstructorTools from './components/InstructorTools';
+import ContentReviewer from './components/ContentReviewer';
+import AnnouncementsView from './components/AnnouncementsView';
+import VirtualClassroom from './components/VirtualClassroom';
 import './styles.css';
 
 // ─── Existing inline views kept for continuity ─────────────
@@ -308,6 +315,13 @@ const NAV = [
   { label: 'Account', icon: LockKeyhole, group: 'manage' },
   { label: 'Operations', icon: Users, group: 'manage' },
   { label: 'Roadmap', icon: BookOpen, group: 'manage' },
+  { label: 'Super Admin', icon: ShieldCheck, group: 'admin' },
+  { label: 'Questions', icon: ClipboardCheck, group: 'admin', viewKey: 'AdminQuestions' },
+  { label: 'Payments', icon: CreditCard, group: 'admin' },
+  { label: 'Instructors', icon: GraduationCap, group: 'admin' },
+  { label: 'Content Review', icon: CheckCircle2, group: 'admin' },
+  { label: 'Announcements', icon: Bell, group: 'admin' },
+  { label: 'Classroom', icon: Video, group: 'admin' },
 ];
 
 function App() {
@@ -330,6 +344,8 @@ function App() {
 
   const learnNav = NAV.filter((n) => n.group === 'learn');
   const manageNav = NAV.filter((n) => n.group === 'manage');
+  const adminNav = NAV.filter((n) => n.group === 'admin');
+  const isSuperAdmin = isConfiguredSuperAdmin(session?.user?.email);
 
   return (
     <main className="app-shell">
@@ -360,6 +376,23 @@ function App() {
               <Icon size={18} />{label}
             </button>
           ))}
+          {isSuperAdmin && (
+            <>
+              <div className="nav-group-label" style={{ marginTop: 8 }}>ADMIN</div>
+              {adminNav.map(({ label, icon: Icon, viewKey }) => {
+                const key = viewKey ?? label;
+                return (
+                  <button
+                    key={key}
+                    className={activeView === key ? 'nav-active' : ''}
+                    onClick={() => setActiveView(key)}
+                  >
+                    <Icon size={18} />{label}
+                  </button>
+                );
+              })}
+            </>
+          )}
         </nav>
 
         <div className="sidebar-card">
@@ -398,6 +431,13 @@ function App() {
         {activeView === 'Account' && <AccountAccess session={session} isPasswordRecovery={isPasswordRecovery} />}
         {activeView === 'Operations' && <AdminConsole />}
         {activeView === 'Roadmap' && <ModuleRoadmap />}
+        {activeView === 'Super Admin' && <SuperAdminPanel session={session} />}
+        {activeView === 'AdminQuestions' && <QuestionManager session={session} />}
+        {activeView === 'Payments' && <PaymentsView session={session} />}
+        {activeView === 'Instructors' && <InstructorTools session={session} />}
+        {activeView === 'Content Review' && <ContentReviewer session={session} />}
+        {activeView === 'Announcements' && <AnnouncementsView session={session} />}
+        {activeView === 'Classroom' && <VirtualClassroom session={session} />}
       </section>
     </main>
   );
