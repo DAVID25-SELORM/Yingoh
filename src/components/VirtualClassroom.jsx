@@ -1,15 +1,19 @@
-import React, { useEffect, useState } from 'react';
-import { Calendar, Clock, ExternalLink, Film, Mic, Users, Video } from 'lucide-react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Calendar, Clock, ExternalLink, Film, Mic, Users, Video, X } from 'lucide-react';
 import { supabase } from '../services/supabase';
 
 const DEMO_SESSIONS = [
-  { id: 's1', title: 'NGN Case Study Review', topic: 'NGN Case Studies', starts_at: new Date(Date.now() + 86400000 * 2).toISOString(), ends_at: new Date(Date.now() + 86400000 * 2 + 7200000).toISOString(), meeting_url: 'https://meet.yingoh.com/ngn-review', status: 'scheduled', attendee_count: 12, description: 'Instructor-led review of Next Generation NCLEX case studies including bow tie, matrix, and highlight-text question types.' },
-  { id: 's2', title: 'CAT Strategy Lab', topic: 'Test Strategy', starts_at: new Date(Date.now() + 86400000 * 4).toISOString(), ends_at: new Date(Date.now() + 86400000 * 4 + 5400000).toISOString(), meeting_url: 'https://meet.yingoh.com/cat-lab', status: 'scheduled', attendee_count: 8, description: 'Learn how CAT works and how to approach it strategically with live adaptive practice.' },
-  { id: 's3', title: 'Pharmacology High-Yield Review', topic: 'Pharmacology', starts_at: new Date(Date.now() - 86400000 * 3).toISOString(), ends_at: new Date(Date.now() - 86400000 * 3 + 7200000).toISOString(), recording_url: 'https://rec.yingoh.com/pharm-rev', status: 'completed', attendee_count: 23, description: 'High-yield pharmacology: top drug classes, antidotes, and nursing considerations for NCLEX.' },
-  { id: 's4', title: 'Mental Health Nursing Essentials', topic: 'Mental Health', starts_at: new Date(Date.now() - 86400000 * 10).toISOString(), ends_at: new Date(Date.now() - 86400000 * 10 + 5400000).toISOString(), recording_url: 'https://rec.yingoh.com/mental-health', status: 'completed', attendee_count: 17, description: 'Therapeutic communication, psychiatric medications, and priority interventions.' },
+  { id: 's1', title: 'NGN Case Study Review', topic: 'NGN Case Studies', starts_at: new Date(Date.now() + 86400000 * 2).toISOString(), ends_at: new Date(Date.now() + 86400000 * 2 + 7200000).toISOString(), status: 'scheduled', attendee_count: 12, description: 'Instructor-led review of Next Generation NCLEX case studies including bow tie, matrix, and highlight-text question types.' },
+  { id: 's2', title: 'CAT Strategy Lab', topic: 'Test Strategy', starts_at: new Date(Date.now() + 86400000 * 4).toISOString(), ends_at: new Date(Date.now() + 86400000 * 4 + 5400000).toISOString(), status: 'scheduled', attendee_count: 8, description: 'Learn how CAT works and how to approach it strategically with live adaptive practice.' },
+  { id: 's3', title: 'Pharmacology High-Yield Review', topic: 'Pharmacology', starts_at: new Date(Date.now() + 86400000 * 7).toISOString(), ends_at: new Date(Date.now() + 86400000 * 7 + 7200000).toISOString(), status: 'scheduled', attendee_count: 23, description: 'High-yield pharmacology: top drug classes, antidotes, and nursing considerations for NCLEX.' },
+  { id: 's4', title: 'Mental Health Nursing Essentials', topic: 'Mental Health', starts_at: new Date(Date.now() - 86400000 * 10).toISOString(), ends_at: new Date(Date.now() - 86400000 * 10 + 5400000).toISOString(), recording_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', status: 'completed', attendee_count: 17, description: 'Therapeutic communication, psychiatric medications, and priority interventions.' },
 ];
 
 const TOPIC_COLORS = { 'NGN Case Studies': '#29b7a3', 'Test Strategy': '#e3a72f', 'Pharmacology': '#c17f44', 'Mental Health': '#8b5cf6', 'Medical-Surgical': '#2b8a7d', 'Pediatrics': '#e94868', 'Maternal and Newborn': '#e94868', 'Safety and Infection Control': '#607478' };
+
+function slugify(title) {
+  return 'yingoh-' + title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
 
 function timeUntil(iso) {
   const diff = new Date(iso) - new Date();
@@ -22,9 +26,75 @@ function timeUntil(iso) {
   return `${mins}m`;
 }
 
+function addToCalendar(session) {
+  const start = new Date(session.starts_at).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+  const end = session.ends_at
+    ? new Date(session.ends_at).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
+    : start;
+  const params = new URLSearchParams({
+    action: 'TEMPLATE',
+    text: `Yingoh: ${session.title}`,
+    details: session.description ?? '',
+    dates: `${start}/${end}`,
+  });
+  window.open(`https://calendar.google.com/calendar/render?${params}`, '_blank');
+}
+
+// Embedded Jitsi room modal
+function JitsiModal({ session, onClose }) {
+  const containerRef = useRef(null);
+  const apiRef = useRef(null);
+  const roomName = session.jitsi_room ?? slugify(session.title);
+
+  useEffect(() => {
+    // Try to use Jitsi iframe API if available, else fall back to iframe
+    function loadJitsi() {
+      if (window.JitsiMeetExternalAPI && containerRef.current) {
+        apiRef.current = new window.JitsiMeetExternalAPI('meet.jit.si', {
+          roomName,
+          parentNode: containerRef.current,
+          width: '100%',
+          height: '100%',
+          configOverwrite: { startWithAudioMuted: false, startWithVideoMuted: false },
+          interfaceConfigOverwrite: { SHOW_JITSI_WATERMARK: false, SHOW_BRAND_WATERMARK: false, TOOLBAR_BUTTONS: ['microphone', 'camera', 'closedcaptions', 'desktop', 'chat', 'raisehand', 'videoquality', 'fullscreen', 'hangup'] },
+        });
+        apiRef.current.addEventListener('readyToClose', onClose);
+      }
+    }
+
+    if (!window.JitsiMeetExternalAPI) {
+      const script = document.createElement('script');
+      script.src = 'https://meet.jit.si/external_api.js';
+      script.onload = loadJitsi;
+      document.head.appendChild(script);
+    } else {
+      loadJitsi();
+    }
+
+    return () => { apiRef.current?.dispose(); };
+  }, [roomName]);
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(15,28,32,0.92)', display: 'flex', flexDirection: 'column' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '12px 20px', background: '#17313a', color: '#fff', flexShrink: 0 }}>
+        <Video size={18} color="#29b7a3" />
+        <span style={{ fontWeight: 700, fontSize: '1rem', flex: 1 }}>{session.title}</span>
+        <span style={{ fontSize: '0.8rem', opacity: 0.65, marginRight: 8 }}>Room: {roomName}</span>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: 4, display: 'flex', opacity: 0.8 }}>
+          <X size={20} />
+        </button>
+      </div>
+      {/* Jitsi container */}
+      <div ref={containerRef} style={{ flex: 1, width: '100%' }} />
+    </div>
+  );
+}
+
 export default function VirtualClassroom() {
   const [sessions, setSessions] = useState(DEMO_SESSIONS);
   const [tab, setTab] = useState('live');
+  const [activeSession, setActiveSession] = useState(null);
 
   useEffect(() => {
     if (!supabase) return;
@@ -35,11 +105,13 @@ export default function VirtualClassroom() {
 
   const upcoming = sessions.filter((s) => s.status === 'scheduled' && new Date(s.starts_at) > new Date());
   const recordings = sessions.filter((s) => s.status === 'completed' && s.recording_url);
-  const isLive = upcoming[0] && (new Date(upcoming[0].starts_at) - new Date()) < 30 * 60000;
   const nextSession = upcoming[0];
+  const isLive = nextSession && (new Date(nextSession.starts_at) - new Date()) < 30 * 60000;
 
   return (
     <section className="content-band">
+      {activeSession && <JitsiModal session={activeSession} onClose={() => setActiveSession(null)} />}
+
       <div className="section-title"><h2>Virtual Classroom</h2></div>
 
       {/* Next session hero */}
@@ -57,15 +129,19 @@ export default function VirtualClassroom() {
               <span style={{ display: 'flex', gap: 5 }}><Users size={14} />{nextSession.attendee_count} enrolled</span>
             </div>
           </div>
-          {nextSession.meeting_url && (
-            <a href={nextSession.meeting_url} target="_blank" rel="noreferrer" style={{
-              display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 24px',
-              background: '#fff', color: '#17313a', borderRadius: 10, fontWeight: 800, fontSize: '0.92rem',
-              textDecoration: 'none', boxShadow: '0 4px 14px rgba(0,0,0,0.15)', whiteSpace: 'nowrap',
-            }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            <button
+              onClick={() => setActiveSession(nextSession)}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 24px', background: '#fff', color: '#17313a', borderRadius: 10, fontWeight: 800, fontSize: '0.92rem', border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(0,0,0,0.15)', whiteSpace: 'nowrap' }}
+            >
               <Video size={16} /> {isLive ? 'Join Now' : 'Join Session'}
-            </a>
-          )}
+            </button>
+            {!isLive && (
+              <button onClick={() => addToCalendar(nextSession)} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 20px', background: 'rgba(255,255,255,0.15)', color: '#fff', borderRadius: 10, fontWeight: 700, fontSize: '0.88rem', border: '1.5px solid rgba(255,255,255,0.3)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                <Calendar size={15} /> Add to Calendar
+              </button>
+            )}
+          </div>
         </div>
       )}
 
@@ -96,11 +172,17 @@ export default function VirtualClassroom() {
                     <span style={{ color, fontWeight: 600 }}>In {timeUntil(s.starts_at)}</span>
                   </div>
                 </div>
-                {s.meeting_url && (
-                  <a href={s.meeting_url} target="_blank" rel="noreferrer" className="primary-btn" style={{ textDecoration: 'none', whiteSpace: 'nowrap', alignSelf: 'center' }}>
-                    <Mic size={14} /> {inThirty ? 'Join Now' : 'Add to Calendar'}
-                  </a>
-                )}
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
+                  {inThirty ? (
+                    <button onClick={() => setActiveSession(s)} className="primary-btn" style={{ whiteSpace: 'nowrap' }}>
+                      <Mic size={14} /> Join Now
+                    </button>
+                  ) : (
+                    <button onClick={() => addToCalendar(s)} className="ghost-btn" style={{ whiteSpace: 'nowrap', textDecoration: 'none' }}>
+                      <Calendar size={14} /> Add to Calendar
+                    </button>
+                  )}
+                </div>
               </div>
             );
           })}
