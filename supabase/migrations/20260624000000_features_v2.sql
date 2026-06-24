@@ -105,6 +105,15 @@ alter table public.exam_session_answers enable row level security;
 alter table public.notebooks enable row level security;
 alter table public.study_plans enable row level security;
 
+drop policy if exists "bookmarks_own" on public.question_bookmarks;
+drop policy if exists "decks_read" on public.flashcard_decks;
+drop policy if exists "flashcards_read" on public.flashcards;
+drop policy if exists "progress_own" on public.user_flashcard_progress;
+drop policy if exists "sessions_own" on public.exam_sessions;
+drop policy if exists "session_answers_own" on public.exam_session_answers;
+drop policy if exists "notebooks_own" on public.notebooks;
+drop policy if exists "study_plans_own" on public.study_plans;
+
 create policy "bookmarks_own" on public.question_bookmarks for all using (auth.uid() = user_id);
 create policy "decks_read" on public.flashcard_decks for select to authenticated using (true);
 create policy "flashcards_read" on public.flashcards for select to authenticated using (true);
@@ -129,6 +138,12 @@ grant select, insert, update on public.study_plans to authenticated;
 -- ============================================================
 -- SEED: 20 NCLEX questions
 -- ============================================================
+do $$
+begin
+if not exists (
+  select 1 from public.questions
+  where prompt = 'A nurse is administering metformin to a patient with type 2 diabetes. Which laboratory finding should the nurse report to the provider immediately before giving this medication?'
+) then
 insert into public.questions (topic, question_type, prompt, choices, correct_answer, rationale, status) values
 (
   'Pharmacology','mcq',
@@ -290,10 +305,18 @@ insert into public.questions (topic, question_type, prompt, choices, correct_ans
   'UAPs can measure and record I&O, obtain vital signs on stable patients, and report objective measurements. Assessment (pain evaluation), patient teaching, and ambulating post-stroke patients (requires nursing judgment) cannot be delegated to UAP.',
   'published'
 );
+end if;
+end $$;
 
 -- ============================================================
 -- SEED: Flashcard decks
 -- ============================================================
+do $$
+begin
+if not exists (
+  select 1 from public.flashcard_decks
+  where name = 'NCLEX Pharmacology Essentials'
+) then
 insert into public.flashcard_decks (name, topic, description, card_count) values
   ('NCLEX Pharmacology Essentials', 'Pharmacology', 'High-yield drugs: mechanisms, side effects, nursing considerations', 15),
   ('Critical Lab Values', 'Lab Values', 'Normal ranges and critical values for essential labs', 10),
@@ -346,6 +369,8 @@ select deck.id, front, back, tags from deck, (values
   ('Diabetic Ketoacidosis (DKA)','Cause: Insulin deficiency → hyperglycemia → ketone production → metabolic acidosis\n\nS/S: BG >250, Kussmaul respirations, fruity breath, polyuria/polydipsia, dehydration, N/V\n\nABG: pH <7.35, HCO3 <15, metabolic acidosis with respiratory compensation\n\nTreatment:\n1. IV fluids (0.9% NS first)\n2. Insulin drip (not SQ)\n3. Potassium replacement (monitor closely)\n4. Treat underlying cause',ARRAY['endocrine','diabetes','DKA']),
   ('Sepsis / Septic Shock','Sepsis: Life-threatening organ dysfunction from dysregulated infection response\nSeptic shock: Sepsis + vasodilation + hypotension unresponsive to fluids\n\nS/S: Fever OR hypothermia, tachycardia, tachypnea, altered LOC, hypotension\n\nSepsis Bundle (Hour-1 Bundle):\n1. Blood cultures (×2 before antibiotics)\n2. Broad-spectrum antibiotics\n3. 30 mL/kg IV crystalloid bolus for hypotension\n4. Vasopressors (norepinephrine first-line) if MAP <65\n5. Lactate level',ARRAY['critical care','sepsis'])
 ) as t(front, back, tags);
+end if;
+end $$;
 
 -- Update card counts
 update public.flashcard_decks set card_count = (
