@@ -25,6 +25,12 @@ import InstructorTools from './components/InstructorTools';
 import ContentReviewer from './components/ContentReviewer';
 import AnnouncementsView from './components/AnnouncementsView';
 import VirtualClassroom from './components/VirtualClassroom';
+import UserManagement from './components/UserManagement';
+import CustomQuizBuilder from './components/CustomQuizBuilder';
+import VideoLearning from './components/VideoLearning';
+import CommunityForum from './components/CommunityForum';
+import CertificatesView from './components/CertificatesView';
+import NotificationsBell from './components/NotificationsBell';
 import './styles.css';
 
 // ─── Existing inline views kept for continuity ─────────────
@@ -312,10 +318,15 @@ const NAV = [
   { label: 'Planner', icon: CalendarDays, group: 'learn' },
   { label: 'Notebook', icon: Sparkles, group: 'learn' },
   { label: 'Analytics', icon: BarChart3, group: 'learn' },
+  { label: 'Videos', icon: MonitorPlay, group: 'learn' },
+  { label: 'Quiz Builder', icon: Target, group: 'learn' },
+  { label: 'Community', icon: MessageSquareText, group: 'learn' },
+  { label: 'Certificates', icon: FileBadge, group: 'learn' },
   { label: 'Account', icon: LockKeyhole, group: 'manage' },
   { label: 'Operations', icon: Users, group: 'manage' },
   { label: 'Roadmap', icon: BookOpen, group: 'manage' },
   { label: 'Super Admin', icon: ShieldCheck, group: 'admin' },
+  { label: 'Users', icon: Users, group: 'admin' },
   { label: 'Questions', icon: ClipboardCheck, group: 'admin', viewKey: 'AdminQuestions' },
   { label: 'Payments', icon: CreditCard, group: 'admin' },
   { label: 'Instructors', icon: GraduationCap, group: 'admin' },
@@ -409,11 +420,9 @@ function App() {
             <h2>{activeView}</h2>
           </div>
           <div className="topbar-actions">
+            <NotificationsBell session={session} />
             <button className="ghost-btn" onClick={() => setActiveView('Analytics')}>
               <BarChart3 size={18} /> Analytics
-            </button>
-            <button className="ghost-btn" onClick={() => setActiveView('Planner')}>
-              <CalendarDays size={18} /> Planner
             </button>
             <button className="primary-btn" onClick={() => setActiveView('Account')}>
               <LockKeyhole size={18} /> {session ? session.user.email?.split('@')[0] : 'Sign in'}
@@ -431,7 +440,12 @@ function App() {
         {activeView === 'Account' && <AccountAccess session={session} isPasswordRecovery={isPasswordRecovery} />}
         {activeView === 'Operations' && <AdminConsole />}
         {activeView === 'Roadmap' && <ModuleRoadmap />}
+        {activeView === 'Videos' && <VideoLearning session={session} />}
+        {activeView === 'Quiz Builder' && <CustomQuizBuilder session={session} />}
+        {activeView === 'Community' && <CommunityForum session={session} />}
+        {activeView === 'Certificates' && <CertificatesView session={session} />}
         {activeView === 'Super Admin' && <SuperAdminPanel session={session} />}
+        {activeView === 'Users' && <UserManagement session={session} />}
         {activeView === 'AdminQuestions' && <QuestionManager session={session} />}
         {activeView === 'Payments' && <PaymentsView session={session} />}
         {activeView === 'Instructors' && <InstructorTools session={session} />}

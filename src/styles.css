@@ -619,6 +619,17 @@ input, select, textarea { font: inherit; }
 .ghost-btn:hover { background: #edf7f5; }
 .ghost-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
+/* ─── Video Learning ─────────────────────────────── */
+.video-card { background: #fff; border: 1px solid #dbe6e4; border-radius: 14px; overflow: hidden; cursor: pointer; transition: box-shadow 0.2s, transform 0.15s; }
+.video-card:hover { box-shadow: 0 6px 24px rgba(41,183,163,0.12); transform: translateY(-2px); }
+
+/* ─── Forum ──────────────────────────────────────── */
+.forum-thread-row { display: flex; gap: 14px; align-items: center; padding: 14px 16px; background: #fff; border: 1px solid #dbe6e4; border-radius: 12px; cursor: pointer; transition: background 0.15s; }
+.forum-thread-row:hover { background: #f4faf9; }
+
+/* ─── Certificates ───────────────────────────────── */
+.cert-card { border: 1.5px solid #dbe6e4; border-radius: 14px; padding: 20px; display: grid; gap: 4px; }
+
 /* ─── Responsive ─────────────────────────────────── */
 @media (max-width: 1100px) {
   .app-shell { grid-template-columns: 1fr; }
