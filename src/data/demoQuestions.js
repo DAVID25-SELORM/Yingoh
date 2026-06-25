@@ -1,3 +1,5 @@
+import { EXPANDED_QUESTIONS } from './expandedQuestions.js';
+
 export const DEMO_QUESTIONS = [
   {
     id: 'dq1', topic: 'Pharmacology', question_type: 'mcq', status: 'published',
@@ -1654,7 +1656,6 @@ export const DEMO_QUESTIONS = [
       ],
     },
   },
-,
   // ── NEW CLINICAL TOPICS (Steps 2-3) ─
   // CARDIOVASCULAR
   { id:'dq206', topic:'Cardiovascular', question_type:'mcq', status:'published',
@@ -1842,4 +1843,5 @@ export const DEMO_QUESTIONS = [
     correct_answer:{ids:['a']},
     rationale:'Hold digoxin when apical pulse < 60 bpm. Digoxin further slows the heart — bradycardia below 60 is a contraindication. Dark stools with iron are expected. Metformin at BG 210 is within management range. Lisinopril is given for hypertension — BP 142/88 does not warrant withholding.',
     strategy:'Digoxin rule: apical pulse < 60 = hold and notify. Always count apical for a full minute before giving digoxin. One of the most tested medication safety rules on NCLEX. Know the hold parameters.'},
+  ...EXPANDED_QUESTIONS,
 ];
