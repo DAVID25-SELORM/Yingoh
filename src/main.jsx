@@ -375,7 +375,7 @@ function App() {
     <main className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <span><Stethoscope size={24} /></span>
+          <span className="brand-mark"><img src="/yingoh-mark.svg" alt="" /></span>
           <div><strong>Yingoh</strong><small>NCLEX Coaching</small></div>
         </div>
 
@@ -429,7 +429,7 @@ function App() {
       <section className="workspace">
         <header className="topbar">
           <div>
-            <span className="eyebrow">Yingoh NCLEX Coaching</span>
+            <span className="topbar-brand"><img src="/yingoh-mark.svg" alt="" /> Yingoh NCLEX Coaching</span>
             <h2>{activeView}</h2>
           </div>
           <div className="topbar-actions">

@@ -36,8 +36,10 @@ input, select, textarea { font: inherit; }
 .brand > span {
   width: 42px; height: 42px;
   display: grid; place-items: center;
-  border-radius: 8px; background: #29b7a3; color: #fff;
+  border-radius: 8px; background: #fff; color: #fff;
+  box-shadow: 0 8px 20px rgba(0,0,0,.16);
 }
+.brand-mark img { width: 34px; height: 34px; object-fit: contain; display: block; }
 .brand strong { display: block; font-size: 1.15rem; }
 .brand small { display: block; color: #a7c6c1; font-size: 0.82rem; }
 
@@ -72,6 +74,17 @@ input, select, textarea { font: inherit; }
 }
 .topbar h2 { margin: 4px 0 0; font-size: 1.5rem; }
 .topbar-actions, .hero-actions { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.topbar-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #2b8a7d;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.topbar-brand img { width: 18px; height: 18px; object-fit: contain; }
 
 /* ─── Buttons ────────────────────────────────────── */
 .primary-btn, .ghost-btn, .icon-btn {
@@ -137,6 +150,24 @@ input, select, textarea { font: inherit; }
   padding: 32px; color: #fff;
 }
 .hero-copy .eyebrow { color: #7adccc; }
+.hero-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #7adccc;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.hero-brand img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  padding: 2px;
+  border-radius: 5px;
+  background: rgba(255,255,255,.92);
+}
 .hero-copy h1 { margin: 10px 0 10px; font-size: clamp(1.6rem, 3.5vw, 3.4rem); line-height: 1.05; max-width: 14ch; }
 .hero-copy p { color: #d9eeee; max-width: 520px; line-height: 1.55; }
 
