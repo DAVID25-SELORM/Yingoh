@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Clock, Film, Lock, Play, Search, Star } from 'lucide-react';
-import { supabase } from '../services/supabase';
+import { Bookmark, BookmarkCheck, Clock, Film, Lock, Play, Search, Star } from 'lucide-react';
+import { saveItem, supabase } from '../services/supabase';
 import { UpgradeCTA } from './SubscriptionGate';
 import { useSubscription } from '../hooks/useSubscription';
 
@@ -23,6 +23,7 @@ export default function VideoLearning({ session, onNavigate }) {
   const [search, setSearch] = useState('');
   const [playing, setPlaying] = useState(null);
   const [lockedVideo, setLockedVideo] = useState(null);
+  const [savedVideos, setSavedVideos] = useState(new Set());
   const subscription = useSubscription(session);
   const canWatchPremium = subscription.canAccess('pro');
 
@@ -45,6 +46,19 @@ export default function VideoLearning({ session, onNavigate }) {
       await supabase.from('video_progress').upsert({ user_id: session.user.id, video_id: v.id, last_watched_at: new Date().toISOString() }, { onConflict: 'user_id,video_id' });
       await supabase.from('video_lessons').update({ view_count: (v.view_count ?? 0) + 1 }).eq('id', v.id);
     }
+  }
+
+  async function saveVideo(e, v) {
+    e.stopPropagation();
+    if (!session?.user?.id) return;
+    const { error } = await saveItem(session.user.id, {
+      item_type: 'video',
+      item_id: v.id,
+      title: v.title,
+      summary: v.description,
+      metadata: { topic: v.topic, duration_mins: v.duration_mins, is_premium: v.is_premium },
+    });
+    if (!error) setSavedVideos((prev) => new Set([...prev, v.id]));
   }
 
   const filtered = videos.filter((v) =>
@@ -126,6 +140,15 @@ export default function VideoLearning({ session, onNavigate }) {
                     <Star size={10} /> PRO
                   </div>
                 )}
+                <button
+                  className="icon-btn"
+                  onClick={(e) => saveVideo(e, v)}
+                  disabled={!session?.user?.id}
+                  title={session?.user?.id ? 'Save video' : 'Sign in to save'}
+                  style={{ position: 'absolute', top: 10, left: 10, width: 34, height: 34, minHeight: 34 }}
+                >
+                  {savedVideos.has(v.id) ? <BookmarkCheck size={15} /> : <Bookmark size={15} />}
+                </button>
                 {v.is_premium && !canWatchPremium && (
                   <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)', borderRadius: '12px 12px 0 0', display: 'grid', placeItems: 'center' }}>
                     <Lock size={28} color="#fff" />

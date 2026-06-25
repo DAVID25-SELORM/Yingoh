@@ -4,7 +4,7 @@ import {
   Flame, PlayCircle, Sparkles, Target, TrendingUp,
 } from 'lucide-react';
 import dashboardImage from '../assets/nclex-dashboard.png';
-import { calculatePassProbability, getRecentAttempts, getStudyPlan } from '../services/supabase';
+import { calculatePassProbability, getRecentAttempts, getStudyPlan, getUserProgress } from '../services/supabase';
 
 const DEMO_TOPICS = [
   { label: 'Pharmacology', score: 68, status: 'Priority area', color: '#e85d4f' },
@@ -69,6 +69,13 @@ export default function StudentDashboard({ session, onNavigate }) {
   useEffect(() => {
     if (!session?.user) return;
     const userId = session.user.id;
+
+    getUserProgress(userId).then(({ data }) => {
+      if (!data) return;
+      setStreak(data.current_streak ?? 0);
+      setDoneToday(data.daily_goal_completed ?? 0);
+      setDailyTarget(data.daily_goal_target ?? 25);
+    });
 
     getRecentAttempts(userId, 75).then(({ data }) => {
       if (data?.length) {

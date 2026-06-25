@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Edit3, PlusCircle, Save, Search, Trash2, X } from 'lucide-react';
-import { deleteNote, getAllNotes, saveNote } from '../services/supabase';
+import { Bookmark, BookmarkCheck, Edit3, PlusCircle, Save, Search, Trash2, X } from 'lucide-react';
+import { deleteNote, getAllNotes, saveItem, saveNote } from '../services/supabase';
 
 const DEMO_NOTES = [
   {
@@ -53,6 +53,7 @@ export default function NotebookView({ session }) {
   const [editTitle, setEditTitle] = useState('');
   const [editContent, setEditContent] = useState('');
   const [editTopic, setEditTopic] = useState('');
+  const [savedNotes, setSavedNotes] = useState(new Set());
   const textareaRef = useRef(null);
 
   const userId = session?.user?.id;
@@ -146,6 +147,18 @@ export default function NotebookView({ session }) {
     setNotes((prev) => prev.filter((n) => n.id !== note.id));
   }
 
+  async function saveNoteToItems(note) {
+    if (!userId) return;
+    const { error } = await saveItem(userId, {
+      item_type: 'note',
+      item_id: note.id,
+      title: note.title || 'Study note',
+      summary: note.content?.slice(0, 220),
+      metadata: { topic: note.topic },
+    });
+    if (!error) setSavedNotes((prev) => new Set([...prev, note.id]));
+  }
+
   const grouped = {};
   filtered.forEach((n) => {
     const t = n.topic ?? 'General';
@@ -229,6 +242,9 @@ export default function NotebookView({ session }) {
                     <div className="note-actions">
                       <button className="icon-btn note-btn" onClick={() => openEdit(note)} title="Edit">
                         <Edit3 size={14} />
+                      </button>
+                      <button className="icon-btn note-btn" onClick={() => saveNoteToItems(note)} disabled={!userId} title={userId ? 'Save item' : 'Sign in to save'}>
+                        {savedNotes.has(note.id) ? <BookmarkCheck size={14} /> : <Bookmark size={14} />}
                       </button>
                       <button className="icon-btn note-btn note-delete" onClick={() => handleDelete(note)} title="Delete">
                         <Trash2 size={14} />

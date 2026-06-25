@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import {
   Activity, BarChart3, BookOpen, Brain, CalendarDays, CheckCircle2,
   ClipboardCheck, CreditCard, FileBadge, GraduationCap, LayoutDashboard,
-  LockKeyhole, MessageSquareText, MonitorPlay, ShieldCheck, Sparkles,
+  LockKeyhole, MessageSquareText, MonitorPlay, ShieldCheck, Sparkles, BookmarkCheck,
   Stethoscope, Target, Users, Video, ChevronRight, Bell, CreditCard as PayIcon,
 } from 'lucide-react';
 import {
@@ -38,6 +38,7 @@ import ProfessionalAddons from './components/ProfessionalAddons';
 import AssignmentsView from './components/AssignmentsView';
 import AuditLogView from './components/AuditLogView';
 import { SubscriptionGate } from './components/SubscriptionGate';
+import SavedItemsView from './components/SavedItemsView';
 import './styles.css';
 
 // ─── Existing inline views kept for continuity ─────────────
@@ -324,6 +325,7 @@ const NAV = [
   { label: 'Flashcards', icon: Brain, group: 'learn' },
   { label: 'Planner', icon: CalendarDays, group: 'learn' },
   { label: 'Notebook', icon: Sparkles, group: 'learn' },
+  { label: 'Saved Items', icon: BookmarkCheck, group: 'learn' },
   { label: 'Analytics', icon: BarChart3, group: 'learn' },
   { label: 'Videos', icon: MonitorPlay, group: 'learn' },
   { label: 'Quiz Builder', icon: Target, group: 'learn' },
@@ -449,6 +451,7 @@ function App() {
         {activeView === 'Flashcards' && <FlashcardsView session={session} />}
         {activeView === 'Planner' && <StudyPlannerView session={session} />}
         {activeView === 'Notebook' && <NotebookView session={session} />}
+        {activeView === 'Saved Items' && <SavedItemsView session={session} />}
         {activeView === 'Analytics' && <AnalyticsView session={session} onNavigate={setActiveView} />}
         {activeView === 'Account' && <AccountAccess session={session} isPasswordRecovery={isPasswordRecovery} />}
         {activeView === 'Operations' && <AdminConsole />}
@@ -472,7 +475,7 @@ function App() {
         {activeView === 'Video Manager' && <VideoManager session={session} />}
         {activeView === 'Audit Logs' && <AuditLogView session={session} />}
         {activeView === 'AI Tutor' && <AITutorView session={session} />}
-        {activeView === 'Resources' && <ResourcesView />}
+        {activeView === 'Resources' && <ResourcesView session={session} />}
         {activeView === 'Assignments' && (
           <SubscriptionGate session={session} requiredPlan="premium" featureName="assignments and instructor feedback" onUpgrade={() => setActiveView('Payments')}>
             <AssignmentsView session={session} />

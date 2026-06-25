@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { BookOpen, Heart, Pill, Activity, ShieldCheck, FlaskConical, FileText, Search } from 'lucide-react';
+import { BookOpen, Bookmark, BookmarkCheck, Heart, Pill, Activity, ShieldCheck, FlaskConical, FileText, Search } from 'lucide-react';
+import { saveItem } from '../services/supabase';
 
 const TABS = [
   { key: 'care-plans',  label: 'Care Plans',          icon: FileText },
@@ -79,9 +80,31 @@ const VITAL_NORMS = [
   { param: 'Pain', adult: '0/10 goal', critical: 'Uncontrolled pain >7 requires intervention', notes: 'Reassess 30 min after medication' },
 ];
 
-export default function ResourcesView() {
+export default function ResourcesView({ session }) {
   const [tab, setTab] = useState('care-plans');
   const [search, setSearch] = useState('');
+  const [saved, setSaved] = useState(new Set());
+
+  async function saveResource(itemId, title, summary, metadata = {}) {
+    if (!session?.user?.id) return;
+    const { error } = await saveItem(session.user.id, {
+      item_type: 'resource',
+      item_id: `${tab}:${itemId}`,
+      title,
+      summary,
+      metadata: { tab, ...metadata },
+    });
+    if (!error) setSaved((prev) => new Set([...prev, `${tab}:${itemId}`]));
+  }
+
+  function SaveResourceButton({ itemId, title, summary, metadata }) {
+    const key = `${tab}:${itemId}`;
+    return (
+      <button className="icon-btn" onClick={() => saveResource(itemId, title, summary, metadata)} disabled={!session?.user?.id} title={session?.user?.id ? 'Save resource' : 'Sign in to save'}>
+        {saved.has(key) ? <BookmarkCheck size={14} /> : <Bookmark size={14} />}
+      </button>
+    );
+  }
 
   return (
     <section className="content-band">
@@ -115,6 +138,7 @@ export default function ResourcesView() {
                   <div style={{ fontSize: '0.82rem', color: '#607478', marginTop: 2 }}>Related to: {cp.related}</div>
                 </div>
                 <div style={{ fontSize: '0.78rem', background: `${cp.color}15`, color: cp.color, padding: '4px 10px', borderRadius: 20, fontWeight: 700, whiteSpace: 'nowrap' }}>Nursing Diagnosis</div>
+                <SaveResourceButton itemId={cp.diagnosis} title={cp.diagnosis} summary={cp.goals} metadata={{ related: cp.related }} />
               </div>
               <div style={{ marginBottom: 8, padding: '8px 12px', background: '#f0faf8', borderRadius: 8, fontSize: '0.84rem', color: '#2b8a7d' }}>
                 <strong>Goal:</strong> {cp.goals}
@@ -141,6 +165,7 @@ export default function ResourcesView() {
               <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 6, flexWrap: 'wrap' }}>
                 <strong style={{ fontSize: '0.96rem', color: '#17212f' }}>{drug.name}</strong>
                 <span style={{ fontSize: '0.74rem', fontWeight: 700, background: `${drug.color}18`, color: drug.color, padding: '2px 8px', borderRadius: 20 }}>{drug.class}</span>
+                <SaveResourceButton itemId={drug.name} title={drug.name} summary={drug.nursing} metadata={{ class: drug.class }} />
               </div>
               <div style={{ fontSize: '0.84rem', color: '#42585e', marginBottom: 4 }}><strong>Uses:</strong> {drug.uses}</div>
               <div style={{ fontSize: '0.84rem', color: '#607478', lineHeight: 1.5 }}><strong>Nursing Considerations:</strong> {drug.nursing}</div>
@@ -154,7 +179,7 @@ export default function ResourcesView() {
         <div style={{ overflowX: 'auto' }}>
           <table className="admin-table">
             <thead>
-              <tr><th>Lab</th><th>Normal Range</th><th>Low (↓)</th><th>High (↑)</th></tr>
+              <tr><th>Lab</th><th>Normal Range</th><th>Low (↓)</th><th>High (↑)</th><th>Save</th></tr>
             </thead>
             <tbody>
               {LAB_VALUES.filter((l) => !search || l.name.toLowerCase().includes(search.toLowerCase())).map((lab) => (
@@ -163,6 +188,7 @@ export default function ResourcesView() {
                   <td><code style={{ background: '#e9f1ef', padding: '2px 7px', borderRadius: 4, fontSize: '0.82rem' }}>{lab.normal}</code></td>
                   <td style={{ fontSize: '0.83rem', color: '#2b8a7d' }}>{lab.low}</td>
                   <td style={{ fontSize: '0.83rem', color: '#c17f44' }}>{lab.high}</td>
+                  <td><SaveResourceButton itemId={lab.name} title={lab.name} summary={`Normal: ${lab.normal}`} metadata={{ low: lab.low, high: lab.high }} /></td>
                 </tr>
               ))}
             </tbody>

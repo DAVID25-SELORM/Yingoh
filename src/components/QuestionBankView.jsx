@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import {
   bookmarkQuestion, getBookmarkedQuestionIds, getQuestions,
-  submitAttempt, unbookmarkQuestion,
+  saveItem, submitAttempt, unbookmarkQuestion, unsaveItem,
 } from '../services/supabase';
 import { DEMO_QUESTIONS } from '../data/demoQuestions';
 import {
@@ -128,8 +128,16 @@ export default function QuestionBankView({ session }) {
       setBookmarks((prev) => { const n = new Set(prev); n.delete(question.id); return n; });
     } else {
       await bookmarkQuestion(userId, question.id);
+      await saveItem(userId, {
+        item_type: 'question',
+        item_id: question.id,
+        title: question.prompt.slice(0, 90),
+        summary: question.rationale?.slice(0, 220) ?? question.topic,
+        metadata: { topic: question.topic, question_type: question.question_type },
+      });
       setBookmarks((prev) => new Set([...prev, question.id]));
     }
+    if (isBookmarked) await unsaveItem(userId, 'question', question.id);
   }
 
   function goNext() {

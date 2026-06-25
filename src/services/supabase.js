@@ -43,6 +43,9 @@ export const yingohTables = {
   examSessionAnswers: 'exam_session_answers',
   notebooks: 'notebooks',
   studyPlans: 'study_plans',
+  aiTutorConversations: 'ai_tutor_conversations',
+  savedItems: 'saved_items',
+  userProgress: 'user_progress',
 };
 
 // ─── Auth ──────────────────────────────────────────────────
@@ -117,7 +120,9 @@ export async function unbookmarkQuestion(userId, questionId) {
 // ─── Attempts ──────────────────────────────────────────────
 export async function submitAttempt(userId, questionId, answer, isCorrect) {
   if (!supabase) return { error: new Error('Not configured') };
-  return supabase.from('attempts').insert({ user_id: userId, question_id: questionId, answer, is_correct: isCorrect });
+  const result = await supabase.from('attempts').insert({ user_id: userId, question_id: questionId, answer, is_correct: isCorrect });
+  await incrementQuestionProgress(userId);
+  return result;
 }
 
 export async function getAttemptStats(userId) {
@@ -244,12 +249,114 @@ export async function getStudyPlan(userId) {
 
 export async function saveStudyPlan(userId, examDate, dailyTarget, weakTopics) {
   if (!supabase) return { error: new Error('Not configured') };
+  await upsertUserProgress(userId, { daily_goal_target: dailyTarget, weak_areas: weakTopics ?? [] });
   return supabase.from('study_plans').upsert({
     user_id: userId, exam_date: examDate,
     daily_question_target: dailyTarget,
     weak_topics: weakTopics,
     updated_at: new Date().toISOString(),
   }, { onConflict: 'user_id' });
+}
+
+// Saved items
+export async function getSavedItems(userId, itemType) {
+  if (!supabase || !userId) return { data: [], error: null };
+  let query = supabase.from('saved_items').select('*').eq('user_id', userId).order('created_at', { ascending: false });
+  if (itemType) query = query.eq('item_type', itemType);
+  return query;
+}
+
+export async function saveItem(userId, { item_type, item_id, title, summary, metadata = {} }) {
+  if (!supabase || !userId) return { error: new Error('Not configured') };
+  return supabase.from('saved_items').upsert({
+    user_id: userId,
+    item_type,
+    item_id: String(item_id),
+    title,
+    summary,
+    metadata,
+  }, { onConflict: 'user_id,item_type,item_id' }).select().single();
+}
+
+export async function unsaveItem(userId, itemType, itemId) {
+  if (!supabase || !userId) return { error: new Error('Not configured') };
+  return supabase.from('saved_items')
+    .delete()
+    .eq('user_id', userId)
+    .eq('item_type', itemType)
+    .eq('item_id', String(itemId));
+}
+
+export async function isItemSaved(userId, itemType, itemId) {
+  if (!supabase || !userId) return { data: false, error: null };
+  const { data, error } = await supabase.from('saved_items')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('item_type', itemType)
+    .eq('item_id', String(itemId))
+    .maybeSingle();
+  return { data: Boolean(data), error };
+}
+
+// AI Tutor conversations
+export async function getAiTutorConversations(userId) {
+  if (!supabase || !userId) return { data: [], error: null };
+  return supabase.from('ai_tutor_conversations')
+    .select('*')
+    .eq('user_id', userId)
+    .order('updated_at', { ascending: false })
+    .limit(20);
+}
+
+export async function saveAiTutorConversation(userId, { id, mode, title, messages, isSaved = false }) {
+  if (!supabase || !userId) return { data: null, error: new Error('Not configured') };
+  const payload = {
+    user_id: userId,
+    mode,
+    title,
+    messages,
+    is_saved: isSaved,
+    updated_at: new Date().toISOString(),
+  };
+  if (id) return supabase.from('ai_tutor_conversations').update(payload).eq('id', id).eq('user_id', userId).select().single();
+  return supabase.from('ai_tutor_conversations').insert(payload).select().single();
+}
+
+// Progress rollup
+export async function getUserProgress(userId) {
+  if (!supabase || !userId) return { data: null, error: null };
+  return supabase.from('user_progress').select('*').eq('user_id', userId).maybeSingle();
+}
+
+export async function upsertUserProgress(userId, updates) {
+  if (!supabase || !userId) return { error: null };
+  return supabase.from('user_progress').upsert({
+    user_id: userId,
+    ...updates,
+    updated_at: new Date().toISOString(),
+  }, { onConflict: 'user_id' });
+}
+
+export async function incrementQuestionProgress(userId) {
+  if (!supabase || !userId) return { error: null };
+  const today = new Date().toISOString().slice(0, 10);
+  const { data } = await getUserProgress(userId);
+  const last = data?.last_activity_date;
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10);
+  const currentStreak = last === today
+    ? (data?.current_streak ?? 0)
+    : last === yesterday
+      ? (data?.current_streak ?? 0) + 1
+      : 1;
+  const dailyDone = last === today ? (data?.daily_goal_completed ?? 0) + 1 : 1;
+  return upsertUserProgress(userId, {
+    completed_questions: (data?.completed_questions ?? 0) + 1,
+    daily_goal_completed: dailyDone,
+    daily_goal_target: data?.daily_goal_target ?? 25,
+    current_streak: currentStreak,
+    last_activity_date: today,
+    weak_areas: data?.weak_areas ?? [],
+  });
 }
 
 // ─── Admin helpers ─────────────────────────────────────────

@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Brain, ChevronLeft, ChevronRight, RefreshCw, RotateCcw } from 'lucide-react';
+import { Bookmark, BookmarkCheck, Brain, ChevronLeft, ChevronRight, RefreshCw, RotateCcw } from 'lucide-react';
 import {
   getFlashcardDecks, getFlashcardsForDeck, getUserFlashcardProgress,
-  sm2, upsertFlashcardProgress,
+  saveItem, sm2, upsertFlashcardProgress,
 } from '../services/supabase';
 
 const DEMO_DECKS = [
@@ -66,6 +66,7 @@ export default function FlashcardsView({ session }) {
   const [flipped, setFlipped] = useState(false);
   const [sessionResults, setSessionResults] = useState({ again: 0, hard: 0, good: 0, easy: 0 });
   const [done, setDone] = useState(false);
+  const [savedCards, setSavedCards] = useState(new Set());
 
   const userId = session?.user?.id;
 
@@ -118,6 +119,18 @@ export default function FlashcardsView({ session }) {
       setIndex((i) => i + 1);
       setFlipped(false);
     }
+  }
+
+  async function saveCurrentCard() {
+    if (!userId || !card) return;
+    const { error } = await saveItem(userId, {
+      item_type: 'flashcard',
+      item_id: card.id,
+      title: card.front,
+      summary: card.back?.slice(0, 220),
+      metadata: { deck_id: selectedDeck.id, deck_name: selectedDeck.name },
+    });
+    if (!error) setSavedCards((prev) => new Set([...prev, card.id]));
   }
 
   if (!selectedDeck) {
@@ -186,8 +199,13 @@ export default function FlashcardsView({ session }) {
           <strong>{selectedDeck.name}</strong>
           <div style={{ color: '#607478', fontSize: '0.85rem' }}>{index + 1} / {cards.length}</div>
         </div>
-        <div className="progress-track" style={{ width: 120, height: 6 }}>
-          <span style={{ width: `${((index) / cards.length) * 100}%` }} />
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button className="icon-btn" onClick={saveCurrentCard} disabled={!userId} title={userId ? 'Save flashcard' : 'Sign in to save'}>
+            {savedCards.has(card?.id) ? <BookmarkCheck size={16} /> : <Bookmark size={16} />}
+          </button>
+          <div className="progress-track" style={{ width: 120, height: 6 }}>
+            <span style={{ width: `${((index) / cards.length) * 100}%` }} />
+          </div>
         </div>
       </div>
 
