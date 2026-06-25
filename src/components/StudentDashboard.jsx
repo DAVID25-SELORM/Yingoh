@@ -111,8 +111,8 @@ export default function StudentDashboard({ session, onNavigate }) {
             <button className="primary-btn" onClick={() => onNavigate('Questions')}>
               <PlayCircle size={18} /> Start practicing
             </button>
-            <button className="ghost-btn" onClick={() => onNavigate('Exam')}>
-              <Target size={18} /> Take exam
+            <button className="primary-btn" style={{ background: '#1a2e3b', borderColor: '#1a2e3b' }} onClick={() => onNavigate('Exam')}>
+              <Target size={18} /> Take Exam
             </button>
             <button className="icon-btn" aria-label="Notifications"><Bell size={19} /></button>
           </div>

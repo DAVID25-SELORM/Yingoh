@@ -121,7 +121,7 @@ function ResultScreen({ answers, questions, mode, timeUsed, onRestart }) {
 
 export default function ExamModeView({ session, onNavigate }) {
   const [phase, setPhase] = useState('setup'); // setup | exam | result
-  const [selectedMode, setSelectedMode] = useState(null);
+  const [selectedMode, setSelectedMode] = useState('practice');
   const [questionCount, setQuestionCount] = useState(25);
   const [questions, setQuestions] = useState([]);
   const [allQuestions, setAllQuestions] = useState([]);
