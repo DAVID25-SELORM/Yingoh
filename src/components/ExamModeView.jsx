@@ -161,7 +161,8 @@ export default function ExamModeView({ session, onNavigate }) {
   async function startExam() {
     if (!selectedMode) return;
     if (modeIsLocked(selectedMode)) return;
-    const qs = shuffleAndSlice(allQuestions, questionCount);
+    const effectiveCount = subscription.isFree ? Math.min(questionCount, 50) : questionCount;
+    const qs = shuffleAndSlice(allQuestions, effectiveCount);
     setQuestions(qs);
     setIndex(0);
     setSelected([]);
@@ -174,7 +175,7 @@ export default function ExamModeView({ session, onNavigate }) {
 
     const mode = MODES.find((m) => m.id === selectedMode);
     const timeLimitSeconds = selectedMode === 'timed'
-      ? questionCount * 60
+      ? effectiveCount * 60
       : selectedMode === 'assessment' ? 360 * 60 : null;
 
     if (timeLimitSeconds) {
@@ -309,17 +310,26 @@ export default function ExamModeView({ session, onNavigate }) {
         {selectedMode && selectedMode !== 'assessment' && (
           <div className="exam-count-picker">
             <strong>Number of Questions</strong>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
-              {QUESTION_COUNTS.map((n) => (
-                <button
-                  key={n}
-                  className={questionCount === n ? 'primary-btn' : 'ghost-btn'}
-                  style={{ minHeight: 38, padding: '0 16px' }}
-                  onClick={() => setQuestionCount(n)}
-                >
-                  {n}
-                </button>
-              ))}
+            {subscription.isFree && (
+              <p style={{ margin: '4px 0 8px', fontSize: '0.82rem', color: '#875f08' }}>
+                Free plan: up to 50 questions. <button className="link-btn" onClick={() => onNavigate?.('Payments')}>Upgrade for 75 &amp; 100.</button>
+              </p>
+            )}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
+              {QUESTION_COUNTS.map((n) => {
+                const locked = subscription.isFree && n > 50;
+                return (
+                  <button
+                    key={n}
+                    className={questionCount === n ? 'primary-btn' : 'ghost-btn'}
+                    style={{ minHeight: 38, padding: '0 16px', opacity: locked ? 0.45 : 1, cursor: locked ? 'not-allowed' : 'pointer' }}
+                    onClick={() => !locked && setQuestionCount(n)}
+                    title={locked ? 'Upgrade to unlock' : undefined}
+                  >
+                    {n}{locked ? ' 🔒' : ''}
+                  </button>
+                );
+              })}
             </div>
           </div>
         )}
