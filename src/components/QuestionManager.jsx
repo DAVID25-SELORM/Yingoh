@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  CheckCircle2, Edit3, Eye, EyeOff, FilePlus, Filter,
-  PlusCircle, Save, Trash2, X, XCircle,
+  AlertCircle, CheckCircle2, Edit3, Eye, EyeOff, FilePlus, Filter,
+  PlusCircle, Save, Trash2, Upload, X, XCircle,
 } from 'lucide-react';
 import { supabase } from '../services/supabase';
 import { DEMO_QUESTIONS } from '../data/demoQuestions';
@@ -149,6 +149,247 @@ export default function QuestionManager() {
     setQuestions((prev) => prev.filter((x) => x.id !== q.id));
   }
 
+  // ── CSV Import ─────────────────────────────────────────────────────────────
+  const csvRef = useRef();
+  const [csvModal, setCsvModal] = useState(false);
+  const [csvPreview, setCsvPreview] = useState([]); // parsed rows
+  const [csvErrors, setCsvErrors] = useState([]);
+  const [csvImporting, setCsvImporting] = useState(false);
+  const [csvDone, setCsvDone] = useState(null); // { added, skipped }
+
+  // Expected CSV columns:
+  // topic, question_type, prompt, choice_a..choice_f, correct_ids, correct_order,
+  // ngn_data, rationale, status
+  function parseCSV(text) {
+    const lines = text.split(/\r?\n/).filter((l) => l.trim());
+    if (!lines.length) return { rows: [], errors: ['File is empty'] };
+    const header = lines[0].split(',').map((h) => h.trim().toLowerCase().replace(/^"|"$/g, ''));
+    const required = ['topic', 'question_type', 'prompt', 'rationale'];
+    const missing = required.filter((r) => !header.includes(r));
+    if (missing.length) return { rows: [], errors: [`Missing required columns: ${missing.join(', ')}`] };
+
+    const rows = [];
+    const errors = [];
+    for (let i = 1; i < lines.length; i++) {
+      const line = lines[i];
+      if (!line.trim()) continue;
+      // Handle quoted fields with commas inside
+      const cells = [];
+      let cur = '';
+      let inQuote = false;
+      for (let c = 0; c < line.length; c++) {
+        const ch = line[c];
+        if (ch === '"' && inQuote && line[c + 1] === '"') {
+          cur += '"';
+          c++;
+          continue;
+        }
+        if (ch === '"') { inQuote = !inQuote; continue; }
+        if (ch === ',' && !inQuote) { cells.push(cur.trim()); cur = ''; continue; }
+        cur += ch;
+      }
+      cells.push(cur.trim());
+
+      const get = (col) => {
+        const idx = header.indexOf(col);
+        return idx >= 0 ? (cells[idx] ?? '').replace(/^"|"$/g, '').trim() : '';
+      };
+
+      if (!get('prompt')) { errors.push(`Row ${i + 1}: Missing prompt`); continue; }
+
+      const choiceCols = ['choice_a', 'choice_b', 'choice_c', 'choice_d', 'choice_e', 'choice_f'];
+      const choiceIds = ['a', 'b', 'c', 'd', 'e', 'f'];
+      const choices = choiceCols
+        .map((col, idx) => ({ id: choiceIds[idx], text: get(col) }))
+        .filter((c) => c.text);
+
+      const correctIds = get('correct_ids').split(/[|,]/).map((s) => s.trim().toLowerCase()).filter(Boolean);
+      const correctOrder = get('correct_order').split(/[|,]/).map((s) => s.trim().toLowerCase()).filter(Boolean);
+      const qType = (get('question_type') || 'mcq').toLowerCase();
+      const status = get('status') || 'draft';
+      const complexNgnTypes = ['bow_tie', 'matrix', 'highlight'];
+      const isOrdered = qType === 'ordered_response';
+      const isChoiceBased = ['mcq', 'sata'].includes(qType);
+      const isComplexNgn = complexNgnTypes.includes(qType);
+      let ngnData = null;
+
+      if (![...complexNgnTypes, 'ordered_response', 'mcq', 'sata'].includes(qType)) {
+        errors.push(`Row ${i + 1}: Unsupported question_type "${qType}"`);
+        continue;
+      }
+
+      if ((isChoiceBased || isOrdered) && choices.length < 2) {
+        errors.push(`Row ${i + 1}: Need at least 2 choices`);
+        continue;
+      }
+
+      if (isChoiceBased && !correctIds.length) {
+        errors.push(`Row ${i + 1}: Missing correct_ids`);
+        continue;
+      }
+
+      if (isOrdered && !correctOrder.length) {
+        errors.push(`Row ${i + 1}: Missing correct_order`);
+        continue;
+      }
+
+      if (isComplexNgn) {
+        if (!get('ngn_data')) {
+          errors.push(`Row ${i + 1}: Missing ngn_data JSON for ${qType}`);
+          continue;
+        }
+        try {
+          ngnData = JSON.parse(get('ngn_data'));
+        } catch {
+          errors.push(`Row ${i + 1}: Invalid ngn_data JSON`);
+          continue;
+        }
+      }
+
+      const correctAnswer = isOrdered ? { ids: [], order: correctOrder } : { ids: correctIds };
+
+      rows.push({
+        topic: get('topic') || 'Pharmacology',
+        question_type: qType,
+        prompt: get('prompt'),
+        choices,
+        correct_answer: correctAnswer,
+        rationale: get('rationale'),
+        status,
+        ngn_data: ngnData,
+        _rowNum: i + 1,
+      });
+    }
+    return { rows, errors };
+  }
+
+  function handleCSVFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const { rows, errors } = parseCSV(ev.target.result);
+      setCsvPreview(rows);
+      setCsvErrors(errors);
+      setCsvDone(null);
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  }
+
+  async function importCSV() {
+    if (!csvPreview.length) return;
+    setCsvImporting(true);
+    let added = 0;
+    let skipped = 0;
+    for (const row of csvPreview) {
+      const { _rowNum, ...payload } = row;
+      if (supabase) {
+        const { error } = await supabase.from('questions').insert(payload);
+        if (error) { skipped++; } else { added++; }
+      } else {
+        const q = { ...payload, id: `csv-${Date.now()}-${Math.random().toString(36).slice(2)}` };
+        setQuestions((prev) => [q, ...prev]);
+        added++;
+      }
+    }
+    if (supabase && added > 0) await loadQuestions();
+    setCsvDone({ added, skipped });
+    setCsvImporting(false);
+    setCsvPreview([]);
+  }
+
+  function closeCSVModal() {
+    setCsvModal(false);
+    setCsvPreview([]);
+    setCsvErrors([]);
+    setCsvDone(null);
+  }
+
+  function downloadCSVTemplate() {
+    const escapeCell = (value = '') => `"${String(value).replaceAll('"', '""')}"`;
+    const columns = [
+      'topic', 'question_type', 'prompt', 'choice_a', 'choice_b', 'choice_c', 'choice_d', 'choice_e', 'choice_f',
+      'correct_ids', 'correct_order', 'ngn_data', 'rationale', 'status',
+    ];
+    const rows = [
+      [
+        'Pharmacology', 'mcq', 'A nurse is administering metoprolol. What is the priority assessment?',
+        'Apical pulse', 'Blood pressure', 'Respiratory rate', 'Temperature', '', '',
+        'a', '', '', 'Hold metoprolol if apical pulse is below the ordered parameter.', 'published',
+      ],
+      [
+        'Medical-Surgical', 'sata', 'Which findings indicate dehydration? Select all that apply.',
+        'Dry mucous membranes', 'Decreased skin turgor', 'Bounding pulse', 'Orthostatic hypotension', 'Dark concentrated urine', '',
+        'a|b|d|e', '', '', 'Dehydration causes dry mucosa, poor turgor, orthostatic changes, and concentrated urine.', 'draft',
+      ],
+      [
+        'NGN Case Studies', 'ordered_response', 'Place the actions in priority order for a deteriorating postoperative client.',
+        'Assess airway breathing circulation', 'Obtain vital signs', 'Notify the provider', 'Prepare for transfer', 'Document care', '',
+        '', 'a|b|c|d|e', '', 'Priority follows ABCs, assessment, escalation, preparation, and documentation.', 'published',
+      ],
+      [
+        'NGN Case Studies', 'bow_tie', 'A client presents with sepsis. Select priority actions and monitoring parameters.',
+        '', '', '', '', '', '', '', '',
+        JSON.stringify({
+          condition: 'Sepsis',
+          left_label: 'Priority Actions',
+          right_label: 'Parameters to Monitor',
+          left_choices: [
+            { id: 'l1', text: 'Administer oxygen' },
+            { id: 'l2', text: 'Start antibiotics' },
+            { id: 'l3', text: 'Restrict fluids' },
+          ],
+          right_choices: [
+            { id: 'r1', text: 'MAP' },
+            { id: 'r2', text: 'Urine output' },
+            { id: 'r3', text: 'LDL cholesterol' },
+          ],
+          correct_left: ['l1', 'l2'],
+          correct_right: ['r1', 'r2'],
+        }),
+        'Bow tie items store their selectable choices and correct selections in ngn_data JSON.', 'draft',
+      ],
+      [
+        'NGN Case Studies', 'matrix', 'Classify each intervention for acute heart failure.',
+        '', '', '', '', '', '', '', '',
+        JSON.stringify({
+          columns: [
+            { id: 'c1', text: 'Indicated' },
+            { id: 'c2', text: 'Contraindicated' },
+          ],
+          rows: [
+            { id: 'r1', text: 'Administer ordered diuretic' },
+            { id: 'r2', text: 'Encourage excess oral fluids' },
+          ],
+          correct: { r1: 'c1', r2: 'c2' },
+        }),
+        'Matrix items store columns, rows, and correct row-column mappings in ngn_data JSON.', 'draft',
+      ],
+      [
+        'NGN Case Studies', 'highlight', 'Highlight the findings that require immediate follow-up.',
+        '', '', '', '', '', '', '', '',
+        JSON.stringify({
+          passage: 'Client is restless. SpO2 is 88% on room air. Urine output is 15 mL/hr. Dressing has scant drainage.',
+          highlights: [
+            { id: 'h1', text: 'restless', correct: false },
+            { id: 'h2', text: 'SpO2 is 88% on room air', correct: true },
+            { id: 'h3', text: 'Urine output is 15 mL/hr', correct: true },
+          ],
+        }),
+        'Highlight items store the passage and selectable highlights in ngn_data JSON.', 'draft',
+      ],
+    ];
+    const csv = [columns.join(','), ...rows.map((row) => row.map(escapeCell).join(','))].join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'yingoh_questions_template.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   const publishedCount = questions.filter((q) => q.status === 'published').length;
   const draftCount = questions.filter((q) => q.status === 'draft').length;
 
@@ -156,10 +397,127 @@ export default function QuestionManager() {
     <section className="content-band">
       <div className="section-title">
         <h2>Question Manager</h2>
-        <button className="primary-btn" onClick={openNew}>
-          <FilePlus size={16} /> New Question
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button className="ghost-btn" onClick={() => setCsvModal(true)}>
+            <Upload size={15} /> Import CSV
+          </button>
+          <button className="primary-btn" onClick={openNew}>
+            <FilePlus size={16} /> New Question
+          </button>
+        </div>
       </div>
+
+      {/* CSV Import Modal */}
+      {csvModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+          <div style={{ background: '#fff', borderRadius: 16, width: '100%', maxWidth: 680, maxHeight: '88vh', overflowY: 'auto', boxShadow: '0 8px 40px rgba(0,0,0,0.18)' }}>
+            <div className="qm-editor-header" style={{ padding: '18px 24px', borderBottom: '1px solid #e9f1ef' }}>
+              <strong style={{ fontSize: '1.05rem' }}>Bulk Import Questions via CSV</strong>
+              <button className="icon-btn" onClick={closeCSVModal}><X size={18} /></button>
+            </div>
+            <div style={{ padding: '20px 24px' }}>
+
+              {/* Template download */}
+              <div style={{ background: '#e9f6f4', borderRadius: 10, padding: '14px 18px', marginBottom: 18 }}>
+                <p style={{ margin: '0 0 8px', fontWeight: 700, color: '#135f55', fontSize: '0.9rem' }}>Required CSV columns (in order):</p>
+                <code style={{ fontSize: '0.78rem', color: '#2b8a7d', wordBreak: 'break-all' }}>
+                  topic, question_type, prompt, choice_a, choice_b, choice_c, choice_d, choice_e, choice_f, correct_ids, correct_order, ngn_data, rationale, status
+                </code>
+                <p style={{ margin: '8px 0 0', fontSize: '0.8rem', color: '#607478' }}>
+                  <strong>question_type:</strong> mcq | sata | ordered_response | bow_tie | matrix | highlight &nbsp;|&nbsp;
+                  <strong>correct_ids:</strong> comma- or pipe-separated letters e.g. <code>a</code>, <code>a,c,d</code>, or <code>a|c|d</code> &nbsp;|&nbsp;
+                  <strong>correct_order:</strong> for ordered response &nbsp;|&nbsp;
+                  <strong>ngn_data:</strong> JSON for Bow Tie, Matrix, Highlight &nbsp;|&nbsp;
+                  <strong>status:</strong> published | draft
+                </p>
+                <button
+                  className="ghost-btn"
+                  style={{ marginTop: 10, fontSize: '0.8rem' }}
+                  onClick={downloadCSVTemplate}
+                >
+                  Download Template CSV
+                </button>
+              </div>
+
+              {/* File picker */}
+              {!csvDone && (
+                <div style={{ marginBottom: 16 }}>
+                  <input ref={csvRef} type="file" accept=".csv,text/csv" style={{ display: 'none' }} onChange={handleCSVFile} />
+                  <button className="primary-btn" onClick={() => csvRef.current?.click()}>
+                    <Upload size={15} /> Choose CSV File
+                  </button>
+                  {csvPreview.length > 0 && (
+                    <span style={{ marginLeft: 12, color: '#29b7a3', fontWeight: 700, fontSize: '0.9rem' }}>
+                      ✓ {csvPreview.length} rows ready to import
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Errors */}
+              {csvErrors.length > 0 && (
+                <div style={{ background: '#fff3f3', border: '1px solid #f5c6c6', borderRadius: 8, padding: '12px 16px', marginBottom: 14 }}>
+                  <p style={{ margin: '0 0 6px', fontWeight: 700, color: '#8a2c21', display: 'flex', gap: 6, alignItems: 'center' }}>
+                    <AlertCircle size={15} /> {csvErrors.length} error{csvErrors.length > 1 ? 's' : ''} found
+                  </p>
+                  {csvErrors.map((e, i) => <p key={i} style={{ margin: '2px 0', fontSize: '0.82rem', color: '#8a2c21' }}>{e}</p>)}
+                </div>
+              )}
+
+              {/* Preview table */}
+              {csvPreview.length > 0 && !csvDone && (
+                <div style={{ overflowX: 'auto', marginBottom: 16 }}>
+                  <table className="admin-table" style={{ fontSize: '0.82rem' }}>
+                    <thead>
+                      <tr><th>#</th><th>Topic</th><th>Type</th><th>Prompt (truncated)</th><th>Choices</th><th>Correct</th><th>Status</th></tr>
+                    </thead>
+                    <tbody>
+                      {csvPreview.map((row, i) => (
+                        <tr key={i}>
+                          <td style={{ color: '#8a999c' }}>{row._rowNum}</td>
+                          <td>{row.topic}</td>
+                          <td><span className="type-badge">{row.question_type}</span></td>
+                          <td style={{ maxWidth: 220, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={row.prompt}>{row.prompt}</td>
+                          <td>{row.choices.length || (row.ngn_data ? 'NGN' : 0)}</td>
+                          <td>
+                            <code style={{ fontSize: '0.78rem' }}>
+                              {row.correct_answer.order?.length
+                                ? row.correct_answer.order.join(', ')
+                                : row.correct_answer.ids.join(', ') || (row.ngn_data ? 'ngn_data' : '')}
+                            </code>
+                          </td>
+                          <td><span className={`status-badge status-${row.status === 'published' ? 'paid' : 'pending'}`}>{row.status}</span></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Success state */}
+              {csvDone && (
+                <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                  <CheckCircle2 size={48} color="#29b7a3" style={{ marginBottom: 12 }} />
+                  <h3 style={{ margin: '0 0 6px', color: '#135f55' }}>Import Complete</h3>
+                  <p style={{ color: '#607478', margin: 0 }}>
+                    <strong style={{ color: '#29b7a3' }}>{csvDone.added} questions</strong> imported successfully
+                    {csvDone.skipped > 0 && <>, <strong style={{ color: '#e3a72f' }}>{csvDone.skipped} skipped</strong> (errors)</>}
+                  </p>
+                </div>
+              )}
+
+              <div className="editor-footer" style={{ borderTop: '1px solid #e9f1ef', paddingTop: 14, marginTop: 4 }}>
+                <button className="ghost-btn" onClick={closeCSVModal}>Close</button>
+                {csvPreview.length > 0 && !csvDone && (
+                  <button className="primary-btn" onClick={importCSV} disabled={csvImporting}>
+                    {csvImporting ? `Importing… (${csvPreview.length} rows)` : `Import ${csvPreview.length} Questions`}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats bar */}
       <div style={{ display: 'flex', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
@@ -302,7 +660,7 @@ export default function QuestionManager() {
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
                 <span className={`qm-status qm-status-${q.status}`}>{q.status}</span>
                 <span style={{ fontSize: '0.78rem', color: '#2b8a7d', fontWeight: 700, textTransform: 'uppercase' }}>{q.topic}</span>
-                <span style={{ fontSize: '0.76rem', color: '#8a999c' }}>{q.question_type === 'sata' ? 'SATA' : 'MCQ'}</span>
+                <span style={{ fontSize: '0.76rem', color: '#8a999c' }}>{q.question_type?.replaceAll('_', ' ').toUpperCase()}</span>
               </div>
               <p style={{ margin: 0, fontSize: '0.92rem', lineHeight: 1.45, color: '#17212f', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {q.prompt}

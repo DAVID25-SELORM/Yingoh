@@ -658,3 +658,27 @@ input, select, textarea { font: inherit; }
   .analytics-topic-name { min-width: 140px; }
   .planner-grid { grid-template-columns: 1fr; }
 }
+@media (max-width: 1200px) {
+  .hero-title,
+  .dashboard-hero h1 {
+    font-size: clamp(2rem, 4vw, 3.6rem);
+    line-height: 1.05;
+  }
+
+  .dashboard-hero,
+  .hero-section {
+    padding-top: 2rem;
+  }
+}
+@media (max-width: 1200px) {
+  .hero-title,
+  .dashboard-hero h1 {
+    font-size: clamp(2rem, 4vw, 3.6rem);
+    line-height: 1.05;
+  }
+
+  .dashboard-hero,
+  .hero-section {
+    padding-top: 2rem;
+  }
+}
