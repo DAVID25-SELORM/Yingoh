@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Brain, BookOpen, Bookmark, BookmarkCheck, CalendarDays, ClipboardList, Loader2, RotateCcw, Send, Sparkles } from 'lucide-react';
 import { getAiTutorConversations, saveAiTutorConversation, saveItem, supabase } from '../services/supabase';
 
@@ -22,7 +22,7 @@ Clinical Tip:
 On NCLEX, "first" usually means stabilize the patient before teaching, documenting, or calling the provider unless the patient is already stable.`;
 
 function makeTitle(text) {
-  return text.replace(/\s+/g, ' ').trim().slice(0, 70) || 'AI Tutor Conversation';
+  return text.replace(/\s+/g, ' ').trim().slice(0, 70) || 'Study Coach Conversation';
 }
 
 export default function AITutorView({ session }) {
@@ -113,7 +113,7 @@ export default function AITutorView({ session }) {
       setMessages(withReply);
       await persist(withReply, prompt);
     } catch (err) {
-      const message = err.message ?? 'AI Tutor could not respond.';
+      const message = err.message ?? 'Study Coach could not respond.';
       setError(message);
       const withError = [...next, { id: `e-${Date.now()}`, role: 'assistant', content: `Error: ${message}`, created_at: new Date().toISOString(), is_error: true }];
       setMessages(withError);
@@ -126,7 +126,7 @@ export default function AITutorView({ session }) {
 
   async function saveAnswer(msg) {
     if (!userId) {
-      setError('Sign in to save AI Tutor answers.');
+      setError('Sign in to save Study Coach answers.');
       return;
     }
     const itemId = `${conversationId ?? 'draft'}-${msg.id}`;
@@ -141,14 +141,14 @@ export default function AITutorView({ session }) {
   }
 
   const emptyText = userId
-    ? 'Ask a question to start a saved AI Tutor conversation.'
-    : 'Sign in to save AI Tutor conversations. You can still try the demo response.';
+    ? 'Ask a question to start a saved Study Coach conversation.'
+    : 'Sign in to save Study Coach conversations. You can still try the demo response.';
 
   return (
     <section className="content-band">
       <div className="section-title">
         <div>
-          <h2>AI Tutor</h2>
+          <h2>Study Coach</h2>
           <p style={{ margin: '4px 0 0', color: '#607478', fontSize: '0.88rem' }}>NCLEX coaching with rationales, distractor review, and clinical tips.</p>
         </div>
         <button className="ghost-btn" onClick={() => startNew()}><RotateCcw size={15} /> New Chat</button>

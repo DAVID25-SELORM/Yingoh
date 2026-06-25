@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 import {
   Activity, BarChart3, BookOpen, Brain, CalendarDays, CheckCircle2,
@@ -41,7 +41,7 @@ import { SubscriptionGate } from './components/SubscriptionGate';
 import SavedItemsView from './components/SavedItemsView';
 import './styles.css';
 
-// ─── Existing inline views kept for continuity ─────────────
+// â”€â”€â”€ Existing inline views kept for continuity â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const modules = [
   { name: 'User Accounts & Identity', phase: 'MVP', priority: 'High', icon: ShieldCheck, summary: 'Email, Google, Apple login, profile editing, 2FA, password reset, and device limits.' },
@@ -54,7 +54,7 @@ const modules = [
   { name: 'Practice & Exam Modes', phase: 'Growth', priority: 'Medium', icon: Target, summary: 'Practice, tutor mode, timed exams, CAT simulator, custom quiz builder, readiness exams, daily quiz, weekly challenge.' },
   { name: 'Rationales & Review', phase: 'Growth', priority: 'Medium', icon: BookOpen, summary: 'Answer explanations, nursing tips, references, bookmarks, personal notes, and error reports.' },
   { name: 'Analytics', phase: 'Growth', priority: 'Medium', icon: BarChart3, summary: 'Overall score, topic performance, NGN readiness, pass probability, reports, at-risk student detection.' },
-  { name: 'AI Learning Assistant', phase: 'Growth', priority: 'Medium', icon: Brain, summary: 'AI tutor, rationale explainer, quiz generator, study planner, weak area detector, lesson summarizer.' },
+  { name: 'AI Learning Assistant', phase: 'Growth', priority: 'Medium', icon: Brain, summary: 'Study Coach, rationale explainer, quiz generator, study planner, weak area detector, lesson summarizer.' },
   { name: 'Flashcards & Pharmacology', phase: 'Growth', priority: 'Medium', icon: Stethoscope, summary: 'Drug cards, disease cards, lab values, spaced repetition, MOA, side effects, contraindications.' },
   { name: 'Resources', phase: 'Growth', priority: 'Medium', icon: BookOpen, summary: 'Notes, care plans, concept maps, ECG, ABG, isolation precautions, drug handbook, worksheets.' },
   { name: 'Community', phase: 'Growth', priority: 'Medium', icon: MessageSquareText, summary: 'Discussion forum, study groups, ask instructors, comments, announcements, mentor groups, success stories.' },
@@ -173,7 +173,7 @@ function AdminConsole() {
           ))}
         </div>
         <p className="table-health-note">
-          {isChecking ? 'Checking database tables…' : 'Table chips update from the live Supabase API.'}
+          {isChecking ? 'Checking database tablesâ€¦' : 'Table chips update from the live Supabase API.'}
         </p>
       </div>
     </section>
@@ -288,7 +288,7 @@ function AccountAccess({ session, isPasswordRecovery }) {
               )}
               {mode !== 'reset' && (
               <button className="primary-btn" type="submit" disabled={!supabaseConfig.isConfigured || isSubmitting}>
-                {isSubmitting ? 'Working…' : mode === 'signup' ? 'Create account' : 'Sign in'}
+                {isSubmitting ? 'Workingâ€¦' : mode === 'signup' ? 'Create account' : 'Sign in'}
               </button>
               )}
               <button className="link-btn" type="button" onClick={() => setMode(mode === 'reset' ? 'signin' : 'reset')}>
@@ -306,7 +306,7 @@ function AccountAccess({ session, isPasswordRecovery }) {
             'Profile creation via database trigger',
             `Super admin bootstrap: ${supabaseConfig.superAdminEmail}`,
             'Role tables: student, instructor, admin, finance, content reviewer, super admin',
-            'Question bookmarks, flashcard progress, exam sessions — all user-scoped',
+            'Question bookmarks, flashcard progress, exam sessions â€” all user-scoped',
             'Notebook and study plan saved per user account',
           ].map((item) => (
             <div key={item}><CheckCircle2 size={18} /><span>{item}</span></div>
@@ -317,7 +317,7 @@ function AccountAccess({ session, isPasswordRecovery }) {
   );
 }
 
-// ─── Navigation config ─────────────────────────────────────
+// â”€â”€â”€ Navigation config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const NAV = [
   { label: 'Dashboard', icon: LayoutDashboard, group: 'learn' },
   { label: 'Questions', icon: ClipboardCheck, group: 'learn' },
@@ -331,7 +331,7 @@ const NAV = [
   { label: 'Quiz Builder', icon: Target, group: 'learn' },
   { label: 'Community', icon: MessageSquareText, group: 'learn' },
   { label: 'Certificates', icon: FileBadge, group: 'learn' },
-  { label: 'AI Tutor', icon: Brain, group: 'learn' },
+  { label: 'Study Coach', icon: Brain, group: 'learn' },
   { label: 'Resources', icon: BookOpen, group: 'learn' },
   { label: 'Assignments', icon: ClipboardCheck, group: 'learn' },
   { label: 'Professional', icon: GraduationCap, group: 'learn' },
@@ -474,7 +474,7 @@ function App() {
         {activeView === 'Classroom' && <VirtualClassroom session={session} />}
         {activeView === 'Video Manager' && <VideoManager session={session} />}
         {activeView === 'Audit Logs' && <AuditLogView session={session} />}
-        {activeView === 'AI Tutor' && <AITutorView session={session} />}
+        {activeView === 'Study Coach' && <AITutorView session={session} />}
         {activeView === 'Resources' && <ResourcesView session={session} />}
         {activeView === 'Assignments' && (
           <SubscriptionGate session={session} requiredPlan="premium" featureName="assignments and instructor feedback" onUpgrade={() => setActiveView('Payments')}>
