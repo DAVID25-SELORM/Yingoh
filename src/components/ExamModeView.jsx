@@ -431,6 +431,14 @@ export default function ExamModeView({ session, onNavigate }) {
         <div className="rationale">
           <strong>Rationale</strong>
           <p>{question?.rationale}</p>
+          {question?.strategy && (
+            <div style={{ marginTop: 12, padding: '10px 14px', background: '#f0f4ff', borderLeft: '3px solid #6750a4', borderRadius: '0 8px 8px 0' }}>
+              <p style={{ margin: 0, fontSize: '0.86rem', color: '#3b2d6b' }}>
+                <strong style={{ display: 'block', marginBottom: 4, fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#6750a4' }}>Test-Taking Strategy</strong>
+                {question.strategy}
+              </p>
+            </div>
+          )}
         </div>
       )}
 

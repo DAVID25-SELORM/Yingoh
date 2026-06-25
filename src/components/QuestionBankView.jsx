@@ -15,11 +15,8 @@ import {
   HighlightQuestion, highlightIsCorrect,
 } from './NGNRenderer';
 
-const TOPICS = [
-  'All Topics', 'Pharmacology', 'Safety and Infection Control', 'Medical-Surgical',
-  'NGN Case Studies', 'Maternal and Newborn', 'Mental Health', 'Pediatrics',
-  'Leadership and Management',
-];
+import { TOPICS as TOPIC_LIST } from '../data/topics';
+const TOPICS = ['All Topics', ...TOPIC_LIST];
 const TYPES = ['All Types', 'mcq', 'sata', 'bow_tie', 'matrix', 'ordered_response', 'highlight'];
 const TYPE_LABELS = {
   mcq: 'Multiple Choice',
@@ -291,6 +288,14 @@ export default function QuestionBankView({ session }) {
           {qt === 'sata' && (
             <div style={{ marginTop: 10, fontSize: '0.88rem', color: '#607478' }}>
               <strong>Correct answers:</strong> {correctIds.map((id) => id.toUpperCase()).join(', ')}
+            </div>
+          )}
+          {question.strategy && (
+            <div style={{ marginTop: 12, padding: '10px 14px', background: '#f0f4ff', borderLeft: '3px solid #6750a4', borderRadius: '0 8px 8px 0' }}>
+              <p style={{ margin: 0, fontSize: '0.86rem', color: '#3b2d6b' }}>
+                <strong style={{ display: 'block', marginBottom: 4, fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#6750a4' }}>Test-Taking Strategy</strong>
+                {question.strategy}
+              </p>
             </div>
           )}
         </div>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { Bookmark, BookmarkCheck, Brain, ChevronLeft, ChevronRight, RefreshCw, RotateCcw } from 'lucide-react';
 import {
   getFlashcardDecks, getFlashcardsForDeck, getUserFlashcardProgress,
@@ -8,7 +8,7 @@ import {
 const DEMO_DECKS = [
   { id: 'demo-pharm', name: 'NCLEX Pharmacology Essentials', topic: 'Pharmacology', card_count: 15 },
   { id: 'demo-labs', name: 'Critical Lab Values', topic: 'Lab Values', card_count: 10 },
-  { id: 'demo-disease', name: 'Disease Processes & Patho', topic: 'Medical-Surgical', card_count: 5 },
+  { id: 'demo-disease', name: 'Disease Processes & Patho', topic: 'Cardiovascular', card_count: 5 },
 ];
 
 const DEMO_CARDS = {
@@ -260,3 +260,4 @@ export default function FlashcardsView({ session }) {
     </section>
   );
 }
+

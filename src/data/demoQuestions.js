@@ -1654,4 +1654,192 @@ export const DEMO_QUESTIONS = [
       ],
     },
   },
+,
+  // ── NEW CLINICAL TOPICS (Steps 2-3) ─
+  // CARDIOVASCULAR
+  { id:'dq206', topic:'Cardiovascular', question_type:'mcq', status:'published',
+    prompt:'A client admitted with an acute MI has BP 88/50 mmHg, HR 118 bpm, cool clammy skin, and urine output 15 mL/hr. Which complication does the nurse suspect?',
+    choices:[{id:'a',text:'Hypertensive urgency'},{id:'b',text:'Cardiogenic shock'},{id:'c',text:'Pulmonary embolism'},{id:'d',text:'Pericardial tamponade'}],
+    correct_answer:{ids:['b']},
+    rationale:'Cardiogenic shock: post-MI hypotension + tachycardia + cool/clammy skin + oliguria = the heart cannot pump. Tamponade = Beck\'s triad (JVD, muffled sounds, hypotension). PE = pleuritic chest pain + hypoxia.',
+    strategy:'Triad after MI: hypotension + tachy + cold/clammy + low urine = cardiogenic shock. The pump has failed. Peripheral circulation shuts down to preserve core organs.'},
+
+  { id:'dq207', topic:'Cardiovascular', question_type:'sata', status:'published',
+    prompt:'A client has left-sided heart failure. Which assessment findings does the nurse expect? Select all that apply.',
+    choices:[{id:'a',text:'Bilateral crackles in the lung bases'},{id:'b',text:'Jugular venous distension'},{id:'c',text:'Pink frothy sputum'},{id:'d',text:'Dependent pitting ankle edema'},{id:'e',text:'S3 gallop heart sound'}],
+    correct_answer:{ids:['a','c','e']},
+    rationale:'Left HF backs up into the lungs: crackles, pink frothy sputum (severe pulmonary edema), S3 gallop. JVD and peripheral edema = right HF (backs up into systemic circulation).',
+    strategy:'Left = Lungs. Right = Rest of body. Apply this spatial rule instantly. Left HF = pulmonary. Right HF = peripheral/systemic.'},
+
+  { id:'dq208', topic:'Cardiovascular', question_type:'mcq', status:'published',
+    prompt:'A client on IV heparin for DVT has an aPTT of 120 seconds. What is the nurse\'s priority action?',
+    choices:[{id:'a',text:'Increase the infusion rate'},{id:'b',text:'Administer protamine sulfate'},{id:'c',text:'Contact the provider to adjust the rate'},{id:'d',text:'Repeat the aPTT in 2 hours without changes'}],
+    correct_answer:{ids:['c']},
+    rationale:'Therapeutic aPTT: 60–100 seconds. At 120 the client is supratherapeutic — high bleeding risk. Notify the provider. Protamine reverses heparin but needs an order. Never independently adjust an infusion.',
+    strategy:'Therapeutic aPTT = 1.5–2.5x normal = 60–100 sec. Above 100 = too much heparin → notify provider. Never adjust an IV infusion without an order.'},
+
+  // RESPIRATORY
+  { id:'dq209', topic:'Respiratory', question_type:'mcq', status:'published',
+    prompt:'A client with COPD has ABG: pH 7.32, PaCO₂ 58 mmHg, HCO₃ 28 mEq/L. The nurse interprets this as:',
+    choices:[{id:'a',text:'Respiratory alkalosis with metabolic compensation'},{id:'b',text:'Metabolic acidosis, uncompensated'},{id:'c',text:'Respiratory acidosis with partial metabolic compensation'},{id:'d',text:'Mixed respiratory and metabolic alkalosis'}],
+    correct_answer:{ids:['c']},
+    rationale:'pH 7.32 = acidosis. PaCO₂ 58 = elevated → respiratory cause. HCO₃ 28 = elevated → kidneys compensating. pH still abnormal = partial compensation. Classic COPD CO₂ retention.',
+    strategy:'ROME: Respiratory Opposite — pH low + PaCO₂ high = respiratory acidosis. Then HCO₃ elevated = kidney compensation. pH still abnormal = partial.'},
+
+  { id:'dq210', topic:'Respiratory', question_type:'sata', status:'published',
+    prompt:'A client is placed on airborne precautions. Which actions does the nurse take? Select all that apply.',
+    choices:[{id:'a',text:'Place the client in a negative pressure room'},{id:'b',text:'Wear a surgical mask when entering'},{id:'c',text:'Wear an N95 respirator before entering'},{id:'d',text:'Keep the client door closed at all times'},{id:'e',text:'Client wears a surgical mask during transport'}],
+    correct_answer:{ids:['a','c','d','e']},
+    rationale:'Airborne (TB, measles, varicella): negative pressure room, door closed, N95 for staff (NOT surgical mask), client wears surgical mask during transport.',
+    strategy:'Airborne = N95 + negative pressure room. Surgical mask wrong-answer trap: it is used for DROPLET, not airborne. N95 filters tiny airborne particles — surgical masks do not.'},
+
+  { id:'dq211', topic:'Respiratory', question_type:'mcq', status:'published',
+    prompt:'A client 30 minutes post-thoracentesis reports sudden sharp chest pain and dyspnea. Breath sounds are absent on the right. The nurse\'s first action is to:',
+    choices:[{id:'a',text:'Administer the prescribed analgesic'},{id:'b',text:'Position the client on the affected side'},{id:'c',text:'Notify the provider immediately'},{id:'d',text:'Encourage slow deep breathing'}],
+    correct_answer:{ids:['c']},
+    rationale:'Absent breath sounds + chest pain + dyspnea after thoracentesis = pneumothorax. Life-threatening complication. Notify the provider immediately for chest tube.',
+    strategy:'Post-thoracic procedure + absent breath sounds + dyspnea = pneumothorax until proven otherwise. Always notify provider first — this is an emergency.'},
+
+  // RENAL AND URINARY
+  { id:'dq212', topic:'Renal and Urinary', question_type:'mcq', status:'published',
+    prompt:'A client with CKD has K⁺ 6.4 mEq/L and peaked T waves on the monitor. The nurse implements which intervention first?',
+    choices:[{id:'a',text:'Restrict dietary potassium'},{id:'b',text:'Administer sodium polystyrene sulfonate orally'},{id:'c',text:'Administer IV calcium gluconate as prescribed'},{id:'d',text:'Prepare the client for hemodialysis'}],
+    correct_answer:{ids:['c']},
+    rationale:'Hyperkalemia with cardiac changes needs immediate cardiac membrane stabilization. IV calcium gluconate acts within minutes. Kayexalate removes K⁺ slowly (hours). Dialysis is definitive but not the immediate first step.',
+    strategy:'Hyperkalemia + cardiac changes = cardiac emergency. Stabilize the heart first with calcium gluconate, THEN remove potassium. Stabilize → eliminate.'},
+
+  { id:'dq213', topic:'Renal and Urinary', question_type:'sata', status:'published',
+    prompt:'A client is 2 days post-kidney transplant. Which findings require the nurse to notify the provider? Select all that apply.',
+    choices:[{id:'a',text:'Urine output 200 mL/hr'},{id:'b',text:'Creatinine rising from 1.1 to 3.4 mg/dL'},{id:'c',text:'Temperature 37.2°C (99°F)'},{id:'d',text:'Graft site tenderness and swelling'},{id:'e',text:'WBC 11,000/mm³ on tacrolimus'}],
+    correct_answer:{ids:['a','b','d']},
+    rationale:'Polyuria, rising creatinine, and graft tenderness signal acute rejection or ATN. Low-grade fever is expected post-op. Mild WBC elevation on immunosuppressants is expected.',
+    strategy:'Post-transplant "3 Cs": Creatinine rising, Clinical graft changes, output Changes (high or low). Any = notify provider. Low-grade fever and mild WBC elevation = expected.'},
+
+  // ENDOCRINE
+  { id:'dq214', topic:'Endocrine', question_type:'mcq', status:'published',
+    prompt:'A client with type 1 diabetes is unresponsive with BG 38 mg/dL. An IV is in place. The nurse\'s priority intervention is:',
+    choices:[{id:'a',text:'Give 4 oz of orange juice orally'},{id:'b',text:'Administer 50 mL of 50% dextrose IV'},{id:'c',text:'Administer glucagon 1 mg IM'},{id:'d',text:'Recheck BG in 15 minutes'}],
+    correct_answer:{ids:['b']},
+    rationale:'Unresponsive + IV access + severe hypoglycemia = D50W IV (works in 1–3 min). Oral juice is contraindicated when unconscious — aspiration risk. Glucagon IM only when no IV access available.',
+    strategy:'Unresponsive + IV = D50W first. Conscious + no IV = oral glucose. No IV access at all = glucagon IM. IV route is always fastest in a hypoglycemic emergency.'},
+
+  { id:'dq215', topic:'Endocrine', question_type:'sata', status:'published',
+    prompt:'A client is admitted in diabetic ketoacidosis. Which findings does the nurse expect? Select all that apply.',
+    choices:[{id:'a',text:'Blood glucose > 300 mg/dL'},{id:'b',text:'Kussmaul respirations'},{id:'c',text:'Fruity acetone breath'},{id:'d',text:'Serum pH of 7.48'},{id:'e',text:'Positive urine ketones'}],
+    correct_answer:{ids:['a','b','c','e']},
+    rationale:'DKA: hyperglycemia, metabolic acidosis (pH < 7.35), ketonuria, Kussmaul respirations (resp compensation), fruity breath. pH 7.48 = alkalosis — contradicts DKA acidosis.',
+    strategy:'DKA = High glucose + Low pH + Ketones + Kussmaul breathing. Eliminate pH 7.48 — DKA causes acidosis (low pH), never alkalosis.'},
+
+  { id:'dq216', topic:'Endocrine', question_type:'mcq', status:'published',
+    prompt:'A client is newly prescribed levothyroxine. Which instruction does the nurse provide?',
+    choices:[{id:'a',text:'Take with a glass of milk for better absorption'},{id:'b',text:'Take at bedtime to minimize side effects'},{id:'c',text:'Take on an empty stomach 30–60 minutes before breakfast'},{id:'d',text:'Discontinue if you experience palpitations'}],
+    correct_answer:{ids:['c']},
+    rationale:'Levothyroxine absorption is best on an empty stomach 30–60 min before breakfast. Calcium (milk), antacids, and iron block absorption. Palpitations during titration = contact provider, do not self-discontinue.',
+    strategy:'Empty stomach + morning + 30–60 min before food = best levothyroxine absorption. Calcium and iron block it. Never instruct a client to self-discontinue any medication.'},
+
+  // GASTROINTESTINAL
+  { id:'dq217', topic:'Gastrointestinal', question_type:'mcq', status:'published',
+    prompt:'A client 2 days post-colostomy says "I should irrigate my colostomy every day to control output." The nurse recognizes this statement indicates:',
+    choices:[{id:'a',text:'Correct understanding of colostomy care'},{id:'b',text:'A need for further teaching'},{id:'c',text:'An appropriate long-term goal'},{id:'d',text:'Standard discharge instruction'}],
+    correct_answer:{ids:['b']},
+    rationale:'Daily colostomy irrigation is NOT universally required and is not standard teaching. It is an optional technique for sigmoid colostomies. Standard teaching: empty at 1/3–1/2 full, skin care, avoid gas-producing foods.',
+    strategy:'Negative event query: "further teaching" = select the incorrect statement. Daily irrigation is not standard. This is a frequent NCLEX wrong-answer trap — do not confuse irrigation with routine pouch emptying.'},
+
+  { id:'dq218', topic:'Gastrointestinal', question_type:'sata', status:'published',
+    prompt:'A client has acute pancreatitis. Which interventions are appropriate? Select all that apply.',
+    choices:[{id:'a',text:'Keep the client NPO during the acute phase'},{id:'b',text:'Administer IV opioid analgesics as prescribed'},{id:'c',text:'Place the client in high-Fowler\'s position'},{id:'d',text:'Monitor serum amylase and lipase'},{id:'e',text:'Encourage a high-fat diet to rest the pancreas'}],
+    correct_answer:{ids:['a','b','d']},
+    rationale:'Pancreatitis: NPO (rests pancreas), IV opioids for pain, monitor amylase/lipase. High-fat diet stimulates enzymes — contraindicated. Semi-Fowler\'s with knees flexed for comfort, not high-Fowler\'s.',
+    strategy:'REST the pancreas: NPO + pain control + monitor markers. High fat = stimulates enzyme secretion = worse. Eliminate both high fat and high-Fowler\'s.'},
+
+  // NEUROLOGICAL
+  { id:'dq219', topic:'Neurological', question_type:'mcq', status:'published',
+    prompt:'A client with elevated ICP has BP 182/50 mmHg, HR 44 bpm, and irregular respirations. The nurse recognizes:',
+    choices:[{id:'a',text:'Orthostatic hypotension'},{id:'b',text:'Cushing\'s triad'},{id:'c',text:'Autonomic dysreflexia'},{id:'d',text:'Neurogenic shock'}],
+    correct_answer:{ids:['b']},
+    rationale:'Cushing\'s triad = late severe ICP sign: hypertension with wide pulse pressure + bradycardia + irregular respirations. Signals impending brain herniation — medical emergency.',
+    strategy:'Cushing\'s triad = Hypertension + Bradycardia + Irregular respirations in a neuro client. Wide pulse pressure is the vascular signature. Memorize this cluster — it is the most tested neuro vital sign pattern.'},
+
+  { id:'dq220', topic:'Neurological', question_type:'mcq', status:'published',
+    prompt:'A client presents with sudden right-sided weakness, facial droop, and slurred speech with onset 45 minutes ago. The nurse\'s priority action is:',
+    choices:[{id:'a',text:'Obtain an ECG'},{id:'b',text:'Keep NPO and notify the stroke team'},{id:'c',text:'Administer aspirin 325 mg immediately'},{id:'d',text:'Prepare for cardiac catheterization'}],
+    correct_answer:{ids:['b']},
+    rationale:'Stroke symptoms within 4.5 hours = tPA window. Activate stroke team and get CT immediately. NPO for swallowing safety. Never give aspirin until CT rules out hemorrhagic stroke — aspirin in hemorrhagic stroke is fatal.',
+    strategy:'FAST within 4.5 hours = stroke team + CT first. No aspirin until hemorrhage is excluded. Time is brain — every minute = 1.9 million neurons lost.'},
+
+  { id:'dq221', topic:'Neurological', question_type:'sata', status:'published',
+    prompt:'A client has a tonic-clonic seizure. Which post-ictal nursing actions are appropriate? Select all that apply.',
+    choices:[{id:'a',text:'Position the client laterally'},{id:'b',text:'Insert an oral airway during active seizing'},{id:'c',text:'Assess for post-ictal confusion and fatigue'},{id:'d',text:'Document seizure duration and characteristics'},{id:'e',text:'Restrain the client\'s movements'}],
+    correct_answer:{ids:['a','c','d']},
+    rationale:'Post-seizure: lateral position (prevents aspiration), assess post-ictal state, document details. Never insert anything into mouth (injury risk). Never restrain (increases injury).',
+    strategy:'Seizure nursing = Protect, Position lateral, Document. Two classic wrong-answer traps: inserting oral airway and restraining. Both cause harm. Nothing goes in the mouth.'},
+
+  // MUSCULOSKELETAL
+  { id:'dq222', topic:'Musculoskeletal', question_type:'mcq', status:'published',
+    prompt:'A client 6 hours post-hip replacement reports right foot pain, numbness, pallor, and capillary refill of 4 seconds. The nurse\'s first action is to:',
+    choices:[{id:'a',text:'Elevate the right leg above heart level'},{id:'b',text:'Apply a warm compress'},{id:'c',text:'Notify the provider immediately'},{id:'d',text:'Administer PRN pain medication'}],
+    correct_answer:{ids:['c']},
+    rationale:'The 6 Ps post-orthopedic surgery (pain, pallor, paresthesia + prolonged capillary refill) = neurovascular compromise/compartment syndrome. Medical emergency — notify provider immediately. Elevation worsens arterial perfusion.',
+    strategy:'6 Ps: Pain, Pallor, Pulselessness, Paresthesia, Paralysis, Poikilothermia. Any combination post-orthopedic = notify STAT. Pain medication alone treats the symptom while the limb is dying.'},
+
+  // FLUIDS AND ELECTROLYTES
+  { id:'dq223', topic:'Fluids and Electrolytes', question_type:'mcq', status:'published',
+    prompt:'A client receiving IV fluids has Na⁺ 128 mEq/L with headache and confusion. The nurse identifies:',
+    choices:[{id:'a',text:'Hypernatremia'},{id:'b',text:'Hyponatremia'},{id:'c',text:'Hyperkalemia'},{id:'d',text:'Hypomagnesemia'}],
+    correct_answer:{ids:['b']},
+    rationale:'Normal Na⁺ = 135–145 mEq/L. Na⁺ 128 = hyponatremia. Low Na⁺ → water shifts into cells → cerebral edema → neurological symptoms: headache, confusion, nausea, seizures.',
+    strategy:'128 < 135 = low sodium = hyponatremia. Low Na⁺ → water into brain cells → brain swells → neuro symptoms. Direct knowledge question — know the normal sodium range.'},
+
+  { id:'dq224', topic:'Fluids and Electrolytes', question_type:'sata', status:'published',
+    prompt:'A client has K⁺ 2.8 mEq/L. Which manifestations does the nurse expect? Select all that apply.',
+    choices:[{id:'a',text:'Muscle weakness and fatigue'},{id:'b',text:'Peaked T waves on ECG'},{id:'c',text:'Hypoactive bowel sounds'},{id:'d',text:'Flat or inverted T waves on ECG'},{id:'e',text:'U waves on ECG'}],
+    correct_answer:{ids:['a','c','d','e']},
+    rationale:'Hypokalemia (K⁺ < 3.5): muscle weakness, hypoactive bowel/ileus, flat/inverted T waves, U waves. Peaked T waves = HYPERKALEMIA.',
+    strategy:'HyperK = Peaked T waves. HypoK = Flat T + U waves. Peaked T is the wrong-answer trap here — eliminate it.'},
+
+  // COMPLEX CARE
+  { id:'dq225', topic:'Complex Care', question_type:'mcq', status:'published',
+    prompt:'A nurse has 4 assigned clients. Which client is assessed first?',
+    choices:[{id:'a',text:'Client with COPD requesting pain medication for chronic back pain'},{id:'b',text:'Post-appendectomy day 2 asking for a bedpan'},{id:'c',text:'Client with chest pain radiating to the left arm and diaphoresis'},{id:'d',text:'Diabetic client reporting hunger before breakfast'}],
+    correct_answer:{ids:['c']},
+    rationale:'Chest pain + left arm radiation + diaphoresis = potential MI = life-threatening emergency. The other clients have non-life-threatening, stable needs.',
+    strategy:'Priority = ABC. Ask: "Who could die in the next few minutes?" Chest pain + radiation + diaphoresis = possible MI = first. Apply this decision rule every time.'},
+
+  { id:'dq226', topic:'Complex Care', question_type:'mcq', status:'published',
+    prompt:'A client in septic shock is on norepinephrine. Which finding best indicates treatment is working?',
+    choices:[{id:'a',text:'Serum lactate falling from 6.2 to 2.1 mmol/L'},{id:'b',text:'Temperature falling from 39.8°C to 37.1°C'},{id:'c',text:'HR falling from 118 to 98 bpm'},{id:'d',text:'WBC falling from 22,000 to 14,000/mm³'}],
+    correct_answer:{ids:['a']},
+    rationale:'Falling serum lactate = gold standard for improving tissue perfusion in septic shock. Lactate rises during anaerobic metabolism. Falling lactate = cells are receiving oxygen = perfusion is restored.',
+    strategy:'Septic shock goal = restore tissue perfusion. Lactate is the direct cellular oxygen marker. Temperature and WBC reflect infection control, not perfusion. Falling lactate = treatment working.'},
+
+  // ONCOLOGY AND HEMATOLOGY
+  { id:'dq227', topic:'Oncology and Hematology', question_type:'mcq', status:'published',
+    prompt:'A client on chemotherapy has an ANC of 450/mm³. The nursing priority is to:',
+    choices:[{id:'a',text:'Administer a platelet transfusion'},{id:'b',text:'Initiate neutropenic precautions and monitor for infection'},{id:'c',text:'Restrict all visitors from the room'},{id:'d',text:'Place the client on contact precautions'}],
+    correct_answer:{ids:['b']},
+    rationale:'ANC < 500/mm³ = severe neutropenia = highest infection risk. Neutropenic precautions protect the immunocompromised client from the environment (reverse isolation). Platelets address thrombocytopenia. Not all visitors restricted — healthy visitors with good hand hygiene may visit.',
+    strategy:'ANC < 500 = neutropenic precautions. These protect the client FROM pathogens (reverse/protective isolation). Contact precautions protect others FROM the client. Know which direction protection flows.'},
+
+  { id:'dq228', topic:'Oncology and Hematology', question_type:'sata', status:'published',
+    prompt:'A client develops chills, fever, low back pain, and hypotension 20 minutes into a transfusion. The nurse takes which actions? Select all that apply.',
+    choices:[{id:'a',text:'Stop the transfusion immediately'},{id:'b',text:'Slow the rate and continue monitoring'},{id:'c',text:'Keep IV open with normal saline'},{id:'d',text:'Notify the blood bank and provider'},{id:'e',text:'Send the blood bag and tubing to the lab'}],
+    correct_answer:{ids:['a','c','d','e']},
+    rationale:'Acute hemolytic transfusion reaction (blood type mismatch): STOP immediately, maintain IV with NS using new tubing, notify provider and blood bank, send blood bag + tubing for analysis. Never slow and continue.',
+    strategy:'Hemolytic reaction = STOP — KEEP LINE WITH NS — NOTIFY — SEND BAG. Never slow and continue. The bag must return to the blood bank. This is a life-threatening reaction.'},
+
+  // PERIOPERATIVE CARE
+  { id:'dq229', topic:'Perioperative Care', question_type:'sata', status:'published',
+    prompt:'A nurse completes a pre-operative assessment. Which findings require notifying the provider? Select all that apply.',
+    choices:[{id:'a',text:'Client takes warfarin 5 mg daily'},{id:'b',text:'Client has a latex allergy'},{id:'c',text:'Hemoglobin 14.2 g/dL'},{id:'d',text:'Client takes St. John\'s Wort herbal supplement'},{id:'e',text:'BP 128/76 mmHg'}],
+    correct_answer:{ids:['a','b','d']},
+    rationale:'Report: warfarin (bleeding risk — may need to be held); latex allergy (OR must be latex-free, anaphylaxis risk); St. John\'s Wort (interacts with anesthesia — must stop 2 weeks pre-op). Normal Hgb and BP do not require reporting.',
+    strategy:'Pre-op safety flags: anticoagulants, allergies (especially latex), herbals. Normal labs and vital signs within range = no notification needed. Herbals that interfere: St. John\'s Wort, garlic, ginkgo, ginseng.'},
+
+  // MEDICATION ADMINISTRATION
+  { id:'dq230', topic:'Medication Administration', question_type:'mcq', status:'published',
+    prompt:'Which situation requires the nurse to withhold the medication and contact the provider?',
+    choices:[{id:'a',text:'Client on digoxin has apical pulse of 54 bpm'},{id:'b',text:'Client on metformin has BG of 210 mg/dL'},{id:'c',text:'Client on lisinopril has BP 142/88 mmHg'},{id:'d',text:'Client on ferrous sulfate reports dark-colored stools'}],
+    correct_answer:{ids:['a']},
+    rationale:'Hold digoxin when apical pulse < 60 bpm. Digoxin further slows the heart — bradycardia below 60 is a contraindication. Dark stools with iron are expected. Metformin at BG 210 is within management range. Lisinopril is given for hypertension — BP 142/88 does not warrant withholding.',
+    strategy:'Digoxin rule: apical pulse < 60 = hold and notify. Always count apical for a full minute before giving digoxin. One of the most tested medication safety rules on NCLEX. Know the hold parameters.'},
 ];

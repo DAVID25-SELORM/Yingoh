@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import {
   BookmarkCheck, Brain, CheckCircle2, ChevronLeft, ChevronRight,
   Filter, Play, RotateCcw, Settings2, XCircle,
@@ -6,7 +6,7 @@ import {
 import { getQuestions, submitAttempt } from '../services/supabase';
 import { DEMO_QUESTIONS } from '../data/demoQuestions';
 
-const TOPICS = ['Pharmacology', 'Safety and Infection Control', 'Medical-Surgical', 'NGN Case Studies', 'Maternal and Newborn', 'Mental Health', 'Pediatrics', 'Leadership and Management'];
+import { TOPICS } from '../data/topics';
 const MODES = [
   { id: 'tutor', label: 'Tutor Mode', desc: 'See rationale immediately after each answer.' },
   { id: 'timed', label: 'Timed Mode', desc: 'Race the clock — 90 seconds per question.' },
@@ -279,3 +279,4 @@ export default function CustomQuizBuilder({ session }) {
     </section>
   );
 }
+

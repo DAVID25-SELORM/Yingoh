@@ -1,16 +1,12 @@
-import React, { useEffect, useRef, useState } from 'react';
+﻿import React, { useEffect, useRef, useState } from 'react';
 import {
   AlertCircle, CheckCircle2, Edit3, Eye, EyeOff, FilePlus, Filter,
   PlusCircle, Save, Trash2, Upload, X, XCircle,
 } from 'lucide-react';
 import { supabase } from '../services/supabase';
+import { TOPICS } from '../data/topics';
 import { DEMO_QUESTIONS } from '../data/demoQuestions';
 
-const TOPICS = [
-  'Pharmacology', 'Safety and Infection Control', 'Medical-Surgical',
-  'NGN Case Studies', 'Maternal and Newborn', 'Mental Health',
-  'Pediatrics', 'Leadership and Management',
-];
 
 const EMPTY_QUESTION = {
   topic: 'Pharmacology',
@@ -24,6 +20,7 @@ const EMPTY_QUESTION = {
   ],
   correct_answer: { ids: [] },
   rationale: '',
+  strategy: '',
   status: 'draft',
 };
 
@@ -633,10 +630,26 @@ export default function QuestionManager() {
             <label>Rationale</label>
             <textarea
               className="editor-textarea"
-              rows={5}
+              rows={4}
               placeholder="Explain why each choice is correct or incorrect. Include nursing priorities, safety considerations, and clinical reasoning…"
               value={editing.rationale}
               onChange={(e) => updateEditing('rationale', e.target.value)}
+            />
+          </div>
+
+          <div className="qm-form-row">
+            <label>
+              Test-Taking Strategy
+              <span style={{ fontWeight: 400, color: '#607478', marginLeft: 8, fontSize: '0.82rem' }}>
+                The thinking shortcut — how to arrive at the answer, not just why it's right
+              </span>
+            </label>
+            <textarea
+              className="editor-textarea"
+              rows={3}
+              placeholder='e.g. "Note the strategic words need for further teaching — this signals a negative event query. Select the option that contradicts safe practice."'
+              value={editing.strategy ?? ''}
+              onChange={(e) => updateEditing('strategy', e.target.value)}
             />
           </div>
 
@@ -723,3 +736,4 @@ export default function QuestionManager() {
     </section>
   );
 }
+
