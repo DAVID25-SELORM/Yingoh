@@ -44,8 +44,9 @@ input, select, textarea { font: inherit; }
 .brand small { display: block; color: #a7c6c1; font-size: 0.82rem; }
 
 .nav-group-label {
-  font-size: 0.7rem; font-weight: 800; letter-spacing: 0.08em;
-  color: #4d7882; padding: 0 8px; margin-top: 4px;
+  font-size: 0.72rem; font-weight: 900; letter-spacing: 0.1em;
+  color: #c8dde0; padding: 6px 10px 3px;
+  border-top: 1px solid rgba(255,255,255,0.08); margin-top: 8px;
 }
 
 .sidebar nav { display: grid; gap: 2px; }
