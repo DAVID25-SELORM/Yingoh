@@ -87,7 +87,7 @@ export async function signOut() {
 }
 
 // ─── Questions ─────────────────────────────────────────────
-export async function getQuestions({ topic, type, bookmarked, userId, limit = 50 } = {}) {
+export async function getQuestions({ topic, type, bookmarked, userId, limit = 500 } = {}) {
   if (!supabase) return { data: null, error: new Error('Not configured') };
   let query = supabase.from('questions').select('*').eq('status', 'published').limit(limit);
   if (topic) query = query.eq('topic', topic);

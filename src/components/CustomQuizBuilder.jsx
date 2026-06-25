@@ -35,7 +35,7 @@ export default function CustomQuizBuilder({ session }) {
   const [finished, setFinished] = useState(false);
 
   useEffect(() => {
-    getQuestions({ limit: 200 }).then(({ data }) => setAllQuestions(data?.length ? data : DEMO_QUESTIONS));
+    getQuestions({ limit: 500 }).then(({ data }) => setAllQuestions(data?.length ? data : DEMO_QUESTIONS));
   }, []);
 
   useEffect(() => {

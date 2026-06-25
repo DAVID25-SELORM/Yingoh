@@ -56,7 +56,7 @@ export default function QuestionBankView({ session }) {
   useEffect(() => {
     async function load() {
       setLoading(true);
-      const { data } = await getQuestions({ limit: 200 });
+      const { data } = await getQuestions({ limit: 500 });
       const qs = data?.length ? data : DEMO_QUESTIONS;
       setQuestions(qs);
       if (userId) {

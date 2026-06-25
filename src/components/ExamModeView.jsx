@@ -149,7 +149,7 @@ export default function ExamModeView({ session, onNavigate }) {
   }
 
   useEffect(() => {
-    getQuestions({ limit: 200 }).then(({ data }) => {
+    getQuestions({ limit: 500 }).then(({ data }) => {
       setAllQuestions(data?.length ? data : DEMO_QUESTIONS);
     });
   }, []);
