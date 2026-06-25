@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import {
   Activity, Bell, Brain, CalendarDays, CheckCircle2, ChevronRight,
   Flame, PlayCircle, Sparkles, Target, TrendingUp,
 } from 'lucide-react';
-import dashboardImage from '../assets/nclex-dashboard.png';
+import dashboardImage from '../assets/nclex-dashboard.webp';
 import { calculatePassProbability, getRecentAttempts, getStudyPlan, getUserProgress } from '../services/supabase';
 
 const DEMO_TOPICS = [
@@ -143,12 +143,12 @@ export default function StudentDashboard({ session, onNavigate }) {
             <strong>{streak}</strong>
             <Flame size={22} color="#e3a72f" />
           </div>
-          <small>Days in a row — keep it up!</small>
+          <small>Days in a row â€” keep it up!</small>
         </div>
         <div className="metric metric-violet">
           <span>Exam Countdown</span>
           <strong>{daysUntilExam}</strong>
-          <small>days {examDate ? `until ${new Date(examDate).toLocaleDateString()}` : '— set your date'}</small>
+          <small>days {examDate ? `until ${new Date(examDate).toLocaleDateString()}` : 'â€” set your date'}</small>
         </div>
       </div>
 
@@ -213,12 +213,12 @@ export default function StudentDashboard({ session, onNavigate }) {
             <div className="class-item active">
               <span>Live session</span>
               <strong>NGN Case Study Review</strong>
-              <small>Today 6:00 PM — Instructor-led with attendance tracking</small>
+              <small>Today 6:00 PM â€” Instructor-led with attendance tracking</small>
             </div>
             <div className="class-item" style={{ marginTop: 8 }}>
               <span>Strategy lab</span>
               <strong>CAT Strategy Lab</strong>
-              <small>Thursday 7:00 PM — Recordings and polls available</small>
+              <small>Thursday 7:00 PM â€” Recordings and polls available</small>
             </div>
           </section>
         </div>
