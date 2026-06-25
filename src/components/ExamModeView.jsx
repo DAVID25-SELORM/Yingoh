@@ -9,7 +9,7 @@ const MODES = [
   {
     id: 'practice',
     label: 'Practice Mode',
-    desc: 'Immediate feedback and rationale after each question. No time limit.',
+    desc: 'See the rationale right after each answer. Great for building understanding without pressure.',
     icon: '📝',
     timeLimit: null,
     color: '#29b7a3',
@@ -17,7 +17,7 @@ const MODES = [
   {
     id: 'timed',
     label: 'Timed Exam',
-    desc: 'Questions locked until exam ends. 1 minute per question.',
+    desc: 'Simulate real NCLEX pressure — answers lock until you finish. 1 minute per question.',
     icon: '⏱️',
     timeLimit: 'per_question',
     color: '#e3a72f',
@@ -25,7 +25,7 @@ const MODES = [
   {
     id: 'cat',
     label: 'CAT Simulator',
-    desc: 'Computer Adaptive Testing — difficulty adjusts based on your performance.',
+    desc: 'Questions get harder or easier based on how you\'re doing — just like the real NCLEX.',
     icon: '🎯',
     timeLimit: null,
     color: '#6750a4',
@@ -33,7 +33,7 @@ const MODES = [
   {
     id: 'assessment',
     label: 'Self-Assessment',
-    desc: '100-question full-length exam with score report and pass probability.',
+    desc: 'A full 100-question sit with a detailed score report and your pass probability at the end.',
     icon: '📊',
     timeLimit: 360,
     color: '#e85d4f',
@@ -282,7 +282,7 @@ export default function ExamModeView({ session, onNavigate }) {
   if (phase === 'setup') {
     return (
       <section className="content-band">
-        <div className="section-title"><h2>Choose Your Exam Mode</h2><Target size={22} /></div>
+        <div className="section-title"><h2>How do you want to practice today?</h2><Target size={22} /></div>
         <div className="exam-mode-grid">
           {MODES.map((m) => {
             const locked = modeIsLocked(m.id);
@@ -309,7 +309,7 @@ export default function ExamModeView({ session, onNavigate }) {
 
         {selectedMode && selectedMode !== 'assessment' && (
           <div className="exam-count-picker">
-            <strong>Number of Questions</strong>
+            <strong>How many questions?</strong>
             {subscription.isFree && (
               <p style={{ margin: '4px 0 8px', fontSize: '0.82rem', color: '#875f08' }}>
                 Free plan: up to 50 questions. <button className="link-btn" onClick={() => onNavigate?.('Payments')}>Upgrade for 75 &amp; 100.</button>
@@ -340,7 +340,7 @@ export default function ExamModeView({ session, onNavigate }) {
           onClick={startExam}
           disabled={!selectedMode || !allQuestions.length || modeIsLocked(selectedMode)}
         >
-          Start Exam <ChevronRight size={20} />
+          Let's go <ChevronRight size={20} />
         </button>
       </section>
     );
