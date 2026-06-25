@@ -323,18 +323,18 @@ const NAV = [
   { label: 'Questions', icon: ClipboardCheck, group: 'learn' },
   { label: 'Exam', icon: Target, group: 'learn' },
   { label: 'Flashcards', icon: Brain, group: 'learn' },
-  { label: 'Planner', icon: CalendarDays, group: 'learn' },
-  { label: 'Notebook', icon: Sparkles, group: 'learn' },
-  { label: 'Saved Items', icon: BookmarkCheck, group: 'learn' },
-  { label: 'Analytics', icon: BarChart3, group: 'learn' },
-  { label: 'Videos', icon: MonitorPlay, group: 'learn' },
-  { label: 'Quiz Builder', icon: Target, group: 'learn' },
-  { label: 'Community', icon: MessageSquareText, group: 'learn' },
-  { label: 'Certificates', icon: FileBadge, group: 'learn' },
   { label: 'Study Coach', icon: Brain, group: 'learn' },
-  { label: 'Resources', icon: BookOpen, group: 'learn' },
-  { label: 'Assignments', icon: ClipboardCheck, group: 'learn' },
-  { label: 'Professional', icon: GraduationCap, group: 'learn' },
+  { label: 'Analytics', icon: BarChart3, group: 'learn' },
+  { label: 'Planner', icon: CalendarDays, group: 'learn' },
+  { label: 'Notebook', icon: Sparkles, group: 'learn', more: true },
+  { label: 'Saved Items', icon: BookmarkCheck, group: 'learn', more: true },
+  { label: 'Videos', icon: MonitorPlay, group: 'learn', more: true },
+  { label: 'Quiz Builder', icon: Target, group: 'learn', more: true },
+  { label: 'Community', icon: MessageSquareText, group: 'learn', more: true },
+  { label: 'Certificates', icon: FileBadge, group: 'learn', more: true },
+  { label: 'Resources', icon: BookOpen, group: 'learn', more: true },
+  { label: 'Assignments', icon: ClipboardCheck, group: 'learn', more: true },
+  { label: 'Professional', icon: GraduationCap, group: 'learn', more: true },
   { label: 'Account', icon: LockKeyhole, group: 'manage' },
   { label: 'Operations', icon: Users, group: 'manage' },
   { label: 'Roadmap', icon: BookOpen, group: 'manage' },
@@ -368,7 +368,11 @@ function App() {
     return () => { mounted = false; data.subscription.unsubscribe(); };
   }, []);
 
-  const learnNav = NAV.filter((n) => n.group === 'learn');
+  const learnNavCore = NAV.filter((n) => n.group === 'learn' && !n.more);
+  const learnNavMore = NAV.filter((n) => n.group === 'learn' && n.more);
+  const isActiveInMore = learnNavMore.some((n) => n.label === activeView);
+  const [navExpanded, setNavExpanded] = useState(false);
+  const learnNav = (navExpanded || isActiveInMore) ? [...learnNavCore, ...learnNavMore] : learnNavCore;
   const manageNav = NAV.filter((n) => n.group === 'manage');
   const adminNav = NAV.filter((n) => n.group === 'admin');
   const isSuperAdmin = isConfiguredSuperAdmin(session?.user?.email);
@@ -392,6 +396,12 @@ function App() {
               <Icon size={18} />{label}
             </button>
           ))}
+          <button
+            onClick={() => setNavExpanded((v) => !v)}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', background: 'none', border: 'none', padding: '6px 12px', fontSize: '0.78rem', color: '#8a999c', cursor: 'pointer', borderRadius: 6, marginTop: 2 }}
+          >
+            {navExpanded ? '▲ Less' : `▼ More (${learnNavMore.length})`}
+          </button>
           <div className="nav-group-label" style={{ marginTop: 8 }}>MANAGE</div>
           {manageNav.map(({ label, icon: Icon }) => (
             <button
