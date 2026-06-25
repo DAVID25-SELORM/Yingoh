@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { CheckCircle2, DollarSign, Tag, FileText, PlusCircle, Sparkles, ToggleLeft, ToggleRight, X, Smartphone } from 'lucide-react';
+import { CheckCircle2, DollarSign, Tag, FileText, PlusCircle, Search, Sparkles, ToggleLeft, ToggleRight, Users, X, Smartphone } from 'lucide-react';
 import { supabase } from '../services/supabase';
 import { useSubscription, createCheckoutSession } from '../hooks/useSubscription';
 
@@ -15,6 +15,16 @@ const DEMO_INVOICES = [
   { id: 'inv2', user_email: 'student2@test.com', plan_name: 'Basic', amount_usd: 19.99, status: 'paid', payment_method: 'mobile_money', created_at: new Date(Date.now() - 86400000 * 5).toISOString() },
   { id: 'inv3', user_email: 'rn2025@health.com', plan_name: 'Premium', amount_usd: 59.99, status: 'pending', payment_method: 'paypal', created_at: new Date(Date.now() - 86400000 * 1).toISOString() },
   { id: 'inv4', user_email: 'nclex.prep@gmail.com', plan_name: 'Basic', amount_usd: 14.99, status: 'paid', payment_method: 'stripe', created_at: new Date(Date.now() - 86400000 * 8).toISOString() },
+];
+
+const DEMO_SUBSCRIBERS = [
+  { id: 's1', email: 'nurse.johnson@gmail.com', full_name: 'Sarah Johnson', plan_name: 'Pro', status: 'active', amount_usd: 39.99, started_at: new Date(Date.now() - 86400000 * 14).toISOString(), current_period_end: new Date(Date.now() + 86400000 * 16).toISOString(), payment_method: 'stripe' },
+  { id: 's2', email: 'rn2025@health.com', full_name: 'Michael Osei', plan_name: 'Premium', status: 'active', amount_usd: 59.99, started_at: new Date(Date.now() - 86400000 * 7).toISOString(), current_period_end: new Date(Date.now() + 86400000 * 23).toISOString(), payment_method: 'stripe' },
+  { id: 's3', email: 'student2@test.com', full_name: 'Abena Mensah', plan_name: 'Basic', status: 'active', amount_usd: 19.99, started_at: new Date(Date.now() - 86400000 * 21).toISOString(), current_period_end: new Date(Date.now() + 86400000 * 9).toISOString(), payment_method: 'mobile_money' },
+  { id: 's4', email: 'nclex.prep@gmail.com', full_name: 'Grace Tetteh', plan_name: 'Basic', status: 'active', amount_usd: 19.99, started_at: new Date(Date.now() - 86400000 * 30).toISOString(), current_period_end: new Date(Date.now() + 86400000 * 1).toISOString(), payment_method: 'stripe' },
+  { id: 's5', email: 'kwame.rn@outlook.com', full_name: 'Kwame Asante', plan_name: 'Pro', status: 'cancelled', amount_usd: 39.99, started_at: new Date(Date.now() - 86400000 * 45).toISOString(), current_period_end: new Date(Date.now() - 86400000 * 15).toISOString(), payment_method: 'stripe' },
+  { id: 's6', email: 'akosuah@nurses.com', full_name: 'Akosuah Boateng', plan_name: 'Premium', status: 'active', amount_usd: 59.99, started_at: new Date(Date.now() - 86400000 * 3).toISOString(), current_period_end: new Date(Date.now() + 86400000 * 27).toISOString(), payment_method: 'mobile_money' },
+  { id: 's7', email: 'linda.nclex@gmail.com', full_name: 'Linda Acheampong', plan_name: 'Basic', status: 'past_due', amount_usd: 19.99, started_at: new Date(Date.now() - 86400000 * 33).toISOString(), current_period_end: new Date(Date.now() - 86400000 * 3).toISOString(), payment_method: 'stripe' },
 ];
 
 const DEMO_PROMOS = [
@@ -44,6 +54,10 @@ export default function PaymentsView({ session }) {
   const [plans, setPlans] = useState(DEMO_PLANS);
   const [invoices, setInvoices] = useState(DEMO_INVOICES);
   const [promos, setPromos] = useState(DEMO_PROMOS);
+  const [subscribers, setSubscribers] = useState(DEMO_SUBSCRIBERS);
+  const [subSearch, setSubSearch] = useState('');
+  const [subPlanFilter, setSubPlanFilter] = useState('all');
+  const [subStatusFilter, setSubStatusFilter] = useState('all');
   const [newPromo, setNewPromo] = useState({ code: '', discount_pct: 10, max_uses: '', expires_at: '' });
   const [showPromoForm, setShowPromoForm] = useState(false);
   const [mmPlan, setMmPlan] = useState('basic');
@@ -56,6 +70,25 @@ export default function PaymentsView({ session }) {
     supabase.from('payment_plans').select('*').order('sort_order').then(({ data }) => { if (data?.length) setPlans(data); });
     supabase.from('invoices').select('*').order('created_at', { ascending: false }).then(({ data }) => { if (data?.length) setInvoices(data); });
     supabase.from('promo_codes').select('*').order('created_at', { ascending: false }).then(({ data }) => { if (data?.length) setPromos(data); });
+    supabase
+      .from('subscriptions')
+      .select('*, profiles(email, full_name), payment_plans(name, price_usd)')
+      .order('created_at', { ascending: false })
+      .then(({ data }) => {
+        if (data?.length) {
+          setSubscribers(data.map((s) => ({
+            id: s.id,
+            email: s.profiles?.email ?? s.user_id,
+            full_name: s.profiles?.full_name ?? '—',
+            plan_name: s.payment_plans?.name ?? s.plan_name ?? '—',
+            status: s.status,
+            amount_usd: s.payment_plans?.price_usd ?? 0,
+            started_at: s.created_at,
+            current_period_end: s.current_period_end,
+            payment_method: s.payment_method ?? 'stripe',
+          })));
+        }
+      });
   }, []);
 
   const totalRevenue = invoices.filter((i) => i.status === 'paid').reduce((s, i) => s + Number(i.amount_usd), 0);
@@ -122,7 +155,8 @@ export default function PaymentsView({ session }) {
         {[
           { label: 'Total Revenue', value: `$${totalRevenue.toFixed(2)}`, icon: DollarSign, color: '#29b7a3' },
           { label: 'Pending', value: `$${pendingRevenue.toFixed(2)}`, icon: DollarSign, color: '#e3a72f' },
-          { label: 'Paid Invoices', value: invoices.filter((i) => i.status === 'paid').length, icon: FileText, color: '#2b8a7d' },
+          { label: 'Active Subscribers', value: subscribers.filter((s) => s.status === 'active').length, icon: Users, color: '#2b8a7d' },
+          { label: 'Paid Invoices', value: invoices.filter((i) => i.status === 'paid').length, icon: FileText, color: '#6750a4' },
           { label: 'Active Promos', value: promos.filter((p) => p.is_active).length, icon: Tag, color: '#c17f44' },
         ].map((s) => (
           <div key={s.label} className="stat-card" style={{ borderTop: `3px solid ${s.color}`, textAlign: 'center' }}>
@@ -135,7 +169,7 @@ export default function PaymentsView({ session }) {
 
       {/* Tabs */}
       <div className="tab-bar" style={{ marginBottom: 16 }}>
-        {[['plans', 'Plans (Stripe)'], ['mobile-money', 'Mobile Money'], ['invoices', 'Invoices'], ['promos', 'Promo Codes']].map(([key, label]) => (
+        {[['plans', 'Plans (Stripe)'], ['subscribers', 'Subscribers'], ['mobile-money', 'Mobile Money'], ['invoices', 'Invoices'], ['promos', 'Promo Codes']].map(([key, label]) => (
           <button key={key} className={`tab-btn ${tab === key ? 'tab-active' : ''}`} onClick={() => setTab(key)}>{label}</button>
         ))}
       </div>
@@ -185,6 +219,123 @@ export default function PaymentsView({ session }) {
           })}
         </div>
       )}
+
+      {/* Subscribers tab */}
+      {tab === 'subscribers' && (() => {
+        const PLAN_COLORS_SUB = { Free: '#8a999c', Basic: '#2b8a7d', Pro: '#e3a72f', Premium: '#c17f44' };
+        const STATUS_STYLE = {
+          active: { bg: '#e2f5f2', color: '#135f55', label: 'Active' },
+          cancelled: { bg: '#f2e2e1', color: '#8a2c21', label: 'Cancelled' },
+          past_due: { bg: '#fff5df', color: '#875f08', label: 'Past Due' },
+          trialing: { bg: '#eef0ff', color: '#4338ca', label: 'Trial' },
+        };
+        const visibleSubs = subscribers.filter((s) => {
+          const q = subSearch.toLowerCase();
+          const matchSearch = !q || s.email?.toLowerCase().includes(q) || s.full_name?.toLowerCase().includes(q);
+          const matchPlan = subPlanFilter === 'all' || s.plan_name?.toLowerCase() === subPlanFilter;
+          const matchStatus = subStatusFilter === 'all' || s.status === subStatusFilter;
+          return matchSearch && matchPlan && matchStatus;
+        });
+        const activeCount = subscribers.filter((s) => s.status === 'active').length;
+        const mrr = subscribers.filter((s) => s.status === 'active').reduce((sum, s) => sum + Number(s.amount_usd ?? 0), 0);
+
+        return (
+          <div>
+            {/* Sub stats */}
+            <div style={{ display: 'flex', gap: 12, marginBottom: 18, flexWrap: 'wrap' }}>
+              {[
+                { label: 'Active', value: activeCount, color: '#29b7a3' },
+                { label: 'MRR', value: `$${mrr.toFixed(2)}`, color: '#2b8a7d' },
+                { label: 'Cancelled', value: subscribers.filter((s) => s.status === 'cancelled').length, color: '#8a2c21' },
+                { label: 'Past Due', value: subscribers.filter((s) => s.status === 'past_due').length, color: '#e3a72f' },
+              ].map((s) => (
+                <div key={s.label} className="qm-stat" style={{ borderColor: s.color }}>
+                  <strong style={{ color: s.color }}>{s.value}</strong>
+                  <span>{s.label}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Filters */}
+            <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+              <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
+                <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: '#8a999c' }} />
+                <input value={subSearch} onChange={(e) => setSubSearch(e.target.value)} placeholder="Search by name or email…"
+                  style={{ width: '100%', height: 36, borderRadius: 8, border: '1px solid #dbe6e4', padding: '0 12px 0 32px', boxSizing: 'border-box', fontSize: '0.86rem' }} />
+              </div>
+              <select value={subPlanFilter} onChange={(e) => setSubPlanFilter(e.target.value)}
+                style={{ height: 36, borderRadius: 8, border: '1px solid #dbe6e4', padding: '0 10px', fontSize: '0.86rem' }}>
+                <option value="all">All Plans</option>
+                <option value="basic">Basic</option>
+                <option value="pro">Pro</option>
+                <option value="premium">Premium</option>
+              </select>
+              <select value={subStatusFilter} onChange={(e) => setSubStatusFilter(e.target.value)}
+                style={{ height: 36, borderRadius: 8, border: '1px solid #dbe6e4', padding: '0 10px', fontSize: '0.86rem' }}>
+                <option value="all">All Statuses</option>
+                <option value="active">Active</option>
+                <option value="cancelled">Cancelled</option>
+                <option value="past_due">Past Due</option>
+                <option value="trialing">Trialing</option>
+              </select>
+            </div>
+
+            {/* Table */}
+            <div style={{ overflowX: 'auto' }}>
+              <table className="admin-table">
+                <thead>
+                  <tr>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Plan</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                    <th>Method</th>
+                    <th>Started</th>
+                    <th>Renews / Ended</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visibleSubs.map((s) => {
+                    const st = STATUS_STYLE[s.status] ?? { bg: '#f0f0f0', color: '#607478', label: s.status };
+                    const planColor = PLAN_COLORS_SUB[s.plan_name] ?? '#607478';
+                    const periodEnd = s.current_period_end ? new Date(s.current_period_end) : null;
+                    const isExpiringSoon = periodEnd && periodEnd > new Date() && (periodEnd - new Date()) < 86400000 * 5;
+                    return (
+                      <tr key={s.id}>
+                        <td><strong style={{ fontSize: '0.88rem' }}>{s.full_name || '—'}</strong></td>
+                        <td style={{ fontSize: '0.83rem', color: '#607478' }}>{s.email}</td>
+                        <td>
+                          <span style={{ padding: '3px 10px', borderRadius: 12, fontSize: '0.74rem', fontWeight: 800, background: `${planColor}18`, color: planColor }}>
+                            {s.plan_name}
+                          </span>
+                        </td>
+                        <td style={{ fontWeight: 700, color: '#135f55' }}>${Number(s.amount_usd ?? 0).toFixed(2)}/mo</td>
+                        <td>
+                          <span style={{ padding: '3px 10px', borderRadius: 12, fontSize: '0.74rem', fontWeight: 700, background: st.bg, color: st.color }}>
+                            {st.label}
+                          </span>
+                        </td>
+                        <td style={{ fontSize: '0.82rem', color: '#607478', textTransform: 'capitalize' }}>{s.payment_method?.replace('_', ' ') ?? '—'}</td>
+                        <td style={{ fontSize: '0.82rem', color: '#607478' }}>
+                          {s.started_at ? new Date(s.started_at).toLocaleDateString() : '—'}
+                        </td>
+                        <td style={{ fontSize: '0.82rem', color: isExpiringSoon ? '#875f08' : '#607478', fontWeight: isExpiringSoon ? 700 : 400 }}>
+                          {periodEnd ? periodEnd.toLocaleDateString() : '—'}
+                          {isExpiringSoon && <span style={{ marginLeft: 6, fontSize: '0.74rem', color: '#875f08' }}>⚠ Soon</span>}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                  {!visibleSubs.length && (
+                    <tr><td colSpan={8} style={{ textAlign: 'center', padding: 32, color: '#8a999c' }}>No subscribers match your filters.</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Mobile Money tab */}
       {tab === 'mobile-money' && (
