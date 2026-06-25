@@ -1,7 +1,9 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { CheckCircle2, ChevronRight, Clock, Target, Timer, Trophy, XCircle } from 'lucide-react';
+import { CheckCircle2, ChevronRight, Clock, LockKeyhole, Target, Timer, Trophy, XCircle } from 'lucide-react';
 import { calculatePassProbability, completeExamSession, createExamSession, getQuestions, submitExamAnswer } from '../services/supabase';
 import { DEMO_QUESTIONS } from '../data/demoQuestions';
+import { UpgradeCTA } from './SubscriptionGate';
+import { useSubscription } from '../hooks/useSubscription';
 
 const MODES = [
   {
@@ -117,7 +119,7 @@ function ResultScreen({ answers, questions, mode, timeUsed, onRestart }) {
   );
 }
 
-export default function ExamModeView({ session }) {
+export default function ExamModeView({ session, onNavigate }) {
   const [phase, setPhase] = useState('setup'); // setup | exam | result
   const [selectedMode, setSelectedMode] = useState(null);
   const [questionCount, setQuestionCount] = useState(25);
@@ -135,6 +137,16 @@ export default function ExamModeView({ session }) {
   const timerRef = useRef(null);
 
   const userId = session?.user?.id;
+  const subscription = useSubscription(session);
+
+  function requiredPlanForMode(modeId) {
+    return modeId === 'cat' || modeId === 'assessment' ? 'pro' : null;
+  }
+
+  function modeIsLocked(modeId) {
+    const requiredPlan = requiredPlanForMode(modeId);
+    return Boolean(requiredPlan && !subscription.canAccess(requiredPlan));
+  }
 
   useEffect(() => {
     getQuestions({ limit: 200 }).then(({ data }) => {
@@ -148,6 +160,7 @@ export default function ExamModeView({ session }) {
 
   async function startExam() {
     if (!selectedMode) return;
+    if (modeIsLocked(selectedMode)) return;
     const qs = shuffleAndSlice(allQuestions, questionCount);
     setQuestions(qs);
     setIndex(0);
@@ -270,20 +283,28 @@ export default function ExamModeView({ session }) {
       <section className="content-band">
         <div className="section-title"><h2>Choose Your Exam Mode</h2><Target size={22} /></div>
         <div className="exam-mode-grid">
-          {MODES.map((m) => (
-            <button
-              key={m.id}
-              className={`exam-mode-card ${selectedMode === m.id ? 'exam-mode-selected' : ''}`}
-              onClick={() => setSelectedMode(m.id)}
-              style={{ '--em-color': m.color }}
-            >
-              <span className="em-icon">{m.icon}</span>
-              <strong>{m.label}</strong>
-              <p>{m.desc}</p>
-              {selectedMode === m.id && <CheckCircle2 size={18} className="em-check" />}
-            </button>
-          ))}
+          {MODES.map((m) => {
+            const locked = modeIsLocked(m.id);
+            return (
+              <button
+                key={m.id}
+                className={`exam-mode-card ${selectedMode === m.id ? 'exam-mode-selected' : ''} ${locked ? 'exam-mode-locked' : ''}`}
+                onClick={() => setSelectedMode(m.id)}
+                style={{ '--em-color': m.color }}
+              >
+                <span className="em-icon">{locked ? <LockKeyhole size={24} /> : m.icon}</span>
+                <strong>{m.label}</strong>
+                <p>{m.desc}</p>
+                {locked && <span className="premium-mode-note">Requires Pro</span>}
+                {selectedMode === m.id && !locked && <CheckCircle2 size={18} className="em-check" />}
+              </button>
+            );
+          })}
         </div>
+
+        {selectedMode && modeIsLocked(selectedMode) && (
+          <UpgradeCTA session={session} requiredPlan="pro" onUpgrade={() => onNavigate?.('Payments')} style={{ marginTop: 16 }} />
+        )}
 
         {selectedMode && selectedMode !== 'assessment' && (
           <div className="exam-count-picker">
@@ -307,7 +328,7 @@ export default function ExamModeView({ session }) {
           className="primary-btn"
           style={{ marginTop: 20, width: '100%', justifyContent: 'center', minHeight: 48, fontSize: '1rem' }}
           onClick={startExam}
-          disabled={!selectedMode || !allQuestions.length}
+          disabled={!selectedMode || !allQuestions.length || modeIsLocked(selectedMode)}
         >
           Start Exam <ChevronRight size={20} />
         </button>

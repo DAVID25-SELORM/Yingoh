@@ -1,5 +1,19 @@
 import { useEffect, useState } from 'react';
-import { supabase } from '../services/supabase';
+import { isConfiguredSuperAdmin, supabase } from '../services/supabase';
+
+const PLAN_LEVELS = { none: 0, free: 0, basic: 1, pro: 2, premium: 3 };
+
+export function normalizePlanName(value) {
+  const name = String(value ?? 'free').trim().toLowerCase();
+  if (name.includes('premium')) return 'premium';
+  if (name.includes('pro')) return 'pro';
+  if (name.includes('basic')) return 'basic';
+  return 'free';
+}
+
+export function planMeets(plan, requiredPlan = 'pro') {
+  return (PLAN_LEVELS[normalizePlanName(plan)] ?? 0) >= (PLAN_LEVELS[normalizePlanName(requiredPlan)] ?? 0);
+}
 
 // Returns { plan, status, isActive, isPro, isPremium, loading }
 export function useSubscription(session) {
@@ -7,7 +21,14 @@ export function useSubscription(session) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
+    setSub(null);
     if (!session?.user?.id) { setLoading(false); return; }
+    if (isConfiguredSuperAdmin(session.user.email)) {
+      setSub({ plan_name: 'Premium', status: 'active' });
+      setLoading(false);
+      return;
+    }
     if (!supabase) { setLoading(false); return; }
 
     supabase
@@ -17,22 +38,29 @@ export function useSubscription(session) {
       .eq('status', 'active')
       .order('created_at', { ascending: false })
       .limit(1)
-      .single()
-      .then(({ data }) => { setSub(data); setLoading(false); });
+      .maybeSingle()
+      .then(({ data }) => {
+        const periodEnd = data?.current_period_end ? new Date(data.current_period_end) : null;
+        setSub(!periodEnd || periodEnd > new Date() ? data : null);
+        setLoading(false);
+      });
   }, [session?.user?.id]);
 
-  const planName = (sub?.payment_plans?.name ?? 'Free').toLowerCase();
+  const rawPlanName = sub?.payment_plans?.name ?? sub?.plan_name ?? 'Free';
+  const planName = normalizePlanName(rawPlanName);
   return {
     plan: planName,
-    planLabel: sub?.payment_plans?.name ?? 'Free',
+    planLabel: sub?.payment_plans?.name ?? sub?.plan_name ?? 'Free',
     status: sub?.status ?? (session ? 'free' : 'none'),
     isActive: Boolean(sub?.status === 'active'),
-    isPro: planName === 'pro' || planName === 'premium',
+    isBasic: planMeets(planName, 'basic'),
+    isPro: planMeets(planName, 'pro'),
     isPremium: planName === 'premium',
     isFree: !sub || planName === 'free',
     features: sub?.payment_plans?.features ?? [],
     periodEnd: sub?.current_period_end ?? null,
     loading,
+    canAccess: (requiredPlan) => planMeets(planName, requiredPlan),
   };
 }
 

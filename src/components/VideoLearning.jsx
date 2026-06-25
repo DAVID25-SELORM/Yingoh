@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Clock, Film, Lock, Play, Search, Star } from 'lucide-react';
 import { supabase } from '../services/supabase';
+import { UpgradeCTA } from './SubscriptionGate';
+import { useSubscription } from '../hooks/useSubscription';
 
 const TOPICS = ['All', 'Pharmacology', 'NGN Case Studies', 'Test Strategy', 'Medical-Surgical', 'Mental Health', 'Maternal and Newborn', 'Pediatrics', 'Safety and Infection Control'];
 
@@ -15,11 +17,14 @@ const DEMO_VIDEOS = [
 
 const TOPIC_COLORS = { Pharmacology: '#c17f44', 'NGN Case Studies': '#29b7a3', 'Test Strategy': '#e3a72f', 'Medical-Surgical': '#2b8a7d', 'Mental Health': '#8b5cf6', 'Maternal and Newborn': '#e94868', Pediatrics: '#e94868', 'Safety and Infection Control': '#607478' };
 
-export default function VideoLearning({ session }) {
+export default function VideoLearning({ session, onNavigate }) {
   const [videos, setVideos] = useState(DEMO_VIDEOS);
   const [topic, setTopic] = useState('All');
   const [search, setSearch] = useState('');
   const [playing, setPlaying] = useState(null);
+  const [lockedVideo, setLockedVideo] = useState(null);
+  const subscription = useSubscription(session);
+  const canWatchPremium = subscription.canAccess('pro');
 
   useEffect(() => {
     if (!supabase) return;
@@ -29,6 +34,12 @@ export default function VideoLearning({ session }) {
   }, []);
 
   async function openVideo(v) {
+    if (v.is_premium && !canWatchPremium) {
+      setPlaying(null);
+      setLockedVideo(v);
+      return;
+    }
+    setLockedVideo(null);
     setPlaying(v);
     if (supabase && session?.user?.id) {
       await supabase.from('video_progress').upsert({ user_id: session.user.id, video_id: v.id, last_watched_at: new Date().toISOString() }, { onConflict: 'user_id,video_id' });
@@ -75,6 +86,15 @@ export default function VideoLearning({ session }) {
         </div>
       )}
 
+      {lockedVideo && (
+        <UpgradeCTA
+          session={session}
+          requiredPlan="pro"
+          onUpgrade={() => onNavigate?.('Payments')}
+          style={{ marginBottom: 16 }}
+        />
+      )}
+
       {/* Filters */}
       <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
@@ -106,7 +126,7 @@ export default function VideoLearning({ session }) {
                     <Star size={10} /> PRO
                   </div>
                 )}
-                {v.is_premium && !session && (
+                {v.is_premium && !canWatchPremium && (
                   <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.45)', borderRadius: '12px 12px 0 0', display: 'grid', placeItems: 'center' }}>
                     <Lock size={28} color="#fff" />
                   </div>

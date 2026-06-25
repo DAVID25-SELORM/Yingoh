@@ -9,23 +9,24 @@ const PLAN_DETAILS = {
 };
 
 // Wraps any child — shows upgrade prompt if user doesn't have required plan
-export function SubscriptionGate({ session, requiredPlan = 'pro', children, featureName = 'this feature' }) {
-  const { plan, loading, isPro, isPremium } = useSubscription(session);
+export function SubscriptionGate({ session, requiredPlan = 'pro', children, featureName = 'this feature', onUpgrade }) {
+  const { plan, loading, canAccess } = useSubscription(session);
   const [checkingOut, setCheckingOut] = useState(false);
   const [error, setError] = useState('');
 
   if (loading) return <div style={{ padding: 24, color: '#607478', textAlign: 'center' }}>Loading…</div>;
 
-  const hasAccess =
-    requiredPlan === 'basic' ? true :
-    requiredPlan === 'pro' ? (isPro || isPremium) :
-    requiredPlan === 'premium' ? isPremium : true;
+  const hasAccess = canAccess(requiredPlan);
 
   if (hasAccess) return children;
 
   const detail = PLAN_DETAILS[requiredPlan] ?? PLAN_DETAILS.pro;
 
   async function upgrade() {
+    if (onUpgrade) {
+      onUpgrade();
+      return;
+    }
     if (!session) { setError('Sign in first to subscribe.'); return; }
     setCheckingOut(true);
     const { url, error: err } = await createCheckoutSession(requiredPlan, session);
@@ -75,11 +76,15 @@ export function PremiumBadge({ plan = 'Pro' }) {
 }
 
 // Small upgrade CTA for inline use
-export function UpgradeCTA({ session, requiredPlan = 'pro', style }) {
+export function UpgradeCTA({ session, requiredPlan = 'pro', style, onUpgrade }) {
   const detail = PLAN_DETAILS[requiredPlan] ?? PLAN_DETAILS.pro;
   const [checkingOut, setCheckingOut] = useState(false);
 
   async function upgrade() {
+    if (onUpgrade) {
+      onUpgrade();
+      return;
+    }
     if (!session) return;
     setCheckingOut(true);
     const { url } = await createCheckoutSession(requiredPlan, session);

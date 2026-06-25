@@ -37,6 +37,7 @@ import ResourcesView from './components/ResourcesView';
 import ProfessionalAddons from './components/ProfessionalAddons';
 import AssignmentsView from './components/AssignmentsView';
 import AuditLogView from './components/AuditLogView';
+import { SubscriptionGate } from './components/SubscriptionGate';
 import './styles.css';
 
 // ─── Existing inline views kept for continuity ─────────────
@@ -444,7 +445,7 @@ function App() {
 
         {activeView === 'Dashboard' && <StudentDashboard session={session} onNavigate={setActiveView} />}
         {activeView === 'Questions' && <QuestionBankView session={session} />}
-        {activeView === 'Exam' && <ExamModeView session={session} />}
+        {activeView === 'Exam' && <ExamModeView session={session} onNavigate={setActiveView} />}
         {activeView === 'Flashcards' && <FlashcardsView session={session} />}
         {activeView === 'Planner' && <StudyPlannerView session={session} />}
         {activeView === 'Notebook' && <NotebookView session={session} />}
@@ -452,10 +453,14 @@ function App() {
         {activeView === 'Account' && <AccountAccess session={session} isPasswordRecovery={isPasswordRecovery} />}
         {activeView === 'Operations' && <AdminConsole />}
         {activeView === 'Roadmap' && <ModuleRoadmap />}
-        {activeView === 'Videos' && <VideoLearning session={session} />}
+        {activeView === 'Videos' && <VideoLearning session={session} onNavigate={setActiveView} />}
         {activeView === 'Quiz Builder' && <CustomQuizBuilder session={session} />}
         {activeView === 'Community' && <CommunityForum session={session} />}
-        {activeView === 'Certificates' && <CertificatesView session={session} />}
+        {activeView === 'Certificates' && (
+          <SubscriptionGate session={session} requiredPlan="pro" featureName="certificates" onUpgrade={() => setActiveView('Payments')}>
+            <CertificatesView session={session} />
+          </SubscriptionGate>
+        )}
         {activeView === 'Super Admin' && <SuperAdminPanel session={session} />}
         {activeView === 'Users' && <UserManagement session={session} />}
         {activeView === 'AdminQuestions' && <QuestionManager session={session} />}
@@ -468,8 +473,16 @@ function App() {
         {activeView === 'Audit Logs' && <AuditLogView session={session} />}
         {activeView === 'AI Tutor' && <AITutorView session={session} />}
         {activeView === 'Resources' && <ResourcesView />}
-        {activeView === 'Assignments' && <AssignmentsView session={session} />}
-        {activeView === 'Professional' && <ProfessionalAddons session={session} />}
+        {activeView === 'Assignments' && (
+          <SubscriptionGate session={session} requiredPlan="premium" featureName="assignments and instructor feedback" onUpgrade={() => setActiveView('Payments')}>
+            <AssignmentsView session={session} />
+          </SubscriptionGate>
+        )}
+        {activeView === 'Professional' && (
+          <SubscriptionGate session={session} requiredPlan="premium" featureName="professional resources" onUpgrade={() => setActiveView('Payments')}>
+            <ProfessionalAddons session={session} />
+          </SubscriptionGate>
+        )}
       </section>
     </main>
   );

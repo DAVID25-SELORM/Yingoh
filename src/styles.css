@@ -282,7 +282,20 @@ input, select, textarea { font: inherit; }
 }
 .exam-mode-card:hover { border-color: var(--em-color, #29b7a3); background: #f9fdfc; }
 .exam-mode-selected { border-color: var(--em-color, #29b7a3); background: #f2faf9; }
+.exam-mode-locked { opacity: 0.76; background: #f8fafb; }
+.exam-mode-locked:hover { background: #f8fafb; }
 .em-icon { font-size: 1.8rem; }
+.premium-mode-note {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 6px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #fff6df;
+  color: #875f08;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
 .exam-mode-card strong { font-size: 1rem; }
 .exam-mode-card p { margin: 0; color: #5b6d72; font-size: 0.86rem; line-height: 1.5; }
 .em-check { position: absolute; top: 12px; right: 12px; color: var(--em-color, #29b7a3); }
