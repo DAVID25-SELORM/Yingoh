@@ -1,0 +1,20 @@
+{
+  "formats_per_concept": 7,
+  "batches": [
+    { "batch": 12, "focus": "Cardiovascular and vascular", "concepts": 48, "questions": 336 },
+    { "batch": 13, "focus": "Respiratory and critical care", "concepts": 48, "questions": 336 },
+    { "batch": 14, "focus": "Neurologic and sensory", "concepts": 48, "questions": 336 },
+    { "batch": 15, "focus": "Renal, endocrine, and metabolic", "concepts": 48, "questions": 336 },
+    { "batch": 16, "focus": "Gastrointestinal, hepatic, and nutrition", "concepts": 48, "questions": 336 },
+    { "batch": 17, "focus": "Hematology, oncology, and immune", "concepts": 48, "questions": 336 },
+    { "batch": 18, "focus": "Maternal and newborn", "concepts": 48, "questions": 336 },
+    { "batch": 19, "focus": "Pediatrics and child health", "concepts": 48, "questions": 336 },
+    { "batch": 20, "focus": "Mental and behavioral health", "concepts": 48, "questions": 336 },
+    { "batch": 21, "focus": "Advanced medication safety", "concepts": 48, "questions": 336 },
+    { "batch": 22, "focus": "Safety, leadership, and management", "concepts": 48, "questions": 336 },
+    { "batch": 23, "focus": "Health promotion and basic care", "concepts": 48, "questions": 336 },
+    { "batch": 24, "focus": "Integrated NGN clinical judgment", "concepts": 48, "questions": 336 }
+  ],
+  "remaining_concepts": 624,
+  "remaining_questions": 4368
+}

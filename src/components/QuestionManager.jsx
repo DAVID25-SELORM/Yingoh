@@ -29,6 +29,7 @@ const CHOICE_IDS = ['a', 'b', 'c', 'd', 'e', 'f'];
 
 export default function QuestionManager() {
   const [questions, setQuestions] = useState([]);
+  const [counts, setCounts] = useState({ total: 0, published: 0, draft: 0 });
   const [filtered, setFiltered] = useState([]);
   const [statusFilter, setStatusFilter] = useState('all');
   const [topicFilter, setTopicFilter] = useState('All Topics');
@@ -49,9 +50,27 @@ export default function QuestionManager() {
   }, [questions, statusFilter, topicFilter]);
 
   async function loadQuestions() {
-    if (!supabase) { setQuestions(DEMO_QUESTIONS); return; }
-    const { data } = await supabase.from('questions').select('*').order('created_at', { ascending: false });
+    if (!supabase) {
+      setQuestions(DEMO_QUESTIONS);
+      setCounts({
+        total: DEMO_QUESTIONS.length,
+        published: DEMO_QUESTIONS.filter((q) => q.status === 'published').length,
+        draft: DEMO_QUESTIONS.filter((q) => q.status === 'draft').length,
+      });
+      return;
+    }
+    const [{ data }, totalResult, publishedResult, draftResult] = await Promise.all([
+      supabase.from('questions').select('*').order('created_at', { ascending: false }).range(0, 999),
+      supabase.from('questions').select('id', { count: 'exact', head: true }),
+      supabase.from('questions').select('id', { count: 'exact', head: true }).eq('status', 'published'),
+      supabase.from('questions').select('id', { count: 'exact', head: true }).eq('status', 'draft'),
+    ]);
     setQuestions(data ?? []);
+    setCounts({
+      total: totalResult.count ?? 0,
+      published: publishedResult.count ?? 0,
+      draft: draftResult.count ?? 0,
+    });
   }
 
   function openNew() {
@@ -123,6 +142,7 @@ export default function QuestionManager() {
         const { data } = await supabase.from('questions').update(payload).eq('id', editing.id).select().single();
         if (data) setQuestions((prev) => prev.map((q) => q.id === data.id ? data : q));
       }
+      await loadQuestions();
     } else {
       const updated = { ...payload, id: editing.id ?? `demo-${Date.now()}` };
       setQuestions((prev) =>
@@ -137,13 +157,19 @@ export default function QuestionManager() {
     const newStatus = q.status === 'published' ? 'draft' : 'published';
     if (supabase) {
       await supabase.from('questions').update({ status: newStatus }).eq('id', q.id);
+      await loadQuestions();
+      return;
     }
     setQuestions((prev) => prev.map((x) => x.id === q.id ? { ...x, status: newStatus } : x));
   }
 
   async function handleDelete(q) {
     if (!window.confirm('Delete this question? This cannot be undone.')) return;
-    if (supabase) await supabase.from('questions').delete().eq('id', q.id);
+    if (supabase) {
+      await supabase.from('questions').delete().eq('id', q.id);
+      await loadQuestions();
+      return;
+    }
     setQuestions((prev) => prev.filter((x) => x.id !== q.id));
   }
 
@@ -388,9 +414,6 @@ export default function QuestionManager() {
     URL.revokeObjectURL(url);
   }
 
-  const publishedCount = questions.filter((q) => q.status === 'published').length;
-  const draftCount = questions.filter((q) => q.status === 'draft').length;
-
   return (
     <section className="content-band">
       <div className="section-title">
@@ -519,9 +542,9 @@ export default function QuestionManager() {
 
       {/* Stats bar */}
       <div style={{ display: 'flex', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
-        <div className="qm-stat"><strong>{questions.length}</strong><span>Total</span></div>
-        <div className="qm-stat" style={{ borderColor: '#29b7a3' }}><strong style={{ color: '#135f55' }}>{publishedCount}</strong><span>Published</span></div>
-        <div className="qm-stat" style={{ borderColor: '#e3a72f' }}><strong style={{ color: '#875f08' }}>{draftCount}</strong><span>Drafts</span></div>
+        <div className="qm-stat"><strong>{counts.total.toLocaleString()}</strong><span>Total</span></div>
+        <div className="qm-stat" style={{ borderColor: '#29b7a3' }}><strong style={{ color: '#135f55' }}>{counts.published.toLocaleString()}</strong><span>Published</span></div>
+        <div className="qm-stat" style={{ borderColor: '#e3a72f' }}><strong style={{ color: '#875f08' }}>{counts.draft.toLocaleString()}</strong><span>Drafts</span></div>
       </div>
 
       {/* Filters */}
@@ -538,7 +561,9 @@ export default function QuestionManager() {
           <option>All Topics</option>
           {TOPICS.map((t) => <option key={t}>{t}</option>)}
         </select>
-        <span style={{ marginLeft: 'auto', color: '#607478', fontSize: '0.88rem' }}>{filtered.length} questions</span>
+        <span style={{ marginLeft: 'auto', color: '#607478', fontSize: '0.88rem' }}>
+          Showing {filtered.length.toLocaleString()} of {counts.total.toLocaleString()}
+        </span>
       </div>
 
       {/* Question editor */}

@@ -6,7 +6,10 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "vite build",
-    "preview": "vite preview --host 0.0.0.0"
+    "preview": "vite preview --host 0.0.0.0",
+    "package:questions": "node scripts/build-question-bank-package.mjs",
+    "validate:questions": "node scripts/validate-question-bank.mjs",
+    "validate:questions:progress": "node scripts/validate-question-bank.mjs --allow-incomplete"
   },
   "keywords": [],
   "author": "",
