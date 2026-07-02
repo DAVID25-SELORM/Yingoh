@@ -3,7 +3,7 @@ import { Bell, Edit3, PlusCircle, Trash2, X } from 'lucide-react';
 import { supabase } from '../services/supabase';
 
 const DEMO_ANNOUNCEMENTS = [
-  { id: 'a1', title: 'Welcome to Yingoh NCLEX Platform!', content: 'We are excited to have you on board. Start your NCLEX journey today with our adaptive question bank, live coaching, and spaced-repetition flashcards. Set your exam date in the Study Planner to get a personalized daily schedule.', audience: 'all', is_active: true, created_at: new Date(Date.now() - 86400000 * 7).toISOString() },
+  { id: 'a1', title: 'Welcome to NurseFaculty!', content: 'Start your NCLEX journey with our adaptive question bank, clinical judgment practice, study coaching, and spaced-repetition flashcards.', audience: 'all', is_active: true, created_at: new Date(Date.now() - 86400000 * 7).toISOString() },
   { id: 'a2', title: 'New NGN Case Studies Added', content: '25 new Next Generation NCLEX (NGN) case study questions have been added to the question bank, covering bow tie, matrix, and highlight-text item types. These align with the latest NCSBN Clinical Judgment Measurement Model.', audience: 'students', is_active: true, created_at: new Date(Date.now() - 86400000 * 3).toISOString() },
   { id: 'a3', title: 'Instructor Webinar — Pharmacology Focus', content: 'Join us this Saturday at 6PM for a live instructor-led pharmacology review session. Topics: High-alert medications, IV compatibility, and NCLEX pharmacology question strategies. Recording will be available.', audience: 'all', is_active: true, created_at: new Date(Date.now() - 86400000 * 1).toISOString() },
 ];

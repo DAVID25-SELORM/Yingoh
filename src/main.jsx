@@ -270,9 +270,9 @@ function AccountAccess({ session, isPasswordRecovery }) {
       <div className="account-layout">
         <div className="account-panel">
           <span className="eyebrow">{userEmail ? 'Your account' : 'Welcome back'}</span>
-          <h3>{userEmail ? 'Session active' : mode === 'signup' ? 'Create account' : 'Sign in to Yingoh'}</h3>
+          <h3>{userEmail ? 'Session active' : mode === 'signup' ? 'Create account' : 'Sign in to NurseFaculty'}</h3>
           <p>{userEmail
-            ? 'Manage your Yingoh session and account security.'
+            ? 'Manage your NurseFaculty session and account security.'
             : 'Sign in to continue your personalized NCLEX preparation.'}
           </p>
           {userEmail ? (
@@ -394,8 +394,8 @@ function PublicLanding({ isPasswordRecovery }) {
   return (
     <main className="public-site">
       <header className="public-header">
-        <a className="public-brand" href="#top" aria-label="Yingoh home">
-          <img className="public-logo" src="/yingoh-logo.svg" alt="Yingoh NCLEX Coaching" />
+        <a className="public-brand" href="#top" aria-label="NurseFaculty home">
+          <img className="public-logo" src="/yingoh-logo.svg" alt="NurseFaculty NCLEX Preparation" />
         </a>
         <a className="public-signin-link" href="#signin">Sign in</a>
       </header>
@@ -407,7 +407,7 @@ function PublicLanding({ isPasswordRecovery }) {
           <p>Learn the concept, practice clinical judgment, understand every rationale, and focus each day on what will move your score.</p>
           <div className="public-hero-actions">
             <a className="public-primary-link" href="#signin">Start studying</a>
-            <a className="public-secondary-link" href="#why-yingoh">Explore Yingoh</a>
+            <a className="public-secondary-link" href="#why-yingoh">Explore NurseFaculty</a>
           </div>
           <div className="public-trust-row">
             <span><CheckCircle2 size={16} /> NGN practice</span>
@@ -416,7 +416,7 @@ function PublicLanding({ isPasswordRecovery }) {
           </div>
         </div>
         <div className="public-hero-card">
-          <span className="eyebrow">The Yingoh method</span>
+          <span className="eyebrow">The NurseFaculty method</span>
           {[
             ['01', 'Learn', 'Focused lessons and high-yield resources'],
             ['02', 'Practice', 'NCLEX and NGN questions with teaching rationales'],
@@ -460,7 +460,7 @@ function PublicLanding({ isPasswordRecovery }) {
       </section>
 
       <footer className="public-footer">
-        <div className="public-brand"><img className="public-logo" src="/yingoh-logo.svg" alt="Yingoh NCLEX Coaching" /></div>
+        <div className="public-brand"><img className="public-logo" src="/yingoh-logo.svg" alt="NurseFaculty NCLEX Preparation" /></div>
         <p>AI-powered NCLEX coaching for thoughtful, confident nursing practice.</p>
       </footer>
     </main>
@@ -530,7 +530,7 @@ function App() {
     return (
       <main className="app-loading">
         <img src="/yingoh-mark.svg" alt="" />
-        <strong>Yingoh</strong>
+        <strong>NurseFaculty</strong>
         <span>Preparing your study space…</span>
       </main>
     );
@@ -543,7 +543,7 @@ function App() {
       <aside className="sidebar">
         <div className="brand">
           <span className="brand-mark"><img src="/yingoh-mark.svg" alt="" /></span>
-          <div><strong>Yingoh</strong><small>NCLEX Coaching</small></div>
+          <div><strong>NurseFaculty</strong><small>NCLEX Preparation</small></div>
         </div>
 
         <nav>
@@ -602,7 +602,7 @@ function App() {
       <section className="workspace">
         <header className="topbar">
           <div>
-            <span className="topbar-brand"><img src="/yingoh-mark.svg" alt="" /> Yingoh NCLEX Coaching</span>
+            <span className="topbar-brand"><img src="/yingoh-mark.svg" alt="" /> NurseFaculty NCLEX Preparation</span>
             <h2>{activeView}</h2>
           </div>
           <div className="topbar-actions">

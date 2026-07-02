@@ -16,10 +16,10 @@ const ALL_ROLES = [
 
 const DEMO_USERS = [
   { id: 'u1', full_name: 'Selorm Gabiond', email: 'cryxtalcfc@gmail.com', country: 'Ghana', created_at: new Date(Date.now() - 86400000 * 30).toISOString(), roles: ['student', 'admin'] },
-  { id: 'u2', full_name: 'Abena Mensah', email: 'abena@yingoh.com', country: 'Ghana', created_at: new Date(Date.now() - 86400000 * 14).toISOString(), roles: ['instructor'] },
+  { id: 'u2', full_name: 'Abena Mensah', email: 'abena@nursefaculty.org', country: 'Ghana', created_at: new Date(Date.now() - 86400000 * 14).toISOString(), roles: ['instructor'] },
   { id: 'u3', full_name: 'Kwame Asante', email: 'kwame@nurse.com', country: 'Ghana', created_at: new Date(Date.now() - 86400000 * 7).toISOString(), roles: ['student'] },
   { id: 'u4', full_name: 'Ama Boateng', email: 'ama.boateng@email.com', country: 'USA', created_at: new Date(Date.now() - 86400000 * 3).toISOString(), roles: ['student', 'content_reviewer'] },
-  { id: 'u5', full_name: 'Kofi Acheampong', email: 'finance@yingoh.com', country: 'Ghana', created_at: new Date(Date.now() - 86400000 * 20).toISOString(), roles: ['finance'] },
+  { id: 'u5', full_name: 'Kofi Acheampong', email: 'finance@nursefaculty.org', country: 'Ghana', created_at: new Date(Date.now() - 86400000 * 20).toISOString(), roles: ['finance'] },
 ];
 
 const DEMO_INVITES = [

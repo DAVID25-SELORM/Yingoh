@@ -409,7 +409,7 @@ export default function QuestionManager() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'yingoh_questions_template.csv';
+    a.download = 'nursefaculty_questions_template.csv';
     a.click();
     URL.revokeObjectURL(url);
   }

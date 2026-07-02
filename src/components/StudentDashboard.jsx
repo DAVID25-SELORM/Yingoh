@@ -157,7 +157,7 @@ export default function StudentDashboard({ session, onNavigate }) {
       <div className="hero-panel">
         <img src={dashboardImage} alt="Nursing students preparing for NCLEX" />
         <div className="hero-copy">
-          <span className="hero-brand"><img src="/yingoh-mark.svg" alt="" /> Yingoh NCLEX Coaching Platform</span>
+          <span className="hero-brand"><img src="/yingoh-mark.svg" alt="" /> NurseFaculty NCLEX Preparation</span>
           <h1>Adaptive NCLEX prep, live coaching, and progress intelligence.</h1>
           <p>Personalized study plans, clinical reasoning practice, and readiness tracking for NCLEX candidates.</p>
           <div className="hero-actions">
@@ -238,7 +238,7 @@ export default function StudentDashboard({ session, onNavigate }) {
               <strong style={{ display: 'block', marginBottom: 6 }}>NCLEX Readiness</strong>
               <p style={{ margin: 0, color: '#5b6d72', fontSize: '0.9rem', lineHeight: 1.5 }}>
                 {!hasPerformance
-                  ? 'Start with a short practice set. Yingoh will build your readiness picture from your real results.'
+                  ? 'Start with a short practice set. NurseFaculty will build your readiness picture from your real results.'
                   : passProbability >= 75
                   ? 'You are on track to pass. Keep up your study pace and focus on NGN case studies.'
                   : passProbability >= 55

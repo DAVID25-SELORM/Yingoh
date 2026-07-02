@@ -10,7 +10,7 @@ const DEMO_LOGS = [
   { id: 'l5', user_email: 'unknown@malicious.com', action: 'failed_login', entity_type: 'auth', entity_id: null, metadata: { attempts: 5, ip: '198.51.100.42' }, created_at: new Date(Date.now() - 14400000).toISOString() },
   { id: 'l6', user_email: 'rn2025@health.com', action: 'password_reset', entity_type: 'auth', entity_id: null, metadata: {}, created_at: new Date(Date.now() - 86400000).toISOString() },
   { id: 'l7', user_email: 'student@test.com', action: 'mobile_money_initiated', entity_type: 'subscription', entity_id: 'basic', metadata: { channel: 'mtn', phone: '024****56', amount_ghs: 300 }, created_at: new Date(Date.now() - 86400000 * 2).toISOString() },
-  { id: 'l8', user_email: 'instructor@yingoh.com', action: 'video_uploaded', entity_type: 'video', entity_id: 'v-15', metadata: { title: 'Pediatric Dosage Calculations', topic: 'Pharmacology' }, created_at: new Date(Date.now() - 86400000 * 3).toISOString() },
+  { id: 'l8', user_email: 'instructor@nursefaculty.org', action: 'video_uploaded', entity_type: 'video', entity_id: 'v-15', metadata: { title: 'Pediatric Dosage Calculations', topic: 'Pharmacology' }, created_at: new Date(Date.now() - 86400000 * 3).toISOString() },
 ];
 
 const ACTION_COLORS = {

@@ -3,9 +3,9 @@ import { ClipboardCheck, PlusCircle, Upload, CheckCircle2, Clock, X, Send, FileT
 import { supabase } from '../services/supabase';
 
 const DEMO_ASSIGNMENTS = [
-  { id: 'a1', title: 'Pharmacology Case Study — Beta Blockers', description: 'Answer 5 short-answer questions about metoprolol and atenolol: mechanism, nursing implications, contraindications, and patient teaching.', due_date: new Date(Date.now() + 86400000 * 3).toISOString(), max_score: 100, topic: 'Pharmacology', status: 'open', created_by: 'instructor@yingoh.com' },
-  { id: 'a2', title: 'NGN Practice: Heart Failure Case', description: 'Complete the 6-item NGN unfolding case study on a patient admitted with acute decompensated heart failure. Submit screenshot of your answers and rationale.', due_date: new Date(Date.now() + 86400000 * 7).toISOString(), max_score: 50, topic: 'Medical-Surgical', status: 'open', created_by: 'instructor@yingoh.com' },
-  { id: 'a3', title: 'Mental Health: Therapeutic Communication Worksheet', description: 'For each non-therapeutic response provided, rewrite it using a therapeutic technique. Identify the technique used.', due_date: new Date(Date.now() - 86400000 * 1).toISOString(), max_score: 30, topic: 'Mental Health', status: 'closed', created_by: 'instructor@yingoh.com' },
+  { id: 'a1', title: 'Pharmacology Case Study — Beta Blockers', description: 'Answer 5 short-answer questions about metoprolol and atenolol: mechanism, nursing implications, contraindications, and patient teaching.', due_date: new Date(Date.now() + 86400000 * 3).toISOString(), max_score: 100, topic: 'Pharmacology', status: 'open', created_by: 'instructor@nursefaculty.org' },
+  { id: 'a2', title: 'NGN Practice: Heart Failure Case', description: 'Complete the 6-item NGN unfolding case study on a patient admitted with acute decompensated heart failure. Submit screenshot of your answers and rationale.', due_date: new Date(Date.now() + 86400000 * 7).toISOString(), max_score: 50, topic: 'Medical-Surgical', status: 'open', created_by: 'instructor@nursefaculty.org' },
+  { id: 'a3', title: 'Mental Health: Therapeutic Communication Worksheet', description: 'For each non-therapeutic response provided, rewrite it using a therapeutic technique. Identify the technique used.', due_date: new Date(Date.now() - 86400000 * 1).toISOString(), max_score: 30, topic: 'Mental Health', status: 'closed', created_by: 'instructor@nursefaculty.org' },
 ];
 
 const DEMO_SUBMISSIONS = [

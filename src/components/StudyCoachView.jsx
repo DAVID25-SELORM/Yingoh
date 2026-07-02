@@ -206,7 +206,7 @@ export default function StudyCoachView({ session }) {
                 <div className={`ai-bubble ai-bubble-${msg.role} ${msg.is_error ? 'ai-bubble-error' : ''}`}>
                   {msg.role === 'assistant' && (
                     <div className="ai-bubble-head">
-                      <span><Brain size={12} /> Yingoh AI Coach</span>
+                      <span><Brain size={12} /> NurseFaculty Study Coach</span>
                       <button className="icon-btn" title="Save answer" onClick={() => saveAnswer(msg)}>
                         {savedAnswerIds.has(msg.id) ? <BookmarkCheck size={14} /> : <Bookmark size={14} />}
                       </button>

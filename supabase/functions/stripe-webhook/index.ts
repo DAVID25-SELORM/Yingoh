@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
     const planId = sub.metadata?.plan_id;
     if (!userId) return;
 
-    // Map Stripe plan to Yingoh plan
+    // Map Stripe plan to NurseFaculty plan
     const lookupName = planId === 'basic' ? 'Starter' : planId;
     const { data: plan } = await supabase.from('payment_plans').select('name').ilike('name', lookupName ?? '').maybeSingle();
     const payload = {

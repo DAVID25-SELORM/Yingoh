@@ -8,7 +8,7 @@ import { supabase } from '../services/supabase';
 const TOPICS = ['General', 'Pharmacology', 'Medical-Surgical', 'NGN Case Studies', 'Mental Health', 'Test Strategy', 'Maternal and Newborn', 'Pediatrics'];
 
 const DEMO_THREADS = [
-  { id: 't1', title: 'Welcome to the Yingoh Community Forum!', content: 'This is your space to ask questions, share study tips, and support each other on the NCLEX journey. Be respectful, be kind, and help your fellow nurses! 🩺', topic: 'General', is_pinned: true, reply_count: 3, author_name: 'Yingoh Team', created_at: new Date(Date.now() - 86400000 * 10).toISOString() },
+  { id: 't1', title: 'Welcome to the NurseFaculty Community!', content: 'Ask questions, share study strategies, and support fellow nurses preparing for the NCLEX.', topic: 'General', is_pinned: true, reply_count: 3, author_name: 'NurseFaculty Team', created_at: new Date(Date.now() - 86400000 * 10).toISOString() },
   { id: 't2', title: 'Struggling with pharmacology — any tips?', content: 'I have been going through the pharmacology flashcards but there are so many drug classes. How do you all organize and remember them? Any mnemonics that helped you?', topic: 'Pharmacology', is_pinned: false, reply_count: 5, author_name: 'Abena M.', created_at: new Date(Date.now() - 86400000 * 3).toISOString() },
   { id: 't3', title: 'How is the CAT different from a regular exam?', content: 'I know CAT adapts to your answers but I am confused about how it decides when to stop and what the passing standard is. Can someone explain?', topic: 'Test Strategy', is_pinned: false, reply_count: 2, author_name: 'Kwame A.', created_at: new Date(Date.now() - 86400000 * 1).toISOString() },
   { id: 't4', title: 'NGN Bow Tie questions — how do you approach them?', content: 'The bow tie items are really throwing me off. I understand the format but I keep second-guessing the causes vs. outcomes. Anyone have a strategy?', topic: 'NGN Case Studies', is_pinned: false, reply_count: 1, author_name: 'Ama B.', created_at: new Date(Date.now() - 86400000 * 2).toISOString() },
@@ -18,7 +18,7 @@ const DEMO_REPLIES = {
   t1: [
     { id: 'r1', content: 'Thank you! This platform is amazing. The flashcards really help with spaced repetition.', author_name: 'Abena M.', is_instructor_reply: false, created_at: new Date(Date.now() - 86400000 * 9).toISOString() },
     { id: 'r2', content: 'Glad to be here! The study planner feature is exactly what I needed to stay on track before my exam date.', author_name: 'Kofi A.', is_instructor_reply: false, created_at: new Date(Date.now() - 86400000 * 8).toISOString() },
-    { id: 'r3', content: 'Welcome everyone! Feel free to ask any questions — that is what we are here for. 💪', author_name: 'Yingoh Instructor', is_instructor_reply: true, created_at: new Date(Date.now() - 86400000 * 7).toISOString() },
+    { id: 'r3', content: 'Welcome! Ask questions whenever you need guidance—we are here to help.', author_name: 'NurseFaculty Instructor', is_instructor_reply: true, created_at: new Date(Date.now() - 86400000 * 7).toISOString() },
   ],
   t2: [
     { id: 'r4', content: 'I group them by drug class and make up a story! For beta blockers I remember "olol" at the end — blocks stress (beta).', author_name: 'Ama B.', is_instructor_reply: false, created_at: new Date(Date.now() - 86400000 * 2).toISOString() },

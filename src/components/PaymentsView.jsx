@@ -26,7 +26,7 @@ const DEMO_SUBSCRIBERS = [
 const DEMO_PROMOS = [
   { id: 'p1', code: 'NCLEX25', discount_pct: 25, max_uses: 100, used_count: 34, expires_at: new Date(Date.now() + 86400000 * 60).toISOString(), is_active: true },
   { id: 'p2', code: 'NEWSTUDENT', discount_pct: 50, max_uses: 200, used_count: 87, expires_at: new Date(Date.now() + 86400000 * 15).toISOString(), is_active: true },
-  { id: 'p3', code: 'YINGOH10', discount_pct: 10, max_uses: null, used_count: 12, expires_at: null, is_active: true },
+  { id: 'p3', code: 'NURSE10', discount_pct: 10, max_uses: null, used_count: 12, expires_at: null, is_active: true },
 ];
 
 const PLAN_COLORS = { Free: '#8a999c', Basic: '#2b8a7d', Starter: '#2b8a7d', Pro: '#e3a72f', Premium: '#c17f44' };
@@ -39,15 +39,23 @@ export default function PaymentsView({ session, canManage = false }) {
   const { plan: currentPlan, loading: subLoading } = useSubscription(session);
   const [checkingOut, setCheckingOut] = useState('');
   const [tab, setTab] = useState('plans');
+  const [customerNotice, setCustomerNotice] = useState(null);
 
   async function handleCheckout(planName) {
-    if (!session) { alert('Sign in to subscribe.'); return; }
+    setCustomerNotice(null);
+    if (!session) {
+      setCustomerNotice({ type: 'info', message: 'Sign in to choose a subscription plan.' });
+      return;
+    }
     setCheckingOut(planName);
     const { url, error } = await createCheckoutSession(planKey(planName), session);
     if (error || !url) {
-      alert(canManage
-        ? (error?.message ?? 'Checkout is unavailable. Verify the payment-provider configuration.')
-        : 'Checkout is temporarily unavailable. Please try again later or contact Yingoh support.');
+      setCustomerNotice({
+        type: 'error',
+        message: canManage
+          ? (error?.message ?? 'Checkout is unavailable. Verify the payment-provider configuration.')
+          : 'Secure card checkout is being configured. Please use Mobile Money or contact NurseFaculty support.',
+      });
       setCheckingOut('');
       return;
     }
@@ -142,8 +150,15 @@ export default function PaymentsView({ session, canManage = false }) {
   }
 
   async function handleMobileMoney() {
-    if (!session) { alert('Sign in to subscribe.'); return; }
-    if (!mmPhone.trim()) { alert('Enter your mobile money phone number.'); return; }
+    setCustomerNotice(null);
+    if (!session) {
+      setCustomerNotice({ type: 'info', message: 'Sign in before starting a payment.' });
+      return;
+    }
+    if (!mmPhone.trim()) {
+      setCustomerNotice({ type: 'error', message: 'Enter the Mobile Money number that will authorize this payment.' });
+      return;
+    }
     setMmLoading(true);
     try {
       const { data: result, error } = await supabase.functions.invoke('create-paystack-order', {
@@ -153,12 +168,15 @@ export default function PaymentsView({ session, canManage = false }) {
       if (result?.url) {
         window.location.href = result.url;
       } else {
-        alert(canManage
-          ? (result.error ?? 'Mobile Money is unavailable. Verify the payment-provider configuration.')
-          : 'Mobile Money is temporarily unavailable. Please try again later.');
+        setCustomerNotice({
+          type: 'error',
+          message: canManage
+            ? (result?.error ?? 'Mobile Money is unavailable. Verify the payment-provider configuration.')
+            : 'Mobile Money is being configured. Please contact NurseFaculty support for enrollment assistance.',
+        });
       }
     } catch (err) {
-      alert(err.message);
+      setCustomerNotice({ type: 'error', message: err.message || 'Payment could not be started.' });
     } finally {
       setMmLoading(false);
     }
@@ -191,8 +209,23 @@ export default function PaymentsView({ session, canManage = false }) {
   return (
     <section className="content-band">
       <div className="section-title">
-        <h2>{canManage ? 'Payments & Subscriptions' : 'Choose your Yingoh plan'}</h2>
+        <h2>{canManage ? 'Payments & Subscriptions' : 'Choose your NurseFaculty plan'}</h2>
       </div>
+
+      {customerNotice && (
+        <div role="status" style={{
+          display: 'flex', alignItems: 'flex-start', gap: 10, padding: '12px 14px',
+          marginBottom: 16, borderRadius: 10,
+          border: `1px solid ${customerNotice.type === 'error' ? '#f2b9ae' : '#b7ded8'}`,
+          background: customerNotice.type === 'error' ? '#fff1ed' : '#eaf7f5',
+          color: customerNotice.type === 'error' ? '#8a2c21' : '#135f55',
+          fontSize: '0.88rem',
+        }}>
+          {customerNotice.type === 'error' ? <AlertTriangle size={17} /> : <ShieldCheck size={17} />}
+          <span style={{ flex: 1 }}>{customerNotice.message}</span>
+          <button className="icon-btn" onClick={() => setCustomerNotice(null)} aria-label="Dismiss message"><X size={15} /></button>
+        </div>
+      )}
 
       {/* Revenue stats */}
       {canManage && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14, marginBottom: 20 }}>
@@ -256,7 +289,7 @@ export default function PaymentsView({ session, canManage = false }) {
                     onClick={() => handleCheckout(plan.name)}
                     disabled={checkingOut === plan.name}
                   >
-                    <Sparkles size={14} /> {checkingOut === plan.name ? 'Redirecting…' : `Subscribe — $${Number(plan.price_usd).toFixed(2)}/mo`}
+                    <Sparkles size={14} /> {checkingOut === plan.name ? 'Starting secure checkout…' : `Choose ${plan.name} — $${Number(plan.price_usd).toFixed(2)}/mo`}
                   </button>
                 )}
                   {features.map((f, i) => (
@@ -393,7 +426,7 @@ export default function PaymentsView({ session, canManage = false }) {
         <div style={{ maxWidth: 480 }}>
           <div style={{ padding: '12px 16px', background: '#e9f1ef', borderRadius: 10, fontSize: '0.85rem', color: '#135f55', marginBottom: 18, lineHeight: 1.6 }}>
             <Smartphone size={14} style={{ display: 'inline', marginRight: 6 }} />
-            Pay with MTN Mobile Money, Vodafone Cash, or AirtelTigo Money. You will be redirected to a secure Paystack payment page to authorize the transaction.
+            Complete enrollment here using MTN Mobile Money, Telecel Cash, or AirtelTigo Money. Authorization is handled securely by Paystack.
           </div>
           <div style={{ display: 'grid', gap: 14 }}>
             <div>

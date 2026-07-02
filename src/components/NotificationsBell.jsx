@@ -3,7 +3,7 @@ import { Bell, CheckCheck, Info, AlertTriangle, CheckCircle2, X } from 'lucide-r
 import { supabase } from '../services/supabase';
 
 const DEMO_NOTIFICATIONS = [
-  { id: 'n1', title: 'Welcome to Yingoh!', message: 'Your account is set up and ready. Start with the Study Planner to set your exam date.', type: 'success', is_read: false, created_at: new Date(Date.now() - 3600000 * 2).toISOString() },
+  { id: 'n1', title: 'Welcome to NurseFaculty!', message: 'Your account is ready. Start with the Study Planner to set your exam date.', type: 'success', is_read: false, created_at: new Date(Date.now() - 3600000 * 2).toISOString() },
   { id: 'n2', title: 'New session scheduled', message: 'NGN Case Study Review is coming up in 2 days. Click to add to your calendar.', type: 'info', is_read: false, created_at: new Date(Date.now() - 3600000 * 5).toISOString() },
   { id: 'n3', title: 'Study streak — keep it up! 🔥', message: 'You\'ve studied 5 days in a row. Stay consistent to earn your streak certificate.', type: 'success', is_read: true, created_at: new Date(Date.now() - 86400000).toISOString() },
 ];

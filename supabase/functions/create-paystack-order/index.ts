@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
       email: user.email,
       amount: amountPesewas,
       currency: 'GHS',
-      reference: `yingoh-${planId}-${user.id.slice(0, 8)}-${Date.now()}`,
+      reference: `nursefaculty-${planId}-${user.id.slice(0, 8)}-${Date.now()}`,
       metadata: {
         supabase_user_id: user.id,
         plan_id: planId,

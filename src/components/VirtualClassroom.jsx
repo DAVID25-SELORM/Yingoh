@@ -28,7 +28,7 @@ function addToCalendar(session) {
   const end = session.ends_at
     ? new Date(session.ends_at).toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z'
     : start;
-  const params = new URLSearchParams({ action: 'TEMPLATE', text: `Yingoh: ${session.title}`, details: session.description ?? '', dates: `${start}/${end}` });
+  const params = new URLSearchParams({ action: 'TEMPLATE', text: `NurseFaculty: ${session.title}`, details: session.description ?? '', dates: `${start}/${end}` });
   window.open(`https://calendar.google.com/calendar/render?${params}`, '_blank');
 }
 

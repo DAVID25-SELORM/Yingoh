@@ -89,7 +89,7 @@ export default function SavedItemsView({ session }) {
         <div className="saved-empty">
           <BookmarkCheck size={34} />
           <h3>No saved items yet</h3>
-          <p>Use the save buttons across Yingoh to collect things you want to review later.</p>
+          <p>Use the save buttons across NurseFaculty to collect anything you want to review later.</p>
         </div>
       ) : (
         <div className="saved-grid">

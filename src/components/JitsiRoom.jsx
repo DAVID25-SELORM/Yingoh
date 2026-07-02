@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ExternalLink, Mic, MicOff, Video, VideoOff, X } from 'lucide-react';
 
 export function slugifyRoom(title) {
-  return 'yingoh-' + title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  return 'nursefaculty-' + title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 }
 
 // Full-screen Jitsi Meet modal — shared by VirtualClassroom and InstructorTools

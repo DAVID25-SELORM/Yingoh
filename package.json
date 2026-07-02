@@ -1,7 +1,7 @@
 {
   "name": "nclex-app",
   "version": "1.0.0",
-  "description": "Yingoh NCLEX Coaching Platform web application",
+  "description": "NurseFaculty professional NCLEX preparation platform",
   "main": "index.js",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
