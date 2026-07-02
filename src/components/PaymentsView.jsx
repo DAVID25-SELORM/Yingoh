@@ -146,15 +146,11 @@ export default function PaymentsView({ session, canManage = false }) {
     if (!mmPhone.trim()) { alert('Enter your mobile money phone number.'); return; }
     setMmLoading(true);
     try {
-      const { data: { session: authSession } } = await supabase.auth.getSession();
-      const token = authSession?.access_token;
-      const res = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-paystack-order`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ planId: mmPlan, channel: mmChannel, phone: mmPhone, callbackUrl: window.location.origin }),
+      const { data: result, error } = await supabase.functions.invoke('create-paystack-order', {
+        body: { planId: mmPlan, channel: mmChannel, phone: mmPhone, callbackUrl: window.location.origin },
       });
-      const result = await res.json();
-      if (result.url) {
+      if (error) throw new Error(error.message || 'Mobile Money is temporarily unavailable.');
+      if (result?.url) {
         window.location.href = result.url;
       } else {
         alert(canManage

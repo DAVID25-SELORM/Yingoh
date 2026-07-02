@@ -277,7 +277,7 @@ export async function deleteNote(userId, noteId) {
 // ─── Study Plan ────────────────────────────────────────────
 export async function getStudyPlan(userId) {
   if (!supabase || !userId) return { data: null, error: null };
-  return supabase.from('study_plans').select('*').eq('user_id', userId).single();
+  return supabase.from('study_plans').select('*').eq('user_id', userId).maybeSingle();
 }
 
 export async function saveStudyPlan(userId, examDate, dailyTarget, weakTopics) {

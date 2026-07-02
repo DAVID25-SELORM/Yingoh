@@ -85,17 +85,14 @@ export function useSubscription(session) {
 // Create Stripe checkout session via Edge Function
 export async function createCheckoutSession(planId, session) {
   if (!supabase || !session) return { error: new Error('Not authenticated') };
-  const { data: { session: authSession } } = await supabase.auth.getSession();
-  const token = authSession?.access_token;
-  if (!token) return { error: new Error('No auth token') };
-
-  const fnUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/create-checkout`;
-  const res = await fetch(fnUrl, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ planId, successUrl: window.location.origin, cancelUrl: window.location.origin }),
+  const { data, error } = await supabase.functions.invoke('create-checkout', {
+    body: {
+      planId,
+      successUrl: `${window.location.origin}/#/Billing?checkout=success`,
+      cancelUrl: `${window.location.origin}/#/Billing?checkout=cancelled`,
+    },
   });
-  const json = await res.json();
-  if (!res.ok) return { error: new Error(json.error ?? 'Checkout failed') };
-  return { url: json.url };
+  if (error) return { error: new Error(error.message || 'Checkout is temporarily unavailable.') };
+  if (!data?.url) return { error: new Error(data?.error || 'Checkout did not return a payment link.') };
+  return { url: data.url };
 }
