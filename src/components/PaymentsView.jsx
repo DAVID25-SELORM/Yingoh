@@ -30,6 +30,16 @@ const DEMO_PROMOS = [
 ];
 
 const PLAN_COLORS = { Free: '#8a999c', Basic: '#2b8a7d', Starter: '#2b8a7d', Pro: '#e3a72f', Premium: '#c17f44' };
+const USD_TO_GHS_RATE = 11.34;
+const CARD_GATEWAY_ENABLED = false;
+
+function formatGhs(usdAmount) {
+  return new Intl.NumberFormat('en-GH', {
+    style: 'currency',
+    currency: 'GHS',
+    minimumFractionDigits: 2,
+  }).format(Number(usdAmount || 0) * USD_TO_GHS_RATE);
+}
 
 function planKey(name) {
   return name?.toLowerCase() === 'starter' ? 'basic' : name?.toLowerCase();
@@ -40,13 +50,17 @@ export default function PaymentsView({ session, canManage = false }) {
   const [checkingOut, setCheckingOut] = useState('');
   const [tab, setTab] = useState('plans');
   const [customerNotice, setCustomerNotice] = useState(null);
+  const [selectedQuote, setSelectedQuote] = useState(null);
 
-  async function handleCheckout(planName) {
+  async function handleCheckout(plan) {
     setCustomerNotice(null);
+    setSelectedQuote(plan);
     if (!session) {
-      setCustomerNotice({ type: 'info', message: 'Sign in to choose a subscription plan.' });
+      setCustomerNotice({ type: 'info', message: 'Sign in when you are ready to continue with payment.' });
       return;
     }
+    if (!CARD_GATEWAY_ENABLED) return;
+    const planName = plan.name;
     setCheckingOut(planName);
     const { url, error } = await createCheckoutSession(planKey(planName), session);
     if (error || !url) {
@@ -286,7 +300,7 @@ export default function PaymentsView({ session, canManage = false }) {
                   <button
                     className="primary-btn"
                     style={{ width: '100%', justifyContent: 'center', background: color, marginBottom: 8 }}
-                    onClick={() => handleCheckout(plan.name)}
+                    onClick={() => handleCheckout(plan)}
                     disabled={checkingOut === plan.name}
                   >
                     <Sparkles size={14} /> {checkingOut === plan.name ? 'Starting secure checkout…' : `Choose ${plan.name} — $${Number(plan.price_usd).toFixed(2)}/mo`}
@@ -301,6 +315,64 @@ export default function PaymentsView({ session, canManage = false }) {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {selectedQuote && (
+        <div
+          className="modal-backdrop"
+          role="presentation"
+          onMouseDown={() => setSelectedQuote(null)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 1200, padding: 16,
+            display: 'grid', placeItems: 'center',
+            background: 'rgba(8, 27, 35, 0.58)', backdropFilter: 'blur(4px)',
+          }}
+        >
+          <section
+            className="qm-editor"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="subscription-quote-title"
+            onMouseDown={(event) => event.stopPropagation()}
+            style={{ width: 'min(520px, calc(100vw - 32px))', padding: 0, overflow: 'hidden' }}
+          >
+            <div className="qm-editor-header" style={{ padding: '18px 20px', borderBottom: '1px solid #e1ebe9' }}>
+              <div>
+                <span style={{ display: 'block', color: '#2b8a7d', fontSize: '0.75rem', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase' }}>NurseFaculty subscription</span>
+                <strong id="subscription-quote-title" style={{ fontSize: '1.1rem' }}>{selectedQuote.name} plan quote</strong>
+              </div>
+              <button className="icon-btn" onClick={() => setSelectedQuote(null)} aria-label="Close quote"><X size={18} /></button>
+            </div>
+            <div style={{ padding: 22 }}>
+              <div style={{ padding: '18px 20px', borderRadius: 14, background: 'linear-gradient(135deg, #e9f6f4, #f8fbfa)', border: '1px solid #cfe5e1' }}>
+                <span style={{ display: 'block', color: '#607478', fontSize: '0.8rem', marginBottom: 4 }}>Estimated monthly amount</span>
+                <strong style={{ display: 'block', color: '#102027', fontSize: '2rem', lineHeight: 1.1 }}>{formatGhs(selectedQuote.price_usd)}</strong>
+                <span style={{ display: 'block', color: '#607478', fontSize: '0.78rem', marginTop: 7 }}>
+                  ${Number(selectedQuote.price_usd).toFixed(2)} USD × {USD_TO_GHS_RATE.toFixed(2)} GHS
+                </span>
+              </div>
+              <p style={{ color: '#52666b', fontSize: '0.84rem', lineHeight: 1.55, margin: '14px 0' }}>
+                This is an indicative cedi conversion. The final provider amount may vary slightly with the payment-day exchange rate.
+              </p>
+              <div style={{ display: 'grid', gap: 10 }}>
+                <button
+                  className="primary-btn"
+                  style={{ width: '100%', justifyContent: 'center', minHeight: 44 }}
+                  onClick={() => {
+                    setMmPlan(planKey(selectedQuote.name));
+                    setSelectedQuote(null);
+                    setTab('mobile-money');
+                  }}
+                >
+                  <Smartphone size={16} /> Continue with Mobile Money
+                </button>
+                <button className="ghost-btn" style={{ width: '100%', justifyContent: 'center' }} onClick={() => setSelectedQuote(null)}>
+                  Review other plans
+                </button>
+              </div>
+            </div>
+          </section>
         </div>
       )}
 
@@ -432,9 +504,11 @@ export default function PaymentsView({ session, canManage = false }) {
             <div>
               <label style={{ fontWeight: 600, fontSize: '0.9rem', display: 'block', marginBottom: 6 }}>Select Plan</label>
               <select value={mmPlan} onChange={(e) => setMmPlan(e.target.value)} style={{ width: '100%', height: 42, borderRadius: 10, border: '1.5px solid #dbe6e4', padding: '0 14px', fontSize: '0.9rem' }}>
-                <option value="basic">Basic — GHS {Math.round(19.99 * 15)}/mo</option>
-                <option value="pro">Pro — GHS {Math.round(39.99 * 15)}/mo</option>
-                <option value="premium">Premium — GHS {Math.round(59.99 * 15)}/mo</option>
+                {plans.filter((plan) => Number(plan.price_usd) > 0).map((plan) => (
+                  <option key={plan.id} value={planKey(plan.name)}>
+                    {plan.name} — {formatGhs(plan.price_usd)}/month
+                  </option>
+                ))}
               </select>
             </div>
             <div>
