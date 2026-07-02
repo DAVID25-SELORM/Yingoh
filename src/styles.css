@@ -1009,6 +1009,7 @@ input, select, textarea { font: inherit; }
 .public-header { max-width: 1180px; margin: 0 auto; padding: 20px 28px; display: flex; align-items: center; justify-content: space-between; }
 .public-brand { display: inline-flex; align-items: center; gap: 10px; color: #173b3a; text-decoration: none; }
 .public-brand img { width: 38px; height: 38px; }
+.public-brand .public-logo { width: 210px; height: 45px; object-fit: contain; object-position: left center; }
 .public-brand span { display: grid; line-height: 1.05; }
 .public-brand strong { font-size: 1.04rem; letter-spacing: -.01em; }
 .public-brand small { margin-top: 4px; color: #2b8a7d; font-size: .62rem; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
@@ -1058,6 +1059,7 @@ input, select, textarea { font: inherit; }
 }
 @media (max-width: 600px) {
   .public-header { padding: 16px 18px; }
+  .public-brand .public-logo { width: 172px; height: 37px; }
   .public-hero { padding: 38px 18px 64px; }
   .public-hero h1 { font-size: 2.75rem; }
   .public-hero-actions { flex-direction: column; text-align: center; }

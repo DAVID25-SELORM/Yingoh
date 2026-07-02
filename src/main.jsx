@@ -391,8 +391,7 @@ function PublicLanding({ isPasswordRecovery }) {
     <main className="public-site">
       <header className="public-header">
         <a className="public-brand" href="#top" aria-label="Yingoh home">
-          <img src="/yingoh-mark.svg" alt="" />
-          <span><strong>Yingoh</strong><small>NCLEX Coaching</small></span>
+          <img className="public-logo" src="/yingoh-logo.svg" alt="Yingoh NCLEX Coaching" />
         </a>
         <a className="public-signin-link" href="#signin">Sign in</a>
       </header>
@@ -457,7 +456,7 @@ function PublicLanding({ isPasswordRecovery }) {
       </section>
 
       <footer className="public-footer">
-        <div className="public-brand"><img src="/yingoh-mark.svg" alt="" /><span><strong>Yingoh</strong><small>NCLEX Coaching</small></span></div>
+        <div className="public-brand"><img className="public-logo" src="/yingoh-logo.svg" alt="Yingoh NCLEX Coaching" /></div>
         <p>AI-powered NCLEX coaching for thoughtful, confident nursing practice.</p>
       </footer>
     </main>

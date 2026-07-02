@@ -1,19 +1,24 @@
-<svg width="720" height="260" viewBox="0 0 720 260" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Yingoh NCLEX Coaching">
-  <rect width="720" height="260" fill="white"/>
+<svg width="560" height="120" viewBox="0 0 560 120" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-labelledby="yingohTitle yingohDesc">
+  <title id="yingohTitle">Yingoh NCLEX Coaching</title>
+  <desc id="yingohDesc">Yingoh monogram with the Yingoh NCLEX Coaching wordmark</desc>
   <defs>
-    <linearGradient id="teal" x1="230" y1="16" x2="344" y2="166" gradientUnits="userSpaceOnUse">
+    <linearGradient id="yingohTeal" x1="10" y1="8" x2="72" y2="108" gradientUnits="userSpaceOnUse">
       <stop stop-color="#19B8A8"/>
       <stop offset="1" stop-color="#08776F"/>
     </linearGradient>
-    <linearGradient id="navy" x1="344" y1="66" x2="474" y2="166" gradientUnits="userSpaceOnUse">
+    <linearGradient id="yingohNavy" x1="52" y1="24" x2="102" y2="108" gradientUnits="userSpaceOnUse">
       <stop stop-color="#193049"/>
       <stop offset="1" stop-color="#071C2F"/>
     </linearGradient>
   </defs>
-  <path d="M219 32C216.4 32 215.2 35.1 217.1 36.9L281.4 101.6C288.7 109 292.8 119 292.8 129.4V172.7C292.8 175.7 296.6 177.1 298.4 174.7L322 144.3C328.4 136.1 331.8 126 331.8 115.6V111.3C331.8 103.2 335 95.5 340.7 89.8L394.9 36.9C396.8 35.1 395.6 32 393 32H348.1C339.6 32 331.4 35.4 325.4 41.5L303.3 63.8C299 68.2 291.9 68.2 287.6 63.8L265.8 41.6C259.7 35.4 251.5 32 242.9 32H219Z" fill="url(#teal)"/>
-  <path d="M361.5 81.5C361.5 78.5 364 76 367 76H391.7C402.7 76 411.6 84.9 411.6 95.9V162.8C411.6 169.6 406.1 175.1 399.3 175.1H390.7C383 175.1 375.7 172 370.3 166.6L323.2 119.5C321.3 117.6 321.3 114.5 323.2 112.6L346.6 89.2C348.5 87.3 351.6 87.3 353.5 89.2L361.5 97.2V81.5Z" fill="url(#navy)"/>
-  <text x="136" y="224" fill="#071C2F" font-family="Inter, Arial, sans-serif" font-size="62" font-weight="800" letter-spacing="26">YINGOH</text>
-  <path d="M195 244H248" stroke="#129B91" stroke-width="5" stroke-linecap="round"/>
-  <text x="274" y="250" fill="#129B91" font-family="Inter, Arial, sans-serif" font-size="26" font-weight="700" letter-spacing="14">NCLEX COACHING</text>
-  <path d="M556 244H609" stroke="#129B91" stroke-width="5" stroke-linecap="round"/>
+
+  <g transform="translate(4 4) scale(1.08)">
+    <path d="M13 15C11.3 15 10.5 17.1 11.7 18.3L42.8 50.4C46.1 53.8 48 58.4 48 63.1V84.3C48 86.2 50.4 87.1 51.6 85.6L63.4 70.4C66.4 66.5 68 61.8 68 56.9V53.8C68 49.8 69.6 46 72.4 43.2L91.3 18.3C92.5 17.1 91.7 15 90 15H69.9C65.9 15 62.1 16.6 59.3 19.4L48.1 30.7C45.8 33.1 42 33.1 39.7 30.7L28.7 19.5C25.9 16.6 22 15 18 15H13Z" fill="url(#yingohTeal)"/>
+    <path d="M70 36.5C70 34.6 71.6 33 73.5 33H83C88 33 92 37 92 42V82C92 86.4 88.4 90 84 90H79.4C76.2 90 73.1 88.7 70.8 86.4L47 62.6C45.8 61.4 45.8 59.5 47 58.3L58.1 47.2C59.3 46 61.2 46 62.4 47.2L70 54.8V36.5Z" fill="url(#yingohNavy)"/>
+  </g>
+
+  <text x="126" y="66" fill="#071C2F" font-family="Inter, Arial, sans-serif" font-size="50" font-weight="800" letter-spacing="9">YINGOH</text>
+  <path d="M128 89H168" stroke="#129B91" stroke-width="3.5" stroke-linecap="round"/>
+  <text x="182" y="96" fill="#129B91" font-family="Inter, Arial, sans-serif" font-size="18" font-weight="700" letter-spacing="5">NCLEX COACHING</text>
+  <path d="M505 89H545" stroke="#129B91" stroke-width="3.5" stroke-linecap="round"/>
 </svg>
