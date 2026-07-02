@@ -32,13 +32,14 @@ import CommunityForum from './components/CommunityForum';
 import CertificatesView from './components/CertificatesView';
 import NotificationsBell from './components/NotificationsBell';
 import VideoManager from './components/VideoManager';
-import AITutorView from './components/AITutorView';
+import StudyCoachView from './components/StudyCoachView';
 import ResourcesView from './components/ResourcesView';
 import ProfessionalAddons from './components/ProfessionalAddons';
 import AssignmentsView from './components/AssignmentsView';
 import AuditLogView from './components/AuditLogView';
 import { SubscriptionGate } from './components/SubscriptionGate';
 import SavedItemsView from './components/SavedItemsView';
+import { useSubscription } from './hooks/useSubscription';
 import './styles.css';
 
 // â”€â”€â”€ Existing inline views kept for continuity â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
@@ -173,7 +174,7 @@ function AdminConsole() {
           ))}
         </div>
         <p className="table-health-note">
-          {isChecking ? 'Checking database tablesâ€¦' : 'Table chips update from the live Supabase API.'}
+          {isChecking ? 'Checking database tables…' : 'Table chips update from the live Supabase API.'}
         </p>
       </div>
     </section>
@@ -252,40 +253,24 @@ function AccountAccess({ session, isPasswordRecovery }) {
     setIsSubmitting(false);
   }
 
-  const userChecklist = [
-    'Secure email/password sign-in is active',
-    'New accounts must confirm email ownership',
-    'Password reset is available from this page',
-    'Your session can stay active between visits',
-    'Your profile is linked to your account',
-    'Bookmarks, flashcards, exams, notes, and study plans are saved to your account',
+  const accountChecklist = [
+    'Keep your question history, notes, and bookmarks together',
+    'Track readiness and weak areas across every study session',
+    'Continue your study plan securely from any device',
+    'Reset your password at any time by email',
   ];
-  const adminChecklist = [
-    'Email/password authentication wired to Supabase',
-    'Password reset emails and new-password updates enabled',
-    'Session persistence and automatic refresh enabled',
-    'Profile creation via database trigger',
-    `Super admin bootstrap: ${supabaseConfig.superAdminEmail}`,
-    'Role tables: student, instructor, admin, finance, content reviewer, super admin',
-    'Question bookmarks, flashcard progress, exam sessions are user-scoped',
-    'Notebook and study plan saved per user account',
-  ];
-  const accountChecklist = isSuperAdmin ? adminChecklist : userChecklist;
 
   return (
     <section className="content-band">
       <div className="section-title"><h2>Account Access</h2><LockKeyhole size={22} /></div>
       <div className="account-layout">
         <div className="account-panel">
-          <span className="eyebrow">Supabase Auth</span>
+          <span className="eyebrow">{userEmail ? 'Your account' : 'Welcome back'}</span>
           <h3>{userEmail ? 'Session active' : mode === 'signup' ? 'Create account' : 'Sign in to Yingoh'}</h3>
           <p>{userEmail
-            ? 'The current browser has an active Supabase session.'
-            : 'Email and password access for students, instructors, finance, and administrators.'}
+            ? 'Manage your Yingoh session and account security.'
+            : 'Sign in to continue your personalized NCLEX preparation.'}
           </p>
-          {!supabaseConfig.isConfigured && (
-            <div className="setup-alert">Add <strong>VITE_SUPABASE_ANON_KEY</strong> before live authentication can run.</div>
-          )}
           {userEmail ? (
             mode === 'updatePassword' ? (
               <form className="auth-form" onSubmit={handleSubmit}>
@@ -299,7 +284,7 @@ function AccountAccess({ session, isPasswordRecovery }) {
               <div className="session-card">
                 <span>Signed in as</span>
                 <strong>{userEmail}</strong>
-                {isSuperAdmin && <small>Super admin access configured</small>}
+                {isSuperAdmin && <small>Administrator account</small>}
                 {!isEmailVerified && (
                   <div className="setup-alert" style={{ margin: '4px 0', color: '#8a5b12' }}>
                     Please verify your email before using protected learning features.
@@ -331,7 +316,7 @@ function AccountAccess({ session, isPasswordRecovery }) {
               )}
               {mode !== 'reset' && (
               <button className="primary-btn" type="submit" disabled={!supabaseConfig.isConfigured || isSubmitting}>
-                {isSubmitting ? 'Workingâ€¦' : mode === 'signup' ? 'Create account' : 'Sign in'}
+                {isSubmitting ? 'Working…' : mode === 'signup' ? 'Create account' : 'Sign in'}
               </button>
               )}
               <button className="link-btn" type="button" onClick={() => setMode(mode === 'reset' ? 'signin' : 'reset')}>
@@ -369,9 +354,8 @@ const NAV = [
   { label: 'Resources', icon: BookOpen, group: 'learn', more: true },
   { label: 'Assignments', icon: ClipboardCheck, group: 'learn', more: true },
   { label: 'Professional', icon: GraduationCap, group: 'learn', more: true },
+  { label: 'Billing', icon: CreditCard, group: 'learn', more: true },
   { label: 'Account', icon: LockKeyhole, group: 'manage' },
-  { label: 'Operations', icon: Users, group: 'manage' },
-  { label: 'Roadmap', icon: BookOpen, group: 'manage' },
   { label: 'Super Admin', icon: ShieldCheck, group: 'admin' },
   { label: 'Users', icon: Users, group: 'admin' },
   { label: 'Questions', icon: ClipboardCheck, group: 'admin', viewKey: 'AdminQuestions' },
@@ -396,10 +380,96 @@ function getInitialView() {
   return VALID_VIEW_KEYS.has(saved) ? saved : DEFAULT_VIEW;
 }
 
+const SUPER_ADMIN_VIEWS = new Set(['Super Admin', 'Users']);
+const ADMIN_VIEWS = new Set(['AdminQuestions', 'Audit Logs']);
+const FINANCE_VIEWS = new Set(['Payments']);
+const INSTRUCTOR_VIEWS = new Set(['Instructors', 'Announcements', 'Classroom', 'Video Manager']);
+const REVIEWER_VIEWS = new Set(['Content Review', 'AdminQuestions']);
+
+function PublicLanding({ isPasswordRecovery }) {
+  return (
+    <main className="public-site">
+      <header className="public-header">
+        <a className="public-brand" href="#top" aria-label="Yingoh home">
+          <img src="/yingoh-mark.svg" alt="" />
+          <span><strong>Yingoh</strong><small>NCLEX Coaching</small></span>
+        </a>
+        <a className="public-signin-link" href="#signin">Sign in</a>
+      </header>
+
+      <section className="public-hero" id="top">
+        <div className="public-hero-copy">
+          <span className="public-kicker"><Sparkles size={15} /> Built for international nurses</span>
+          <h1>Your personal path to NCLEX confidence.</h1>
+          <p>Learn the concept, practice clinical judgment, understand every rationale, and focus each day on what will move your score.</p>
+          <div className="public-hero-actions">
+            <a className="public-primary-link" href="#signin">Start studying</a>
+            <a className="public-secondary-link" href="#why-yingoh">Explore Yingoh</a>
+          </div>
+          <div className="public-trust-row">
+            <span><CheckCircle2 size={16} /> NGN practice</span>
+            <span><CheckCircle2 size={16} /> Adaptive study plans</span>
+            <span><CheckCircle2 size={16} /> Clear rationales</span>
+          </div>
+        </div>
+        <div className="public-hero-card">
+          <span className="eyebrow">The Yingoh method</span>
+          {[
+            ['01', 'Learn', 'Focused lessons and high-yield resources'],
+            ['02', 'Practice', 'NCLEX and NGN questions with teaching rationales'],
+            ['03', 'Improve', 'A Study Coach that targets your weak areas'],
+            ['04', 'Simulate', 'CAT exams and readiness analytics'],
+          ].map(([number, title, text]) => (
+            <div className="method-step" key={number}>
+              <span>{number}</span><div><strong>{title}</strong><p>{text}</p></div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section className="public-features" id="why-yingoh">
+        <div className="public-section-heading">
+          <span className="eyebrow">More than a question bank</span>
+          <h2>A complete NCLEX preparation system</h2>
+          <p>Everything works together to turn practice results into a clear next step.</p>
+        </div>
+        <div className="public-feature-grid">
+          {[
+            [Brain, 'Study Coach', 'Understand why each option is right or wrong, with memory cues and clinical reasoning.'],
+            [Target, 'NGN + CAT practice', 'Build clinical judgment with modern item types and realistic adaptive exams.'],
+            [BarChart3, 'Readiness insights', 'See strengths, weak areas, timing, and progress without false pass guarantees.'],
+            [CalendarDays, 'Adaptive planning', 'Convert your exam date and performance into focused daily study goals.'],
+            [BookOpen, 'High-yield library', 'Review labs, pharmacology, isolation, ECG, ABG, maternity, and delegation.'],
+            [Users, 'Human support', 'Add live classes, mentorship, and international nurse guidance when you need it.'],
+          ].map(([Icon, title, text]) => (
+            <article key={title}><span><Icon size={21} /></span><h3>{title}</h3><p>{text}</p></article>
+          ))}
+        </div>
+      </section>
+
+      <section className="public-auth-section" id="signin">
+        <div className="public-auth-intro">
+          <span className="eyebrow">Your study space</span>
+          <h2>Ready when you are.</h2>
+          <p>Sign in to continue, or create an account and begin building your personalized study plan.</p>
+        </div>
+        <AccountAccess session={null} isPasswordRecovery={isPasswordRecovery} />
+      </section>
+
+      <footer className="public-footer">
+        <div className="public-brand"><img src="/yingoh-mark.svg" alt="" /><span><strong>Yingoh</strong><small>NCLEX Coaching</small></span></div>
+        <p>AI-powered NCLEX coaching for thoughtful, confident nursing practice.</p>
+      </footer>
+    </main>
+  );
+}
+
 function App() {
   const [activeView, setActiveView] = useState(getInitialView);
   const [session, setSession] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
+  const { roles, hasAdminAccess, planLabel, loading: accessLoading } = useSubscription(session);
 
   useEffect(() => {
     if (!VALID_VIEW_KEYS.has(activeView)) return;
@@ -410,9 +480,15 @@ function App() {
 
   useEffect(() => {
     let mounted = true;
-    getCurrentSession().then(({ data }) => { if (mounted) setSession(data.session); });
+    getCurrentSession().then(({ data }) => {
+      if (mounted) {
+        setSession(data.session);
+        setAuthReady(true);
+      }
+    });
     const { data } = onAuthStateChange((event, s) => {
       setSession(s);
+      setAuthReady(true);
       if (event === 'PASSWORD_RECOVERY') {
         setIsPasswordRecovery(true);
         setActiveView('Account');
@@ -427,8 +503,37 @@ function App() {
   const [navExpanded, setNavExpanded] = useState(false);
   const learnNav = (navExpanded || isActiveInMore) ? [...learnNavCore, ...learnNavMore] : learnNavCore;
   const manageNav = NAV.filter((n) => n.group === 'manage');
-  const adminNav = NAV.filter((n) => n.group === 'admin');
-  const isSuperAdmin = isConfiguredSuperAdmin(session?.user?.email);
+  const isInstructor = roles.includes('instructor');
+  const isFinance = roles.includes('finance');
+  const isReviewer = roles.includes('content_reviewer');
+  const isSuperAdmin = roles.includes('super_admin') || isConfiguredSuperAdmin(session?.user?.email);
+  const canAccessView = (view) => {
+    if (SUPER_ADMIN_VIEWS.has(view)) return isSuperAdmin;
+    if (ADMIN_VIEWS.has(view)) return hasAdminAccess || (view === 'AdminQuestions' && isReviewer);
+    if (FINANCE_VIEWS.has(view)) return hasAdminAccess || isFinance;
+    if (INSTRUCTOR_VIEWS.has(view)) return hasAdminAccess || isInstructor;
+    if (REVIEWER_VIEWS.has(view)) return hasAdminAccess || isReviewer;
+    return true;
+  };
+  const adminNav = NAV.filter((n) => n.group === 'admin' && canAccessView(n.viewKey ?? n.label));
+  const showStaffNav = adminNav.length > 0;
+
+  useEffect(() => {
+    if (!session || accessLoading) return;
+    if (!canAccessView(activeView)) setActiveView('Dashboard');
+  }, [session, accessLoading, activeView, hasAdminAccess, isSuperAdmin, isInstructor, isFinance, isReviewer]);
+
+  if (!authReady || (session && accessLoading)) {
+    return (
+      <main className="app-loading">
+        <img src="/yingoh-mark.svg" alt="" />
+        <strong>Yingoh</strong>
+        <span>Preparing your study space…</span>
+      </main>
+    );
+  }
+
+  if (!session) return <PublicLanding isPasswordRecovery={isPasswordRecovery} />;
 
   return (
     <main className="app-shell">
@@ -465,7 +570,7 @@ function App() {
               <Icon size={18} />{label}
             </button>
           ))}
-          {isSuperAdmin && (
+          {showStaffNav && (
             <>
               <div className="nav-group-label" style={{ marginTop: 8 }}>ADMIN</div>
               {adminNav.map(({ label, icon: Icon, viewKey }) => {
@@ -485,9 +590,9 @@ function App() {
         </nav>
 
         <div className="sidebar-card">
-          <span className="eyebrow">Platform Status</span>
-          <strong>Full-featured build</strong>
-          <p>Question bank, CAT exam, spaced-repetition flashcards, study planner, digital notebook, and analytics are live.</p>
+          <span className="eyebrow">Your plan</span>
+          <strong>{planLabel}</strong>
+          <p>Keep building momentum—your questions, notes, and progress are saved automatically.</p>
         </div>
       </aside>
 
@@ -517,35 +622,34 @@ function App() {
         {activeView === 'Saved Items' && <SavedItemsView session={session} />}
         {activeView === 'Analytics' && <AnalyticsView session={session} onNavigate={setActiveView} />}
         {activeView === 'Account' && <AccountAccess session={session} isPasswordRecovery={isPasswordRecovery} />}
-        {activeView === 'Operations' && <AdminConsole />}
-        {activeView === 'Roadmap' && <ModuleRoadmap />}
         {activeView === 'Videos' && <VideoLearning session={session} onNavigate={setActiveView} />}
         {activeView === 'Quiz Builder' && <CustomQuizBuilder session={session} />}
         {activeView === 'Community' && <CommunityForum session={session} />}
         {activeView === 'Certificates' && (
-          <SubscriptionGate session={session} requiredPlan="pro" featureName="certificates" onUpgrade={() => setActiveView('Payments')}>
+          <SubscriptionGate session={session} requiredPlan="pro" featureName="certificates" onUpgrade={() => setActiveView('Billing')}>
             <CertificatesView session={session} />
           </SubscriptionGate>
         )}
-        {activeView === 'Super Admin' && <SuperAdminPanel session={session} />}
-        {activeView === 'Users' && <UserManagement session={session} />}
-        {activeView === 'AdminQuestions' && <QuestionManager session={session} />}
-        {activeView === 'Payments' && <PaymentsView session={session} />}
-        {activeView === 'Instructors' && <InstructorTools session={session} />}
-        {activeView === 'Content Review' && <ContentReviewer session={session} />}
-        {activeView === 'Announcements' && <AnnouncementsView session={session} />}
-        {activeView === 'Classroom' && <VirtualClassroom session={session} />}
-        {activeView === 'Video Manager' && <VideoManager session={session} />}
-        {activeView === 'Audit Logs' && <AuditLogView session={session} />}
-        {activeView === 'Study Coach' && <AITutorView session={session} />}
+        {activeView === 'Super Admin' && isSuperAdmin && <SuperAdminPanel session={session} />}
+        {activeView === 'Users' && isSuperAdmin && <UserManagement session={session} />}
+        {activeView === 'AdminQuestions' && (hasAdminAccess || isReviewer) && <QuestionManager session={session} />}
+        {activeView === 'Billing' && <PaymentsView session={session} />}
+        {activeView === 'Payments' && (hasAdminAccess || isFinance) && <PaymentsView session={session} canManage />}
+        {activeView === 'Instructors' && (hasAdminAccess || isInstructor) && <InstructorTools session={session} />}
+        {activeView === 'Content Review' && (hasAdminAccess || isReviewer) && <ContentReviewer session={session} />}
+        {activeView === 'Announcements' && (hasAdminAccess || isInstructor) && <AnnouncementsView session={session} />}
+        {activeView === 'Classroom' && (hasAdminAccess || isInstructor) && <VirtualClassroom session={session} />}
+        {activeView === 'Video Manager' && (hasAdminAccess || isInstructor) && <VideoManager session={session} />}
+        {activeView === 'Audit Logs' && hasAdminAccess && <AuditLogView session={session} />}
+        {activeView === 'Study Coach' && <StudyCoachView session={session} />}
         {activeView === 'Resources' && <ResourcesView session={session} />}
         {activeView === 'Assignments' && (
-          <SubscriptionGate session={session} requiredPlan="premium" featureName="assignments and instructor feedback" onUpgrade={() => setActiveView('Payments')}>
+          <SubscriptionGate session={session} requiredPlan="premium" featureName="assignments and instructor feedback" onUpgrade={() => setActiveView('Billing')}>
             <AssignmentsView session={session} />
           </SubscriptionGate>
         )}
         {activeView === 'Professional' && (
-          <SubscriptionGate session={session} requiredPlan="premium" featureName="professional resources" onUpgrade={() => setActiveView('Payments')}>
+          <SubscriptionGate session={session} requiredPlan="premium" featureName="professional resources" onUpgrade={() => setActiveView('Billing')}>
             <ProfessionalAddons session={session} />
           </SubscriptionGate>
         )}

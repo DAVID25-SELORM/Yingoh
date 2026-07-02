@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Brain, BookOpen, Bookmark, BookmarkCheck, CalendarDays, ClipboardList, Loader2, RotateCcw, Send, Sparkles } from 'lucide-react';
-import { getAiTutorConversations, saveAiTutorConversation, saveItem, supabase } from '../services/supabase';
+import { getStudyCoachConversations, saveStudyCoachConversation, saveItem, supabase } from '../services/supabase';
 
 const TABS = [
   { key: 'tutor', label: 'Chat Tutor', icon: Brain, placeholder: 'Ask an NCLEX question or paste answer choices...' },
@@ -25,7 +25,7 @@ function makeTitle(text) {
   return text.replace(/\s+/g, ' ').trim().slice(0, 70) || 'Study Coach Conversation';
 }
 
-export default function AITutorView({ session }) {
+export default function StudyCoachView({ session }) {
   const [activeTab, setActiveTab] = useState('tutor');
   const [conversations, setConversations] = useState([]);
   const [conversationId, setConversationId] = useState(null);
@@ -43,7 +43,7 @@ export default function AITutorView({ session }) {
   useEffect(() => {
     async function load() {
       if (!userId) return;
-      const { data } = await getAiTutorConversations(userId);
+      const { data } = await getStudyCoachConversations(userId);
       setConversations(data ?? []);
     }
     load();
@@ -66,7 +66,7 @@ export default function AITutorView({ session }) {
 
   async function persist(nextMessages, firstPrompt = input) {
     if (!userId) return null;
-    const { data } = await saveAiTutorConversation(userId, {
+    const { data } = await saveStudyCoachConversation(userId, {
       id: conversationId,
       mode: activeTab,
       title: makeTitle(firstPrompt),

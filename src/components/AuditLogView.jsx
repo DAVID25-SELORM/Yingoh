@@ -27,7 +27,7 @@ const ACTION_COLORS = {
 const SUSPICIOUS_ACTIONS = ['failed_login', 'user_role_change'];
 
 export default function AuditLogView({ session }) {
-  const [logs, setLogs] = useState(DEMO_LOGS);
+  const [logs, setLogs] = useState(supabase ? [] : DEMO_LOGS);
   const [search, setSearch] = useState('');
   const [filterAction, setFilterAction] = useState('all');
   const [loading, setLoading] = useState(false);

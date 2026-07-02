@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { CheckCircle2, MessageSquare, ThumbsDown, ThumbsUp, XCircle } from 'lucide-react';
 import { supabase } from '../services/supabase';
-import { DEMO_QUESTIONS } from '../data/demoQuestions';
 
 export default function ContentReviewer() {
   const [queue, setQueue] = useState([]);
@@ -15,8 +14,7 @@ export default function ContentReviewer() {
 
   async function loadQueue() {
     if (!supabase) {
-      setQueue(DEMO_QUESTIONS.filter((q) => q.status === 'draft').slice(0, 5).map((q) => ({ ...q, status: 'draft' })));
-      if (!queue.length) setQueue(DEMO_QUESTIONS.slice(0, 4).map((q) => ({ ...q, status: 'draft' })));
+      setQueue([]);
       return;
     }
     const { data } = await supabase.from('questions').select('*').eq('status', 'draft').order('created_at', { ascending: true });

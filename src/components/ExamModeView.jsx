@@ -304,7 +304,7 @@ export default function ExamModeView({ session, onNavigate }) {
         </div>
 
         {selectedMode && modeIsLocked(selectedMode) && (
-          <UpgradeCTA session={session} requiredPlan="pro" onUpgrade={() => onNavigate?.('Payments')} style={{ marginTop: 16 }} />
+          <UpgradeCTA session={session} requiredPlan="pro" onUpgrade={() => onNavigate?.('Billing')} style={{ marginTop: 16 }} />
         )}
 
         {selectedMode && selectedMode !== 'assessment' && (
@@ -312,7 +312,7 @@ export default function ExamModeView({ session, onNavigate }) {
             <strong>How many questions?</strong>
             {subscription.isFree && (
               <p style={{ margin: '4px 0 8px', fontSize: '0.82rem', color: '#875f08' }}>
-                Free plan: up to 50 questions. <button className="link-btn" onClick={() => onNavigate?.('Payments')}>Upgrade for 75 &amp; 100.</button>
+                Free plan: shorter practice exams. <button className="link-btn" onClick={() => onNavigate?.('Billing')}>View plans for longer simulations.</button>
               </p>
             )}
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>

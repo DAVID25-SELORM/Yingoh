@@ -10,6 +10,7 @@ import { DEMO_QUESTIONS } from '../data/demoQuestions';
 
 const EMPTY_QUESTION = {
   topic: 'Pharmacology',
+  minimum_plan: 'pro',
   question_type: 'mcq',
   prompt: '',
   choices: [
@@ -50,7 +51,7 @@ export default function QuestionManager() {
   async function loadQuestions() {
     if (!supabase) { setQuestions(DEMO_QUESTIONS); return; }
     const { data } = await supabase.from('questions').select('*').order('created_at', { ascending: false });
-    setQuestions(data?.length ? data : DEMO_QUESTIONS);
+    setQuestions(data ?? []);
   }
 
   function openNew() {
@@ -555,13 +556,21 @@ export default function QuestionManager() {
                 {TOPICS.map((t) => <option key={t}>{t}</option>)}
               </select>
             </div>
-            <div className="qm-form-row">
-              <label>Question Type</label>
+          <div className="qm-form-row">
+            <label>Question Type</label>
               <div className="segmented-control" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
                 <button type="button" className={editing.question_type === 'mcq' ? 'segment-active' : ''} onClick={() => updateEditing('question_type', 'mcq')}>Multiple Choice</button>
                 <button type="button" className={editing.question_type === 'sata' ? 'segment-active' : ''} onClick={() => updateEditing('question_type', 'sata')}>Select All That Apply</button>
               </div>
             </div>
+          </div>
+          <div className="qm-form-row">
+            <label>Available From</label>
+            <select value={editing.minimum_plan ?? 'pro'} onChange={(e) => updateEditing('minimum_plan', e.target.value)}>
+              <option value="free">Free — included in the 25-question sampler</option>
+              <option value="starter">Starter — included in the 500-question package</option>
+              <option value="pro">Pro — complete bank only</option>
+            </select>
           </div>
 
           <div className="qm-form-row">

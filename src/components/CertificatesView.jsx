@@ -54,7 +54,7 @@ function CertificatePrint({ cert, userName }) {
 }
 
 export default function CertificatesView({ session }) {
-  const [certs, setCerts] = useState(DEMO_CERTS);
+  const [certs, setCerts] = useState(supabase ? [] : DEMO_CERTS);
   const [preview, setPreview] = useState(null);
   const printRef = useRef();
 

@@ -20,8 +20,8 @@ function isPast(dateStr) {
 }
 
 export default function AssignmentsView({ session }) {
-  const [assignments, setAssignments] = useState(DEMO_ASSIGNMENTS);
-  const [submissions, setSubmissions] = useState(DEMO_SUBMISSIONS);
+  const [assignments, setAssignments] = useState(supabase ? [] : DEMO_ASSIGNMENTS);
+  const [submissions, setSubmissions] = useState(supabase ? [] : DEMO_SUBMISSIONS);
   const [tab, setTab] = useState('assignments');
   const [selected, setSelected] = useState(null);
   const [submissionText, setSubmissionText] = useState('');

@@ -33,7 +33,7 @@ function addToCalendar(session) {
 }
 
 export default function VirtualClassroom() {
-  const [sessions, setSessions] = useState(DEMO_SESSIONS);
+  const [sessions, setSessions] = useState(supabase ? [] : DEMO_SESSIONS);
   const [tab, setTab] = useState('live');
   const [activeSession, setActiveSession] = useState(null);
 

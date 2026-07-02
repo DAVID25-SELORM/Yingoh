@@ -14,7 +14,7 @@ const AUDIENCE_COLORS = { all: '#29b7a3', students: '#2b8a7d', instructors: '#e3
 const EMPTY = { title: '', content: '', audience: 'all' };
 
 export default function AnnouncementsView() {
-  const [announcements, setAnnouncements] = useState(DEMO_ANNOUNCEMENTS);
+  const [announcements, setAnnouncements] = useState(supabase ? [] : DEMO_ANNOUNCEMENTS);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(EMPTY);
   const [editingId, setEditingId] = useState(null);

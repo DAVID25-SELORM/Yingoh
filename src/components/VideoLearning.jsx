@@ -18,7 +18,7 @@ const DEMO_VIDEOS = [
 const TOPIC_COLORS = { Pharmacology: '#c17f44', 'NGN Case Studies': '#29b7a3', 'Test Strategy': '#e3a72f', 'Medical-Surgical': '#2b8a7d', 'Mental Health': '#8b5cf6', 'Maternal and Newborn': '#e94868', Pediatrics: '#e94868', 'Safety and Infection Control': '#607478' };
 
 export default function VideoLearning({ session, onNavigate }) {
-  const [videos, setVideos] = useState(DEMO_VIDEOS);
+  const [videos, setVideos] = useState(supabase ? [] : DEMO_VIDEOS);
   const [topic, setTopic] = useState('All');
   const [search, setSearch] = useState('');
   const [playing, setPlaying] = useState(null);
@@ -104,7 +104,7 @@ export default function VideoLearning({ session, onNavigate }) {
         <UpgradeCTA
           session={session}
           requiredPlan="pro"
-          onUpgrade={() => onNavigate?.('Payments')}
+          onUpgrade={() => onNavigate?.('Billing')}
           style={{ marginBottom: 16 }}
         />
       )}

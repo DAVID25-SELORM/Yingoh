@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Bookmark, BookmarkCheck, Edit3, PlusCircle, Save, Search, Trash2, X } from 'lucide-react';
-import { deleteNote, getAllNotes, saveItem, saveNote } from '../services/supabase';
+import { deleteNote, getAllNotes, saveItem, saveNote, supabase } from '../services/supabase';
 
 const DEMO_NOTES = [
   {
@@ -62,9 +62,9 @@ export default function NotebookView({ session }) {
     async function load() {
       if (userId) {
         const { data } = await getAllNotes(userId);
-        setNotes(data?.length ? data : DEMO_NOTES);
+        setNotes(data ?? []);
       } else {
-        setNotes(DEMO_NOTES);
+        setNotes(supabase ? [] : DEMO_NOTES);
       }
     }
     load();

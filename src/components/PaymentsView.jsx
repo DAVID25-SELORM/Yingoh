@@ -35,7 +35,7 @@ function planKey(name) {
   return name?.toLowerCase() === 'starter' ? 'basic' : name?.toLowerCase();
 }
 
-export default function PaymentsView({ session }) {
+export default function PaymentsView({ session, canManage = false }) {
   const { plan: currentPlan, loading: subLoading } = useSubscription(session);
   const [checkingOut, setCheckingOut] = useState('');
   const [tab, setTab] = useState('plans');
@@ -45,7 +45,9 @@ export default function PaymentsView({ session }) {
     setCheckingOut(planName);
     const { url, error } = await createCheckoutSession(planKey(planName), session);
     if (error || !url) {
-      alert(error?.message ?? 'Stripe not configured. Add STRIPE_SECRET_KEY and price IDs to your Supabase Edge Function secrets.');
+      alert(canManage
+        ? (error?.message ?? 'Checkout is unavailable. Verify the payment-provider configuration.')
+        : 'Checkout is temporarily unavailable. Please try again later or contact Yingoh support.');
       setCheckingOut('');
       return;
     }
@@ -53,9 +55,9 @@ export default function PaymentsView({ session }) {
   }
   const [plans, setPlans] = useState(DEMO_PLANS);
   const [bankCount, setBankCount] = useState(270);
-  const [invoices, setInvoices] = useState(DEMO_INVOICES);
-  const [promos, setPromos] = useState(DEMO_PROMOS);
-  const [subscribers, setSubscribers] = useState(DEMO_SUBSCRIBERS);
+  const [invoices, setInvoices] = useState(supabase ? [] : DEMO_INVOICES);
+  const [promos, setPromos] = useState(supabase ? [] : DEMO_PROMOS);
+  const [subscribers, setSubscribers] = useState(supabase ? [] : DEMO_SUBSCRIBERS);
   const [subSearch, setSubSearch] = useState('');
   const [subPlanFilter, setSubPlanFilter] = useState('all');
   const [subStatusFilter, setSubStatusFilter] = useState('all');
@@ -71,9 +73,10 @@ export default function PaymentsView({ session }) {
 
   useEffect(() => {
     if (!supabase) return;
-    supabase.from('questions').select('id', { count: 'exact', head: true }).eq('status', 'published')
-      .then(({ count }) => { if (typeof count === 'number') setBankCount(count); });
+    supabase.rpc('published_question_count')
+      .then(({ data }) => { if (Number.isFinite(Number(data))) setBankCount(Number(data)); });
     supabase.from('payment_plans').select('*').order('sort_order').then(({ data }) => { if (data?.length) setPlans(data); });
+    if (!canManage) return;
     supabase
       .from('invoices')
       .select('*, profiles(email, full_name), payment_plans(name)')
@@ -91,7 +94,7 @@ export default function PaymentsView({ session }) {
     supabase.from('promo_codes').select('*').order('created_at', { ascending: false }).then(({ data }) => { if (data?.length) setPromos(data); });
     supabase
       .from('subscriptions')
-      .select('*, profiles(email, full_name), payment_plans(name, price_usd)')
+      .select('*, profiles(email, full_name)')
       .order('created_at', { ascending: false })
       .then(({ data }) => {
         if (data?.length) {
@@ -99,16 +102,16 @@ export default function PaymentsView({ session }) {
             id: s.id,
             email: s.profiles?.email ?? s.user_id,
             full_name: s.profiles?.full_name ?? '—',
-            plan_name: s.payment_plans?.name ?? s.plan_name ?? '—',
+            plan_name: s.plan_name ?? '—',
             status: s.status,
-            amount_usd: s.payment_plans?.price_usd ?? 0,
+            amount_usd: plans.find((plan) => planKey(plan.name) === planKey(s.plan_name))?.price_usd ?? 0,
             started_at: s.created_at,
             current_period_end: s.current_period_end,
             payment_method: s.payment_method ?? 'stripe',
           })));
         }
       });
-  }, []);
+  }, [canManage]);
 
   const totalRevenue = invoices.filter((i) => i.status === 'paid').reduce((s, i) => s + Number(i.amount_usd), 0);
   const pendingRevenue = invoices.filter((i) => i.status === 'pending').reduce((s, i) => s + Number(i.amount_usd), 0);
@@ -154,7 +157,9 @@ export default function PaymentsView({ session }) {
       if (result.url) {
         window.location.href = result.url;
       } else {
-        alert(result.error ?? 'Paystack not configured. Add PAYSTACK_SECRET_KEY to your Supabase Edge Function secrets.');
+        alert(canManage
+          ? (result.error ?? 'Mobile Money is unavailable. Verify the payment-provider configuration.')
+          : 'Mobile Money is temporarily unavailable. Please try again later.');
       }
     } catch (err) {
       alert(err.message);
@@ -190,11 +195,11 @@ export default function PaymentsView({ session }) {
   return (
     <section className="content-band">
       <div className="section-title">
-        <h2>Payments &amp; Subscriptions</h2>
+        <h2>{canManage ? 'Payments & Subscriptions' : 'Choose your Yingoh plan'}</h2>
       </div>
 
       {/* Revenue stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14, marginBottom: 20 }}>
+      {canManage && <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 14, marginBottom: 20 }}>
         {[
           { label: 'Total Revenue', value: `$${totalRevenue.toFixed(2)}`, icon: DollarSign, color: '#29b7a3' },
           { label: 'Pending', value: `$${pendingRevenue.toFixed(2)}`, icon: DollarSign, color: '#e3a72f' },
@@ -208,11 +213,14 @@ export default function PaymentsView({ session }) {
             <div style={{ fontSize: '0.82rem', color: '#607478' }}>{s.label}</div>
           </div>
         ))}
-      </div>
+      </div>}
 
       {/* Tabs */}
       <div className="tab-bar" style={{ marginBottom: 16 }}>
-        {[['plans', 'Plans (Stripe)'], ['subscribers', 'Subscribers'], ['mobile-money', 'Mobile Money'], ['access-policy', 'Access Policy'], ['invoices', 'Invoices'], ['promos', 'Promo Codes']].map(([key, label]) => (
+        {(canManage
+          ? [['plans', 'Plans'], ['subscribers', 'Subscribers'], ['mobile-money', 'Mobile Money'], ['access-policy', 'Access Policy'], ['invoices', 'Invoices'], ['promos', 'Promo Codes']]
+          : [['plans', 'Subscription plans'], ['mobile-money', 'Mobile Money']]
+        ).map(([key, label]) => (
           <button key={key} className={`tab-btn ${tab === key ? 'tab-active' : ''}`} onClick={() => setTab(key)}>{label}</button>
         ))}
       </div>
@@ -268,7 +276,7 @@ export default function PaymentsView({ session }) {
       )}
 
       {/* Subscribers tab */}
-      {tab === 'subscribers' && (() => {
+      {canManage && tab === 'subscribers' && (() => {
         const PLAN_COLORS_SUB = { Free: '#8a999c', Basic: '#2b8a7d', Pro: '#e3a72f', Premium: '#c17f44' };
         const STATUS_STYLE = {
           active: { bg: '#e2f5f2', color: '#135f55', label: 'Active' },
@@ -423,7 +431,7 @@ export default function PaymentsView({ session }) {
       )}
 
       {/* Access policy tab */}
-      {tab === 'access-policy' && (
+      {canManage && tab === 'access-policy' && (
         <div style={{ display: 'grid', gap: 14 }}>
           <div className="qm-editor">
             <div className="qm-editor-header">
@@ -453,7 +461,7 @@ export default function PaymentsView({ session }) {
       )}
 
       {/* Invoices tab */}
-      {tab === 'invoices' && (
+      {canManage && tab === 'invoices' && (
         <div>
           {paymentMessage && <div style={{ padding: '10px 12px', background: '#e2f5f2', border: '1px solid #b7ded8', color: '#135f55', borderRadius: 8, marginBottom: 12, fontSize: '0.86rem' }}>{paymentMessage}</div>}
           {paymentError && <div style={{ padding: '10px 12px', background: '#fff1ed', border: '1px solid #f2b9ae', color: '#8a2c21', borderRadius: 8, marginBottom: 12, fontSize: '0.86rem' }}>{paymentError}</div>}
@@ -507,7 +515,7 @@ export default function PaymentsView({ session }) {
       )}
 
       {/* Promo codes tab */}
-      {tab === 'promos' && (
+      {canManage && tab === 'promos' && (
         <>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
             <button className="primary-btn" onClick={() => setShowPromoForm(true)}>

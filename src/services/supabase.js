@@ -43,7 +43,7 @@ export const yingohTables = {
   examSessionAnswers: 'exam_session_answers',
   notebooks: 'notebooks',
   studyPlans: 'study_plans',
-  aiTutorConversations: 'ai_tutor_conversations',
+  studyCoachConversations: 'study_coach_conversations',
   savedItems: 'saved_items',
   userProgress: 'user_progress',
 };
@@ -327,17 +327,17 @@ export async function isItemSaved(userId, itemType, itemId) {
   return { data: Boolean(data), error };
 }
 
-// AI Tutor conversations
-export async function getAiTutorConversations(userId) {
+// Study Coach conversations
+export async function getStudyCoachConversations(userId) {
   if (!supabase || !userId) return { data: [], error: null };
-  return supabase.from('ai_tutor_conversations')
+  return supabase.from('study_coach_conversations')
     .select('*')
     .eq('user_id', userId)
     .order('updated_at', { ascending: false })
     .limit(20);
 }
 
-export async function saveAiTutorConversation(userId, { id, mode, title, messages, isSaved = false }) {
+export async function saveStudyCoachConversation(userId, { id, mode, title, messages, isSaved = false }) {
   if (!supabase || !userId) return { data: null, error: new Error('Not configured') };
   const payload = {
     user_id: userId,
@@ -347,8 +347,8 @@ export async function saveAiTutorConversation(userId, { id, mode, title, message
     is_saved: isSaved,
     updated_at: new Date().toISOString(),
   };
-  if (id) return supabase.from('ai_tutor_conversations').update(payload).eq('id', id).eq('user_id', userId).select().single();
-  return supabase.from('ai_tutor_conversations').insert(payload).select().single();
+  if (id) return supabase.from('study_coach_conversations').update(payload).eq('id', id).eq('user_id', userId).select().single();
+  return supabase.from('study_coach_conversations').insert(payload).select().single();
 }
 
 // Progress rollup

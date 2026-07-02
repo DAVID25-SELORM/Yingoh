@@ -16,7 +16,7 @@ const DEMO_VIDEOS = [
 const EMPTY = { title: '', topic: 'Pharmacology', video_url: '', description: '', duration_mins: '', is_published: false, is_premium: false, sort_order: '' };
 
 export default function VideoManager({ session }) {
-  const [videos, setVideos] = useState(DEMO_VIDEOS);
+  const [videos, setVideos] = useState(supabase ? [] : DEMO_VIDEOS);
   const [editing, setEditing] = useState(null);
   const [isNew, setIsNew] = useState(false);
   const [saving, setSaving] = useState(false);

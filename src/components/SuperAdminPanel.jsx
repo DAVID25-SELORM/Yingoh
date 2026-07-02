@@ -69,9 +69,21 @@ function RoleBadge({ role }) {
 
 export default function SuperAdminPanel({ session }) {
   const [tab, setTab] = useState('overview');
-  const [stats, setStats] = useState(DEMO_STATS);
-  const [users, setUsers] = useState(DEMO_USERS);
-  const [auditLog, setAuditLog] = useState(DEMO_AUDIT);
+  const [stats, setStats] = useState(supabase ? {
+    total_users: 0,
+    published_questions: 0,
+    draft_questions: 0,
+    total_attempts: 0,
+    total_sessions: 0,
+    active_subscriptions: 0,
+    paid_invoices: 0,
+    total_revenue: 0,
+    upcoming_classes: 0,
+    total_notes: 0,
+    total_bookmarks: 0,
+  } : DEMO_STATS);
+  const [users, setUsers] = useState(supabase ? [] : DEMO_USERS);
+  const [auditLog, setAuditLog] = useState(supabase ? [] : DEMO_AUDIT);
   const [search, setSearch] = useState('');
   const [tableHealth, setTableHealth] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);

@@ -30,8 +30,8 @@ const DEMO_INVITES = [
 const ROLE_COLORS = Object.fromEntries(ALL_ROLES.map((r) => [r.name, r.color]));
 
 export default function UserManagement({ session }) {
-  const [users, setUsers] = useState(DEMO_USERS);
-  const [invites, setInvites] = useState(DEMO_INVITES);
+  const [users, setUsers] = useState(supabase ? [] : DEMO_USERS);
+  const [invites, setInvites] = useState(supabase ? [] : DEMO_INVITES);
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState('users'); // users | invites | add
   const [roleModal, setRoleModal] = useState(null); // user obj

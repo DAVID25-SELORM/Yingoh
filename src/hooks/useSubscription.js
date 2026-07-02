@@ -39,7 +39,7 @@ export function useSubscription(session) {
     Promise.all([
       supabase
         .from('subscriptions')
-        .select('*, payment_plans(name, price_usd, features, question_limit)')
+        .select('*')
         .eq('user_id', session.user.id)
         .eq('status', 'active')
         .order('created_at', { ascending: false })
@@ -54,10 +54,10 @@ export function useSubscription(session) {
       });
   }, [session?.user?.id]);
 
-  const rawPlanName = sub?.payment_plans?.name ?? sub?.plan_name ?? 'Free';
+  const rawPlanName = sub?.plan_name ?? 'Free';
   const planName = normalizePlanName(rawPlanName);
   const hasAdminAccess = roles.some((role) => ADMIN_ROLES.has(role));
-  const configuredLimit = sub?.payment_plans?.question_limit;
+  const configuredLimit = null;
   const questionLimit = hasAdminAccess
     ? Infinity
     : configuredLimit == null
@@ -65,14 +65,14 @@ export function useSubscription(session) {
       : Number(configuredLimit);
   return {
     plan: planName,
-    planLabel: sub?.payment_plans?.name ?? sub?.plan_name ?? 'Free',
+    planLabel: sub?.plan_name ?? 'Free',
     status: sub?.status ?? (session ? 'free' : 'none'),
     isActive: Boolean(sub?.status === 'active'),
     isBasic: planMeets(planName, 'basic'),
     isPro: planMeets(planName, 'pro'),
     isPremium: planName === 'premium',
     isFree: !sub || planName === 'free',
-    features: sub?.payment_plans?.features ?? [],
+    features: [],
     roles,
     hasAdminAccess,
     questionLimit,

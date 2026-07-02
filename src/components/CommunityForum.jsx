@@ -41,8 +41,8 @@ function timeAgo(iso) {
 }
 
 export default function CommunityForum({ session }) {
-  const [threads, setThreads] = useState(DEMO_THREADS);
-  const [replies, setReplies] = useState(DEMO_REPLIES);
+  const [threads, setThreads] = useState(supabase ? [] : DEMO_THREADS);
+  const [replies, setReplies] = useState(supabase ? {} : DEMO_REPLIES);
   const [selected, setSelected] = useState(null);
   const [topicFilter, setTopicFilter] = useState('All');
   const [replyText, setReplyText] = useState('');

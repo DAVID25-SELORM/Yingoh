@@ -20,7 +20,7 @@ function formatDateTime(iso) {
 }
 
 export default function InstructorTools({ session }) {
-  const [sessions, setSessions] = useState(DEMO_SESSIONS);
+  const [sessions, setSessions] = useState(supabase ? [] : DEMO_SESSIONS);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState(EMPTY_SESSION);
   const [saving, setSaving] = useState(false);

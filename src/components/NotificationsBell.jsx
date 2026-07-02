@@ -26,7 +26,7 @@ function timeAgo(iso) {
 }
 
 export default function NotificationsBell({ session }) {
-  const [notifs, setNotifs] = useState(DEMO_NOTIFICATIONS);
+  const [notifs, setNotifs] = useState(supabase ? [] : DEMO_NOTIFICATIONS);
   const [open, setOpen] = useState(false);
   const ref = useRef();
 
@@ -39,7 +39,7 @@ export default function NotificationsBell({ session }) {
   useEffect(() => {
     if (!supabase || !session?.user?.id) return;
     supabase.from('notifications').select('*').eq('user_id', session.user.id).order('created_at', { ascending: false }).limit(20).then(({ data }) => {
-      if (data?.length) setNotifs(data);
+      setNotifs(data ?? []);
     });
 
     // Real-time updates

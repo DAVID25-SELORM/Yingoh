@@ -6,36 +6,12 @@ import {
 import dashboardImage from '../assets/nclex-dashboard.webp';
 import { calculatePassProbability, getRecentAttempts, getStudyPlan, getUserProgress } from '../services/supabase';
 
-const DEMO_TOPICS = [
-  { label: 'Pharmacology', score: 68, status: 'Priority area', color: '#e85d4f' },
-  { label: 'Safety & Infection Control', score: 82, status: 'On track', color: '#29b7a3' },
-  { label: 'Maternal and Newborn', score: 74, status: 'Building', color: '#e3a72f' },
-  { label: 'NGN Case Studies', score: 61, status: 'Coaching focus', color: '#6750a4' },
-  { label: 'Medical-Surgical', score: 77, status: 'Progressing', color: '#29b7a3' },
-  { label: 'Mental Health', score: 71, status: 'Building', color: '#e3a72f' },
-];
-
-const DEMO_ACTIVITY = [45, 22, 38, 50, 17, 42, 30];
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-const DEMO_CORRECTION_PLAN = {
-  total: 42,
-  missed: 11,
-  accuracy: 74,
-  weakTopics: [
-    { topic: 'NGN Case Studies', pct: 61, missed: 5 },
-    { topic: 'Pharmacology', pct: 68, missed: 4 },
-    { topic: 'Leadership & Delegation', pct: 70, missed: 2 },
-  ],
-  tasks: [
-    'Review 5 missed rationales before new questions.',
-    'Practice 10 NGN case-study items.',
-    'Ask Study Coach to explain one priority-setting mistake.',
-  ],
-};
+const EMPTY_CORRECTION_PLAN = { total: 0, missed: 0, accuracy: 0, weakTopics: [], tasks: [] };
 
 function getRecentCorrectionPlan(attempts) {
-  if (!attempts?.length) return DEMO_CORRECTION_PLAN;
+  if (!attempts?.length) return EMPTY_CORRECTION_PLAN;
   const byTopic = {};
   attempts.forEach((attempt) => {
     const topic = attempt.questions?.topic ?? 'Mixed Topics';
@@ -74,7 +50,7 @@ function getRecentCorrectionPlan(attempts) {
   };
 }
 
-function PassProbabilityGauge({ value }) {
+function PassProbabilityGauge({ value, hasData = true }) {
   const color = value >= 75 ? '#29b7a3' : value >= 55 ? '#e3a72f' : '#e85d4f';
   const label = value >= 75 ? 'High' : value >= 55 ? 'Moderate' : 'Developing';
   const pct = Math.min(100, Math.max(0, value));
@@ -90,8 +66,8 @@ function PassProbabilityGauge({ value }) {
           strokeLinecap="round" transform="rotate(-90 50 50)"
           style={{ transition: 'stroke-dashoffset 0.8s ease' }}
         />
-        <text x="50" y="46" textAnchor="middle" fontSize="16" fontWeight="800" fill={color}>{value}%</text>
-        <text x="50" y="62" textAnchor="middle" fontSize="9" fill="#8a999c">{label}</text>
+        <text x="50" y="46" textAnchor="middle" fontSize="16" fontWeight="800" fill={color}>{hasData ? `${value}%` : '—'}</text>
+        <text x="50" y="62" textAnchor="middle" fontSize="9" fill="#8a999c">{hasData ? label : 'No data'}</text>
       </svg>
       <span>Pass Probability</span>
     </div>
@@ -115,13 +91,14 @@ function WeeklyActivity({ data }) {
 }
 
 export default function StudentDashboard({ session, onNavigate }) {
-  const [passProbability, setPassProbability] = useState(74);
-  const [streak, setStreak] = useState(7);
-  const [doneToday, setDoneToday] = useState(18);
+  const [passProbability, setPassProbability] = useState(0);
+  const [streak, setStreak] = useState(0);
+  const [doneToday, setDoneToday] = useState(0);
   const [dailyTarget, setDailyTarget] = useState(25);
   const [examDate, setExamDate] = useState(null);
-  const [daysUntilExam, setDaysUntilExam] = useState(42);
-  const [correctionPlan, setCorrectionPlan] = useState(DEMO_CORRECTION_PLAN);
+  const [daysUntilExam, setDaysUntilExam] = useState(null);
+  const [correctionPlan, setCorrectionPlan] = useState(EMPTY_CORRECTION_PLAN);
+  const [weeklyActivity, setWeeklyActivity] = useState(Array(7).fill(0));
 
   useEffect(() => {
     if (!session?.user) return;
@@ -142,6 +119,17 @@ export default function StudentDashboard({ session, onNavigate }) {
         const todayCount = data.filter((a) => new Date(a.created_at).toDateString() === today).length;
         setDoneToday(todayCount);
         setCorrectionPlan(getRecentCorrectionPlan(data));
+        const start = new Date();
+        start.setHours(0, 0, 0, 0);
+        const days = Array(7).fill(0);
+        data.forEach((attempt) => {
+          const diff = Math.floor((start - new Date(new Date(attempt.created_at).setHours(0, 0, 0, 0))) / 86400000);
+          if (diff >= 0 && diff < 7) days[6 - diff] += 1;
+        });
+        setWeeklyActivity(days);
+      } else {
+        setCorrectionPlan(EMPTY_CORRECTION_PLAN);
+        setWeeklyActivity(Array(7).fill(0));
       }
     });
 
@@ -156,6 +144,13 @@ export default function StudentDashboard({ session, onNavigate }) {
   }, [session]);
 
   const goalPct = Math.min(100, Math.round((doneToday / dailyTarget) * 100));
+  const hasPerformance = correctionPlan.total > 0;
+  const topicRows = correctionPlan.weakTopics.map((topic) => ({
+    label: topic.topic,
+    score: topic.pct,
+    status: topic.pct >= 72 ? 'On track' : 'Needs focus',
+    color: topic.pct >= 72 ? '#29b7a3' : topic.pct >= 60 ? '#e3a72f' : '#e85d4f',
+  }));
 
   return (
     <section className="view-grid">
@@ -182,7 +177,7 @@ export default function StudentDashboard({ session, onNavigate }) {
         <div className="metric">
           <span>Pass Probability</span>
           <strong style={{ color: passProbability >= 75 ? '#135f55' : passProbability >= 55 ? '#875f08' : '#8a2c21' }}>
-            {passProbability}%
+            {hasPerformance ? `${passProbability}%` : '—'}
           </strong>
           <small>Based on recent performance</small>
         </div>
@@ -201,12 +196,12 @@ export default function StudentDashboard({ session, onNavigate }) {
             <strong>{streak}</strong>
             <Flame size={22} color="#e3a72f" />
           </div>
-          <small>Days in a row â€” keep it up!</small>
+          <small>Days in a row — keep it up!</small>
         </div>
         <div className="metric metric-violet">
           <span>Exam Countdown</span>
-          <strong>{daysUntilExam}</strong>
-          <small>days {examDate ? `until ${new Date(examDate).toLocaleDateString()}` : 'â€” set your date'}</small>
+          <strong>{daysUntilExam ?? '—'}</strong>
+          <small>{examDate ? `days until ${new Date(examDate).toLocaleDateString()}` : 'Set your exam date in Planner'}</small>
         </div>
       </div>
 
@@ -217,7 +212,7 @@ export default function StudentDashboard({ session, onNavigate }) {
             <h2>Weak Area Planner</h2>
             <Sparkles size={20} />
           </div>
-          {DEMO_TOPICS.map((topic) => (
+          {topicRows.map((topic) => (
             <div className="topic-row" key={topic.label}>
               <div>
                 <strong>{topic.label}</strong>
@@ -229,6 +224,7 @@ export default function StudentDashboard({ session, onNavigate }) {
               <b>{topic.score}%</b>
             </div>
           ))}
+          {!topicRows.length && <p className="empty-state">Complete a few practice questions and your focus areas will appear here.</p>}
           <button className="ghost-btn" style={{ marginTop: 14, width: '100%' }} onClick={() => onNavigate('Analytics')}>
             <TrendingUp size={16} /> View full analytics
           </button>
@@ -237,11 +233,13 @@ export default function StudentDashboard({ session, onNavigate }) {
         <div style={{ display: 'grid', gap: 16 }}>
           {/* Pass probability gauge */}
           <section className="surface" style={{ display: 'flex', alignItems: 'center', gap: 18 }}>
-            <PassProbabilityGauge value={passProbability} />
+            <PassProbabilityGauge value={passProbability} hasData={hasPerformance} />
             <div>
               <strong style={{ display: 'block', marginBottom: 6 }}>NCLEX Readiness</strong>
               <p style={{ margin: 0, color: '#5b6d72', fontSize: '0.9rem', lineHeight: 1.5 }}>
-                {passProbability >= 75
+                {!hasPerformance
+                  ? 'Start with a short practice set. Yingoh will build your readiness picture from your real results.'
+                  : passProbability >= 75
                   ? 'You are on track to pass. Keep up your study pace and focus on NGN case studies.'
                   : passProbability >= 55
                     ? 'Good progress. Prioritize weak areas daily and aim for 72%+ on practice tests.'
@@ -256,9 +254,9 @@ export default function StudentDashboard({ session, onNavigate }) {
               <h2>This Week</h2>
               <Activity size={20} />
             </div>
-            <WeeklyActivity data={DEMO_ACTIVITY} />
+            <WeeklyActivity data={weeklyActivity} />
             <div style={{ marginTop: 10, color: '#607478', fontSize: '0.88rem' }}>
-              {DEMO_ACTIVITY.reduce((a, b) => a + b, 0)} questions this week
+              {weeklyActivity.reduce((a, b) => a + b, 0)} questions this week
             </div>
           </section>
 
@@ -268,7 +266,7 @@ export default function StudentDashboard({ session, onNavigate }) {
               <h2>Today&apos;s Correction Plan</h2>
               <AlertTriangle size={20} />
             </div>
-            <div className="dashboard-correction-score">
+            {hasPerformance ? <><div className="dashboard-correction-score">
               <div>
                 <span>Recent Accuracy</span>
                 <strong className={correctionPlan.accuracy >= 72 ? 'metric-good-text' : 'metric-risk-text'}>{correctionPlan.accuracy}%</strong>
@@ -293,7 +291,7 @@ export default function StudentDashboard({ session, onNavigate }) {
               <button className="ghost-btn" onClick={() => onNavigate('Study Coach')}>
                 <Brain size={16} /> Ask Coach
               </button>
-            </div>
+            </div></> : <div className="empty-state">Your personalized correction plan will appear after your first practice session.</div>}
           </section>
         </div>
       </div>

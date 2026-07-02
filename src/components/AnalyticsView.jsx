@@ -108,12 +108,13 @@ function MiniBarChart({ data, label }) {
 const MODE_LABELS = { practice: 'Practice', timed: 'Timed', cat: 'CAT', assessment: 'Assessment' };
 
 export default function AnalyticsView({ session, onNavigate }) {
-  const [topicStats, setTopicStats] = useState(DEMO_TOPIC_STATS);
-  const [passProbability, setPassProbability] = useState(74);
-  const [totalAttempts, setTotalAttempts] = useState(244);
-  const [overallPct, setOverallPct] = useState(74);
-  const [examHistory, setExamHistory] = useState(DEMO_EXAM_HISTORY);
-  const [weeklyData, setWeeklyData] = useState(DEMO_WEEKLY);
+  const [topicStats, setTopicStats] = useState([]);
+  const [passProbability, setPassProbability] = useState(0);
+  const [totalAttempts, setTotalAttempts] = useState(0);
+  const [overallPct, setOverallPct] = useState(0);
+  const [examHistory, setExamHistory] = useState([]);
+  const [weeklyData, setWeeklyData] = useState(Array(7).fill(0));
+  const [loading, setLoading] = useState(true);
 
   const userId = session?.user?.id;
 
@@ -154,6 +155,7 @@ export default function AnalyticsView({ session, onNavigate }) {
 
       const { data: history } = await getExamHistory(userId);
       if (history?.length) setExamHistory(history);
+      setLoading(false);
     }
     load();
   }, [userId]);
@@ -162,7 +164,21 @@ export default function AnalyticsView({ session, onNavigate }) {
   const weakTopics = topicStats.filter((s) => s.total > 0 && Math.round((s.correct / s.total) * 100) < 72);
   const strongTopics = topicStats.filter((s) => s.total > 0 && Math.round((s.correct / s.total) * 100) >= 80);
   const ngnScore = topicStats.find((s) => s.topic === 'NGN Case Studies');
-  const ngnPct = ngnScore ? Math.round((ngnScore.correct / ngnScore.total) * 100) : 61;
+  const ngnPct = ngnScore ? Math.round((ngnScore.correct / ngnScore.total) * 100) : 0;
+
+  if (!loading && totalAttempts === 0) {
+    return (
+      <section className="content-band">
+        <div className="section-title"><h2>Performance Analytics</h2><BarChart3 size={22} /></div>
+        <div className="empty-state" style={{ padding: '56px 24px', textAlign: 'center' }}>
+          <Activity size={34} style={{ margin: '0 auto 12px', color: '#2b8a7d' }} />
+          <h3 style={{ margin: '0 0 8px' }}>Your analytics will grow with you</h3>
+          <p style={{ maxWidth: 520, margin: '0 auto 18px' }}>Complete your first practice set to unlock real topic performance, weekly activity, and readiness insights.</p>
+          <button className="primary-btn" onClick={() => onNavigate?.('Questions')}>Start practice</button>
+        </div>
+      </section>
+    );
+  }
 
   return (
     <section className="content-band">

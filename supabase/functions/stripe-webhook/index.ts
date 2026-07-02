@@ -25,18 +25,28 @@ Deno.serve(async (req) => {
     if (!userId) return;
 
     // Map Stripe plan to Yingoh plan
-    const { data: plan } = await supabase.from('payment_plans').select('id').ilike('name', planId ?? '').single();
-
-    await supabase.from('subscriptions').upsert({
+    const lookupName = planId === 'basic' ? 'Starter' : planId;
+    const { data: plan } = await supabase.from('payment_plans').select('name').ilike('name', lookupName ?? '').maybeSingle();
+    const payload = {
       user_id: userId,
-      plan_id: plan?.id ?? null,
-      stripe_subscription_id: sub.id,
-      stripe_customer_id: typeof sub.customer === 'string' ? sub.customer : sub.customer.id,
+      plan_name: plan?.name ?? lookupName ?? 'Free',
+      provider: 'stripe',
+      provider_reference: sub.id,
       status: sub.status === 'active' || sub.status === 'trialing' ? 'active' : sub.status,
-      current_period_start: new Date(sub.current_period_start * 1000).toISOString(),
       current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
       updated_at: new Date().toISOString(),
-    }, { onConflict: 'stripe_subscription_id' });
+    };
+    const { data: existing } = await supabase
+      .from('subscriptions')
+      .select('id')
+      .eq('provider', 'stripe')
+      .eq('provider_reference', sub.id)
+      .maybeSingle();
+    if (existing?.id) {
+      await supabase.from('subscriptions').update(payload).eq('id', existing.id);
+    } else {
+      await supabase.from('subscriptions').insert(payload);
+    }
   }
 
   async function recordInvoice(inv: Stripe.Invoice) {
@@ -60,7 +70,7 @@ Deno.serve(async (req) => {
       break;
     case 'customer.subscription.deleted': {
       const sub = event.data.object as Stripe.Subscription;
-      await supabase.from('subscriptions').update({ status: 'cancelled' }).eq('stripe_subscription_id', sub.id);
+      await supabase.from('subscriptions').update({ status: 'cancelled' }).eq('provider', 'stripe').eq('provider_reference', sub.id);
       break;
     }
     case 'invoice.payment_succeeded':
