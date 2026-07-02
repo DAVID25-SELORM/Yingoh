@@ -1,11 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 
 const defaultSupabaseUrl = 'https://mcbfqgyosdklnzbagobp.supabase.co';
+const productionAppUrl = 'https://nursefaculty.org';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim() || defaultSupabaseUrl;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim() || '';
 const superAdminEmail = (import.meta.env.VITE_SUPER_ADMIN_EMAIL?.trim() || 'cryxtalcfc@gmail.com').toLowerCase();
-const authRedirectUrl = import.meta.env.VITE_AUTH_REDIRECT_URL?.trim()
-  || (typeof window !== 'undefined' ? window.location.origin : 'https://yingoh.vercel.app');
+const isLocalDevelopment = typeof window !== 'undefined'
+  && ['localhost', '127.0.0.1'].includes(window.location.hostname);
+const authRedirectUrl = isLocalDevelopment
+  ? (import.meta.env.VITE_AUTH_REDIRECT_URL?.trim() || window.location.origin)
+  : productionAppUrl;
 
 export const supabaseConfig = {
   url: supabaseUrl,

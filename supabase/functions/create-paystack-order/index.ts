@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
         plan_id: planId,
         plan_name: PLAN_NAMES[planId],
       },
-      callback_url: callbackUrl ?? 'https://yingoh.com/payment-success',
+      callback_url: callbackUrl ?? 'https://nursefaculty.org/payment-success',
     };
 
     // Mobile Money channels: mtn, vodafone, tigo

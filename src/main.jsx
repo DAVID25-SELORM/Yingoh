@@ -42,6 +42,10 @@ import SavedItemsView from './components/SavedItemsView';
 import { useSubscription } from './hooks/useSubscription';
 import './styles.css';
 
+if (typeof window !== 'undefined' && window.location.hostname === 'yingoh.vercel.app') {
+  window.location.replace(`https://nursefaculty.org${window.location.pathname}${window.location.search}${window.location.hash}`);
+}
+
 // â”€â”€â”€ Existing inline views kept for continuity â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const modules = [
