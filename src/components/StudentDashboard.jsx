@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useState } from 'react';
 import {
-  Activity, Bell, Brain, CalendarDays, CheckCircle2, ChevronRight,
+  Activity, AlertTriangle, Bell, Brain, CalendarDays, CheckCircle2, ChevronRight,
   Flame, PlayCircle, Sparkles, Target, TrendingUp,
 } from 'lucide-react';
 import dashboardImage from '../assets/nclex-dashboard.webp';
@@ -17,6 +17,62 @@ const DEMO_TOPICS = [
 
 const DEMO_ACTIVITY = [45, 22, 38, 50, 17, 42, 30];
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+const DEMO_CORRECTION_PLAN = {
+  total: 42,
+  missed: 11,
+  accuracy: 74,
+  weakTopics: [
+    { topic: 'NGN Case Studies', pct: 61, missed: 5 },
+    { topic: 'Pharmacology', pct: 68, missed: 4 },
+    { topic: 'Leadership & Delegation', pct: 70, missed: 2 },
+  ],
+  tasks: [
+    'Review 5 missed rationales before new questions.',
+    'Practice 10 NGN case-study items.',
+    'Ask Study Coach to explain one priority-setting mistake.',
+  ],
+};
+
+function getRecentCorrectionPlan(attempts) {
+  if (!attempts?.length) return DEMO_CORRECTION_PLAN;
+  const byTopic = {};
+  attempts.forEach((attempt) => {
+    const topic = attempt.questions?.topic ?? 'Mixed Topics';
+    if (!byTopic[topic]) byTopic[topic] = { topic, correct: 0, total: 0, missed: 0 };
+    byTopic[topic].total += 1;
+    if (attempt.is_correct) byTopic[topic].correct += 1;
+    else byTopic[topic].missed += 1;
+  });
+
+  const total = attempts.length;
+  const missed = attempts.filter((attempt) => !attempt.is_correct).length;
+  const accuracy = Math.round(((total - missed) / total) * 100);
+  const weakTopics = Object.values(byTopic)
+    .map((topic) => ({ ...topic, pct: Math.round((topic.correct / topic.total) * 100) }))
+    .filter((topic) => topic.pct < 72 || topic.missed > 0)
+    .sort((a, b) => b.missed - a.missed || a.pct - b.pct)
+    .slice(0, 3);
+  const topTopic = weakTopics[0]?.topic ?? 'mixed NCLEX topics';
+
+  return {
+    total,
+    missed,
+    accuracy,
+    weakTopics,
+    tasks: missed > 0
+      ? [
+          `Review ${Math.min(missed, 5)} missed rationale${missed === 1 ? '' : 's'} today.`,
+          `Practice 10 focused questions in ${topTopic}.`,
+          'Use Study Coach on one wrong answer before ending practice.',
+        ]
+      : [
+          `Do 10 harder questions in ${topTopic}.`,
+          'Complete one NGN case to protect readiness.',
+          'Save one high-yield rationale for final review.',
+        ],
+  };
+}
 
 function PassProbabilityGauge({ value }) {
   const color = value >= 75 ? '#29b7a3' : value >= 55 ? '#e3a72f' : '#e85d4f';
@@ -65,6 +121,7 @@ export default function StudentDashboard({ session, onNavigate }) {
   const [dailyTarget, setDailyTarget] = useState(25);
   const [examDate, setExamDate] = useState(null);
   const [daysUntilExam, setDaysUntilExam] = useState(42);
+  const [correctionPlan, setCorrectionPlan] = useState(DEMO_CORRECTION_PLAN);
 
   useEffect(() => {
     if (!session?.user) return;
@@ -84,6 +141,7 @@ export default function StudentDashboard({ session, onNavigate }) {
         const today = new Date().toDateString();
         const todayCount = data.filter((a) => new Date(a.created_at).toDateString() === today).length;
         setDoneToday(todayCount);
+        setCorrectionPlan(getRecentCorrectionPlan(data));
       }
     });
 
@@ -204,21 +262,37 @@ export default function StudentDashboard({ session, onNavigate }) {
             </div>
           </section>
 
-          {/* Live coaching */}
-          <section className="surface">
+          {/* Today's correction plan */}
+          <section className="surface dashboard-correction-plan">
             <div className="section-title">
-              <h2>Live Coaching</h2>
-              <CalendarDays size={20} />
+              <h2>Today&apos;s Correction Plan</h2>
+              <AlertTriangle size={20} />
             </div>
-            <div className="class-item active">
-              <span>Live session</span>
-              <strong>NGN Case Study Review</strong>
-              <small>Today 6:00 PM â€” Instructor-led with attendance tracking</small>
+            <div className="dashboard-correction-score">
+              <div>
+                <span>Recent Accuracy</span>
+                <strong className={correctionPlan.accuracy >= 72 ? 'metric-good-text' : 'metric-risk-text'}>{correctionPlan.accuracy}%</strong>
+              </div>
+              <div>
+                <span>Missed</span>
+                <strong className={correctionPlan.missed ? 'metric-risk-text' : 'metric-good-text'}>{correctionPlan.missed}</strong>
+              </div>
             </div>
-            <div className="class-item" style={{ marginTop: 8 }}>
-              <span>Strategy lab</span>
-              <strong>CAT Strategy Lab</strong>
-              <small>Thursday 7:00 PM â€” Recordings and polls available</small>
+            <div className="dashboard-correction-topics">
+              {correctionPlan.weakTopics.map((topic) => (
+                <span key={topic.topic}>{topic.topic} <b>{topic.pct}%</b></span>
+              ))}
+            </div>
+            <ul className="dashboard-task-list">
+              {correctionPlan.tasks.map((task) => <li key={task}>{task}</li>)}
+            </ul>
+            <div className="dashboard-correction-actions">
+              <button className="primary-btn" onClick={() => onNavigate('Questions')}>
+                <Target size={16} /> Practice
+              </button>
+              <button className="ghost-btn" onClick={() => onNavigate('Study Coach')}>
+                <Brain size={16} /> Ask Coach
+              </button>
             </div>
           </section>
         </div>

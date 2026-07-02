@@ -77,6 +77,7 @@ export default function SuperAdminPanel({ session }) {
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [roleModal, setRoleModal] = useState(null); // { user }
   const [assigningRole, setAssigningRole] = useState('');
+  const [roleError, setRoleError] = useState('');
 
   useEffect(() => {
     loadData();
@@ -106,10 +107,14 @@ export default function SuperAdminPanel({ session }) {
   async function loadUsers() {
     if (!supabase) return;
     setLoadingUsers(true);
+    setRoleError('');
     try {
-      const { data } = await supabase.rpc('admin_get_all_users');
-      if (data?.length) setUsers(data);
-    } catch (_) {}
+      const { data, error } = await supabase.rpc('admin_get_all_users');
+      if (error) throw error;
+      setUsers((data ?? []).map((user) => ({ ...user, roles: user.roles ?? [] })));
+    } catch (err) {
+      setRoleError(err.message ?? 'Could not load users.');
+    }
     setLoadingUsers(false);
   }
 
@@ -122,20 +127,42 @@ export default function SuperAdminPanel({ session }) {
 
   async function handleAssignRole(userId, role) {
     if (!supabase) return;
+    setAssigningRole(`${userId}:${role}`);
+    setRoleError('');
     try {
-      await supabase.rpc('admin_assign_role', { target_user_id: userId, role_name: role });
+      const { error } = await supabase.rpc('admin_assign_role', { target_user_id: userId, role_name: role });
+      if (error) throw error;
       await supabase.from('admin_audit_logs').insert({ action: 'user.role_assign', target_table: 'user_roles', details: { role, user_id: userId } });
-      setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, roles: [...(u.roles ?? []), role] } : u));
-    } catch (_) {}
-    setRoleModal(null);
+      setUsers((prev) => prev.map((u) => {
+        const roles = u.roles ?? [];
+        return u.id === userId && !roles.includes(role) ? { ...u, roles: [...roles, role] } : u;
+      }));
+      setRoleModal((prev) => {
+        if (!prev || prev.id !== userId) return prev;
+        const roles = prev.roles ?? [];
+        return roles.includes(role) ? prev : { ...prev, roles: [...roles, role] };
+      });
+    } catch (err) {
+      setRoleError(err.message ?? 'Could not assign role.');
+    }
+    setAssigningRole('');
   }
 
   async function handleRemoveRole(userId, role) {
     if (!supabase) return;
+    setAssigningRole(`${userId}:${role}`);
+    setRoleError('');
     try {
-      await supabase.rpc('admin_remove_role', { target_user_id: userId, role_name: role });
+      const { error } = await supabase.rpc('admin_remove_role', { target_user_id: userId, role_name: role });
+      if (error) throw error;
       setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, roles: (u.roles ?? []).filter((r) => r !== role) } : u));
-    } catch (_) {}
+      setRoleModal((prev) => (
+        prev?.id === userId ? { ...prev, roles: (prev.roles ?? []).filter((r) => r !== role) } : prev
+      ));
+    } catch (err) {
+      setRoleError(err.message ?? 'Could not remove role.');
+    }
+    setAssigningRole('');
   }
 
   const filteredUsers = users.filter((u) =>
@@ -213,6 +240,12 @@ export default function SuperAdminPanel({ session }) {
             <span style={{ color: '#607478', fontSize: '0.88rem' }}>{filteredUsers.length} users</span>
           </div>
 
+          {roleError && (
+            <div className="setup-alert" style={{ color: '#8a2c21', background: '#fff0ee', borderColor: '#f2b7ae' }}>
+              {roleError}
+            </div>
+          )}
+
           <div className="surface" style={{ padding: 0, overflow: 'hidden' }}>
             <table className="admin-table">
               <thead>
@@ -265,6 +298,7 @@ export default function SuperAdminPanel({ session }) {
                 <div style={{ display: 'grid', gap: 8, marginBottom: 16 }}>
                   {ALL_ROLES.map((role) => {
                     const hasRole = roleModal.roles?.includes(role);
+                    const isWorking = assigningRole === `${roleModal.id}:${role}`;
                     return (
                       <div key={role} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: '#f8fbfa', borderRadius: 8, border: '1px solid #dde8e6' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -272,12 +306,12 @@ export default function SuperAdminPanel({ session }) {
                           <RoleBadge role={role} />
                         </div>
                         {hasRole ? (
-                          <button className="ghost-btn" style={{ minHeight: 28, padding: '0 10px', fontSize: '0.8rem', color: '#8a2c21' }} onClick={() => handleRemoveRole(roleModal.id, role)}>
-                            <UserX size={13} /> Remove
+                          <button className="ghost-btn" style={{ minHeight: 28, padding: '0 10px', fontSize: '0.8rem', color: '#8a2c21' }} onClick={() => handleRemoveRole(roleModal.id, role)} disabled={isWorking}>
+                            <UserX size={13} /> {isWorking ? 'Removing...' : 'Remove'}
                           </button>
                         ) : (
-                          <button className="primary-btn" style={{ minHeight: 28, padding: '0 10px', fontSize: '0.8rem' }} onClick={() => handleAssignRole(roleModal.id, role)}>
-                            <UserCheck size={13} /> Assign
+                          <button className="primary-btn" style={{ minHeight: 28, padding: '0 10px', fontSize: '0.8rem' }} onClick={() => handleAssignRole(roleModal.id, role)} disabled={isWorking}>
+                            <UserCheck size={13} /> {isWorking ? 'Assigning...' : 'Assign'}
                           </button>
                         )}
                       </div>

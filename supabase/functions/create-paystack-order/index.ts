@@ -13,13 +13,13 @@ const corsHeaders = {
 const USD_TO_GHS = 15; // approximate; update as needed
 
 const PLAN_AMOUNTS_GHS: Record<string, number> = {
-  basic:   Math.round(19.99 * USD_TO_GHS * 100), // in pesewas
-  pro:     Math.round(39.99 * USD_TO_GHS * 100),
-  premium: Math.round(59.99 * USD_TO_GHS * 100),
+  basic:   Math.round(9.99 * USD_TO_GHS * 100), // in pesewas
+  pro:     Math.round(19.99 * USD_TO_GHS * 100),
+  premium: Math.round(29.99 * USD_TO_GHS * 100),
 };
 
 const PLAN_NAMES: Record<string, string> = {
-  basic: 'Basic Plan',
+  basic: 'Starter Plan',
   pro: 'Pro Plan',
   premium: 'Premium Plan',
 };

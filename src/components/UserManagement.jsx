@@ -9,6 +9,7 @@ const ALL_ROLES = [
   { name: 'student', label: 'Student', color: '#2b8a7d', desc: 'Access learning content, practice questions, flashcards, planner, and notebook.' },
   { name: 'instructor', label: 'Instructor', color: '#e3a72f', desc: 'Schedule classes, upload lessons, create quizzes, mark attendance, view analytics.' },
   { name: 'admin', label: 'Admin', color: '#c17f44', desc: 'Manage users, courses, payments, announcements, support tickets, and reports.' },
+  { name: 'super_admin', label: 'Super Admin', color: '#8a2c21', desc: 'Full owner access across users, roles, content, payments, and operations.' },
   { name: 'finance', label: 'Finance', color: '#8b5cf6', desc: 'View payments, invoices, receipts, refunds, promo codes, and reconciliation.' },
   { name: 'content_reviewer', label: 'Content Reviewer', color: '#e94868', desc: 'Review and approve/reject questions and rationales before publishing.' },
 ];
@@ -36,6 +37,7 @@ export default function UserManagement({ session }) {
   const [roleModal, setRoleModal] = useState(null); // user obj
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
+  const [error, setError] = useState('');
 
   // Add user form
   const [form, setForm] = useState({ email: '', full_name: '', password: '', role: 'student', invite_only: true });
@@ -47,14 +49,23 @@ export default function UserManagement({ session }) {
 
   async function loadUsers() {
     if (!supabase) return;
-    const { data } = await supabase.rpc('admin_get_all_users');
-    if (data?.length) setUsers(data);
+    setError('');
+    const { data, error: loadError } = await supabase.rpc('admin_get_all_users');
+    if (loadError) {
+      setError(loadError.message);
+      return;
+    }
+    setUsers((data ?? []).map((user) => ({ ...user, roles: user.roles ?? [] })));
   }
 
   async function loadInvites() {
     if (!supabase) return;
-    const { data } = await supabase.from('pending_invites').select('*').order('created_at', { ascending: false });
-    if (data?.length) setInvites(data);
+    const { data, error: inviteError } = await supabase.from('pending_invites').select('*').order('created_at', { ascending: false });
+    if (inviteError) {
+      setError(inviteError.message);
+      return;
+    }
+    setInvites(data ?? []);
   }
 
   async function handleAddUser(e) {
@@ -112,13 +123,38 @@ export default function UserManagement({ session }) {
   }
 
   async function assignRole(userId, roleName) {
-    if (supabase) await supabase.rpc('admin_assign_role', { target_user_id: userId, role_name: roleName });
-    setUsers((prev) => prev.map((u) => u.id === userId && !u.roles.includes(roleName) ? { ...u, roles: [...u.roles, roleName] } : u));
+    setError('');
+    if (supabase) {
+      const { error: assignError } = await supabase.rpc('admin_assign_role', { target_user_id: userId, role_name: roleName });
+      if (assignError) {
+        setError(assignError.message);
+        return;
+      }
+    }
+    setUsers((prev) => prev.map((u) => {
+      const roles = u.roles ?? [];
+      return u.id === userId && !roles.includes(roleName) ? { ...u, roles: [...roles, roleName] } : u;
+    }));
+    setRoleModal((prev) => {
+      if (!prev || prev.id !== userId) return prev;
+      const roles = prev.roles ?? [];
+      return roles.includes(roleName) ? prev : { ...prev, roles: [...roles, roleName] };
+    });
   }
 
   async function removeRole(userId, roleName) {
-    if (supabase) await supabase.rpc('admin_remove_role', { target_user_id: userId, role_name: roleName });
-    setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, roles: u.roles.filter((r) => r !== roleName) } : u));
+    setError('');
+    if (supabase) {
+      const { error: removeError } = await supabase.rpc('admin_remove_role', { target_user_id: userId, role_name: roleName });
+      if (removeError) {
+        setError(removeError.message);
+        return;
+      }
+    }
+    setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, roles: (u.roles ?? []).filter((r) => r !== roleName) } : u));
+    setRoleModal((prev) => (
+      prev?.id === userId ? { ...prev, roles: (prev.roles ?? []).filter((r) => r !== roleName) } : prev
+    ));
   }
 
   async function revokeInvite(id) {
@@ -139,6 +175,12 @@ export default function UserManagement({ session }) {
           <PlusCircle size={15} /> Add User
         </button>
       </div>
+
+      {error && (
+        <div className="setup-alert" style={{ color: '#8a2c21', background: '#fff0ee', borderColor: '#f2b7ae' }}>
+          {error}
+        </div>
+      )}
 
       {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: 12, marginBottom: 18 }}>
@@ -352,7 +394,6 @@ export default function UserManagement({ session }) {
                       onClick={() => {
                         if (hasRole) removeRole(roleModal.id, role.name);
                         else assignRole(roleModal.id, role.name);
-                        setRoleModal((prev) => ({ ...prev, roles: hasRole ? prev.roles.filter((r) => r !== role.name) : [...prev.roles, role.name] }));
                       }}
                       style={{ padding: '6px 14px', borderRadius: 8, fontWeight: 700, fontSize: '0.82rem', border: `1.5px solid ${hasRole ? role.color : '#dbe6e4'}`, background: hasRole ? role.color : 'transparent', color: hasRole ? '#fff' : '#607478', cursor: 'pointer', whiteSpace: 'nowrap' }}
                     >

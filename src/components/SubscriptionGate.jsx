@@ -3,9 +3,9 @@ import { Lock, Sparkles, Star } from 'lucide-react';
 import { useSubscription, createCheckoutSession } from '../hooks/useSubscription';
 
 const PLAN_DETAILS = {
-  basic: { label: 'Basic', price: '$19.99/mo', color: '#2b8a7d', features: ['500+ questions', 'All exam modes', 'Flashcard decks', 'Study planner', 'Notebook', 'Email support'] },
-  pro:   { label: 'Pro', price: '$39.99/mo', color: '#e3a72f', features: ['Everything in Basic', 'CAT simulator', 'Advanced analytics', 'Pass probability tracking', 'Live coaching sessions'] },
-  premium: { label: 'Premium', price: '$59.99/mo', color: '#c17f44', features: ['Everything in Pro', 'Unlimited live coaching', '1-on-1 sessions', 'USRN career track', 'WhatsApp support'] },
+  basic: { label: 'Starter', price: '$9.99/mo', color: '#2b8a7d', features: ['500 questions', 'Practice and timed modes', 'Videos and notes', 'Study planner'] },
+  pro:   { label: 'Pro', price: '$19.99/mo', color: '#e3a72f', features: ['Complete growing question bank', 'CAT and NGN simulator', 'AI rationale coach', 'Adaptive study plan'] },
+  premium: { label: 'Premium', price: '$29.99/mo', color: '#c17f44', features: ['Everything in Pro', 'Live classes', 'Mentorship and coaching', 'International nurse pathway'] },
 };
 
 // Wraps any child — shows upgrade prompt if user doesn't have required plan

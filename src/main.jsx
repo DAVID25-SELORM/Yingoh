@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import {
   checkTableAvailability, getCurrentSession, onAuthStateChange,
-  isConfiguredSuperAdmin, sendPasswordResetEmail, signInWithEmail, signOut,
+  isConfiguredSuperAdmin, resendEmailConfirmation, sendPasswordResetEmail, signInWithEmail, signOut,
   signUpWithEmail, supabaseConfig, updatePassword, yingohTables,
 } from './services/supabase';
 import StudentDashboard from './components/StudentDashboard';
@@ -190,6 +190,9 @@ function AccountAccess({ session, isPasswordRecovery }) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const userEmail = session?.user?.email;
   const isSuperAdmin = isConfiguredSuperAdmin(userEmail);
+  const isEmailVerified = Boolean(
+    !userEmail || session?.user?.email_confirmed_at || session?.user?.confirmed_at,
+  );
 
   useEffect(() => {
     if (isPasswordRecovery) {
@@ -224,7 +227,11 @@ function AccountAccess({ session, isPasswordRecovery }) {
         : signInWithEmail(email, password);
       const { error } = await action;
       if (error) setMessage(error.message);
-      else if (mode === 'signup') setMessage('Account created. Check your inbox if email verification is enabled.');
+      else if (mode === 'signup') {
+        setMode('signin');
+        setPassword('');
+        setMessage('Account created. Check your inbox and confirm your email before signing in.');
+      }
       else setMessage('Signed in successfully.');
     }
     setIsSubmitting(false);
@@ -236,6 +243,34 @@ function AccountAccess({ session, isPasswordRecovery }) {
     setMessage(error ? error.message : 'Signed out.');
     setIsSubmitting(false);
   }
+
+  async function handleResendConfirmation() {
+    if (!userEmail) return;
+    setIsSubmitting(true);
+    const { error } = await resendEmailConfirmation(userEmail);
+    setMessage(error ? error.message : 'Verification email sent. Check your inbox.');
+    setIsSubmitting(false);
+  }
+
+  const userChecklist = [
+    'Secure email/password sign-in is active',
+    'New accounts must confirm email ownership',
+    'Password reset is available from this page',
+    'Your session can stay active between visits',
+    'Your profile is linked to your account',
+    'Bookmarks, flashcards, exams, notes, and study plans are saved to your account',
+  ];
+  const adminChecklist = [
+    'Email/password authentication wired to Supabase',
+    'Password reset emails and new-password updates enabled',
+    'Session persistence and automatic refresh enabled',
+    'Profile creation via database trigger',
+    `Super admin bootstrap: ${supabaseConfig.superAdminEmail}`,
+    'Role tables: student, instructor, admin, finance, content reviewer, super admin',
+    'Question bookmarks, flashcard progress, exam sessions are user-scoped',
+    'Notebook and study plan saved per user account',
+  ];
+  const accountChecklist = isSuperAdmin ? adminChecklist : userChecklist;
 
   return (
     <section className="content-band">
@@ -265,6 +300,14 @@ function AccountAccess({ session, isPasswordRecovery }) {
                 <span>Signed in as</span>
                 <strong>{userEmail}</strong>
                 {isSuperAdmin && <small>Super admin access configured</small>}
+                {!isEmailVerified && (
+                  <div className="setup-alert" style={{ margin: '4px 0', color: '#8a5b12' }}>
+                    Please verify your email before using protected learning features.
+                    <button className="link-btn" type="button" onClick={handleResendConfirmation} disabled={isSubmitting} style={{ display: 'block', marginTop: 6, padding: 0 }}>
+                      Resend verification email
+                    </button>
+                  </div>
+                )}
                 <button className="ghost-btn" onClick={handleSignOut} disabled={isSubmitting}>Sign out</button>
               </div>
             )
@@ -299,16 +342,7 @@ function AccountAccess({ session, isPasswordRecovery }) {
           {message && <p className="form-message">{message}</p>}
         </div>
         <div className="account-checklist">
-          {[
-            'Email/password authentication wired to Supabase',
-            'Password reset emails and new-password updates enabled',
-            'Session persistence and automatic refresh enabled',
-            'Profile creation via database trigger',
-            `Super admin bootstrap: ${supabaseConfig.superAdminEmail}`,
-            'Role tables: student, instructor, admin, finance, content reviewer, super admin',
-            'Question bookmarks, flashcard progress, exam sessions â€” all user-scoped',
-            'Notebook and study plan saved per user account',
-          ].map((item) => (
+          {accountChecklist.map((item) => (
             <div key={item}><CheckCircle2 size={18} /><span>{item}</span></div>
           ))}
         </div>
@@ -350,10 +384,29 @@ const NAV = [
   { label: 'Audit Logs', icon: ShieldCheck, group: 'admin' },
 ];
 
+const VALID_VIEW_KEYS = new Set(NAV.map((n) => n.viewKey ?? n.label));
+const DEFAULT_VIEW = 'Dashboard';
+const ACTIVE_VIEW_STORAGE_KEY = 'yingoh.activeView';
+
+function getInitialView() {
+  if (typeof window === 'undefined') return DEFAULT_VIEW;
+  const fromHash = decodeURIComponent(window.location.hash.replace(/^#\/?/, ''));
+  if (VALID_VIEW_KEYS.has(fromHash)) return fromHash;
+  const saved = window.localStorage.getItem(ACTIVE_VIEW_STORAGE_KEY);
+  return VALID_VIEW_KEYS.has(saved) ? saved : DEFAULT_VIEW;
+}
+
 function App() {
-  const [activeView, setActiveView] = useState('Dashboard');
+  const [activeView, setActiveView] = useState(getInitialView);
   const [session, setSession] = useState(null);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
+
+  useEffect(() => {
+    if (!VALID_VIEW_KEYS.has(activeView)) return;
+    window.localStorage.setItem(ACTIVE_VIEW_STORAGE_KEY, activeView);
+    const hash = `#/${encodeURIComponent(activeView)}`;
+    if (window.location.hash !== hash) window.history.replaceState(null, '', hash);
+  }, [activeView]);
 
   useEffect(() => {
     let mounted = true;

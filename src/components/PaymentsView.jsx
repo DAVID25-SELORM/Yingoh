@@ -1,14 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { CheckCircle2, DollarSign, Tag, FileText, PlusCircle, Search, Sparkles, ToggleLeft, ToggleRight, Users, X, Smartphone } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, DollarSign, Tag, FileText, PlusCircle, Search, ShieldCheck, Sparkles, ToggleLeft, ToggleRight, Users, X, Smartphone } from 'lucide-react';
 import { supabase } from '../services/supabase';
 import { useSubscription, createCheckoutSession } from '../hooks/useSubscription';
+import { SUBSCRIPTION_PLANS } from '../data/subscriptionPlans';
 
-const DEMO_PLANS = [
-  { id: 'free', name: 'Free', price_usd: 0, duration_days: 36500, features: ['20 sample questions', 'Basic dashboard', 'Limited flashcards'], is_active: true, sort_order: 1 },
-  { id: 'basic', name: 'Basic', price_usd: 19.99, duration_days: 30, features: ['Full question bank (500+ questions)', 'Practice & timed exam modes', 'Flashcard decks', 'Study planner', 'Digital notebook', 'Email support'], is_active: true, sort_order: 2 },
-  { id: 'pro', name: 'Pro', price_usd: 39.99, duration_days: 30, features: ['Everything in Basic', 'CAT simulator', 'Advanced analytics', 'Pass probability tracking', 'Live coaching sessions', 'Priority support'], is_active: true, sort_order: 3 },
-  { id: 'premium', name: 'Premium', price_usd: 59.99, duration_days: 30, features: ['Everything in Pro', 'Unlimited live coaching', '1-on-1 instructor sessions', 'USRN career track', 'Resume builder', 'Job board access', 'WhatsApp support'], is_active: true, sort_order: 4 },
-];
+const DEMO_PLANS = SUBSCRIPTION_PLANS;
 
 const DEMO_INVOICES = [
   { id: 'inv1', user_email: 'nurse@example.com', plan_name: 'Pro', amount_usd: 39.99, status: 'paid', payment_method: 'stripe', created_at: new Date(Date.now() - 86400000 * 2).toISOString() },
@@ -33,7 +29,11 @@ const DEMO_PROMOS = [
   { id: 'p3', code: 'YINGOH10', discount_pct: 10, max_uses: null, used_count: 12, expires_at: null, is_active: true },
 ];
 
-const PLAN_COLORS = { Free: '#8a999c', Basic: '#2b8a7d', Pro: '#e3a72f', Premium: '#c17f44' };
+const PLAN_COLORS = { Free: '#8a999c', Basic: '#2b8a7d', Starter: '#2b8a7d', Pro: '#e3a72f', Premium: '#c17f44' };
+
+function planKey(name) {
+  return name?.toLowerCase() === 'starter' ? 'basic' : name?.toLowerCase();
+}
 
 export default function PaymentsView({ session }) {
   const { plan: currentPlan, loading: subLoading } = useSubscription(session);
@@ -43,7 +43,7 @@ export default function PaymentsView({ session }) {
   async function handleCheckout(planName) {
     if (!session) { alert('Sign in to subscribe.'); return; }
     setCheckingOut(planName);
-    const { url, error } = await createCheckoutSession(planName.toLowerCase(), session);
+    const { url, error } = await createCheckoutSession(planKey(planName), session);
     if (error || !url) {
       alert(error?.message ?? 'Stripe not configured. Add STRIPE_SECRET_KEY and price IDs to your Supabase Edge Function secrets.');
       setCheckingOut('');
@@ -52,6 +52,7 @@ export default function PaymentsView({ session }) {
     window.location.href = url;
   }
   const [plans, setPlans] = useState(DEMO_PLANS);
+  const [bankCount, setBankCount] = useState(270);
   const [invoices, setInvoices] = useState(DEMO_INVOICES);
   const [promos, setPromos] = useState(DEMO_PROMOS);
   const [subscribers, setSubscribers] = useState(DEMO_SUBSCRIBERS);
@@ -64,11 +65,29 @@ export default function PaymentsView({ session }) {
   const [mmPhone, setMmPhone] = useState('');
   const [mmChannel, setMmChannel] = useState('mtn');
   const [mmLoading, setMmLoading] = useState(false);
+  const [activatingInvoice, setActivatingInvoice] = useState('');
+  const [paymentMessage, setPaymentMessage] = useState('');
+  const [paymentError, setPaymentError] = useState('');
 
   useEffect(() => {
     if (!supabase) return;
+    supabase.from('questions').select('id', { count: 'exact', head: true }).eq('status', 'published')
+      .then(({ count }) => { if (typeof count === 'number') setBankCount(count); });
     supabase.from('payment_plans').select('*').order('sort_order').then(({ data }) => { if (data?.length) setPlans(data); });
-    supabase.from('invoices').select('*').order('created_at', { ascending: false }).then(({ data }) => { if (data?.length) setInvoices(data); });
+    supabase
+      .from('invoices')
+      .select('*, profiles(email, full_name), payment_plans(name)')
+      .order('created_at', { ascending: false })
+      .then(({ data }) => {
+        if (data?.length) {
+          setInvoices(data.map((inv) => ({
+            ...inv,
+            user_email: inv.profiles?.email ?? inv.user_id,
+            user_name: inv.profiles?.full_name ?? '',
+            plan_name: inv.payment_plans?.name ?? inv.plan_name,
+          })));
+        }
+      });
     supabase.from('promo_codes').select('*').order('created_at', { ascending: false }).then(({ data }) => { if (data?.length) setPromos(data); });
     supabase
       .from('subscriptions')
@@ -144,6 +163,30 @@ export default function PaymentsView({ session }) {
     }
   }
 
+  async function activateManualInvoice(inv) {
+    if (!supabase || !inv.user_id || !inv.plan_name) return;
+    setActivatingInvoice(inv.id);
+    setPaymentMessage('');
+    setPaymentError('');
+    const { error } = await supabase.rpc('admin_activate_manual_subscription', {
+      target_user_id: inv.user_id,
+      target_plan_name: inv.plan_name,
+      target_invoice_id: inv.id,
+    });
+    if (error) {
+      setPaymentError(error.message);
+      setActivatingInvoice('');
+      return;
+    }
+    setInvoices((prev) => prev.map((item) => (
+      item.id === inv.id
+        ? { ...item, status: 'paid', payment_method: item.payment_method ?? 'manual', paid_at: new Date().toISOString() }
+        : item
+    )));
+    setPaymentMessage(`${inv.user_email ?? 'Student'} now has active ${inv.plan_name} access.`);
+    setActivatingInvoice('');
+  }
+
   return (
     <section className="content-band">
       <div className="section-title">
@@ -169,7 +212,7 @@ export default function PaymentsView({ session }) {
 
       {/* Tabs */}
       <div className="tab-bar" style={{ marginBottom: 16 }}>
-        {[['plans', 'Plans (Stripe)'], ['subscribers', 'Subscribers'], ['mobile-money', 'Mobile Money'], ['invoices', 'Invoices'], ['promos', 'Promo Codes']].map(([key, label]) => (
+        {[['plans', 'Plans (Stripe)'], ['subscribers', 'Subscribers'], ['mobile-money', 'Mobile Money'], ['access-policy', 'Access Policy'], ['invoices', 'Invoices'], ['promos', 'Promo Codes']].map(([key, label]) => (
           <button key={key} className={`tab-btn ${tab === key ? 'tab-active' : ''}`} onClick={() => setTab(key)}>{label}</button>
         ))}
       </div>
@@ -180,6 +223,9 @@ export default function PaymentsView({ session }) {
           {plans.map((plan) => {
             const color = PLAN_COLORS[plan.name] ?? '#607478';
             const features = Array.isArray(plan.features) ? plan.features : (typeof plan.features === 'string' ? JSON.parse(plan.features) : []);
+            const questionAccess = plan.question_limit == null
+              ? `All ${bankCount.toLocaleString()} available questions`
+              : `Up to ${Math.min(Number(plan.question_limit), bankCount).toLocaleString()} of ${bankCount.toLocaleString()} available questions`;
             return (
               <div key={plan.id} className="payment-plan-card" style={{ borderTop: `4px solid ${color}` }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
@@ -189,16 +235,17 @@ export default function PaymentsView({ session }) {
                       {plan.price_usd === 0 ? 'Free' : `$${Number(plan.price_usd).toFixed(2)}`}
                       {plan.price_usd > 0 && <span style={{ fontSize: '0.75rem', fontWeight: 500, color: '#607478' }}>/mo</span>}
                     </div>
-                    {!subLoading && currentPlan === plan.name.toLowerCase() && (
+                    {!subLoading && currentPlan === planKey(plan.name) && (
                       <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '2px 8px', background: '#e2f5f2', color: '#135f55', borderRadius: 12 }}>Current Plan</span>
                     )}
+                    <div style={{ marginTop: 7, fontSize: '0.76rem', fontWeight: 700, color }}>{questionAccess}</div>
                   </div>
                   <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: '0.74rem', fontWeight: 700, background: plan.is_active ? '#e2f5f2' : '#f2e2e1', color: plan.is_active ? '#135f55' : '#8a2c21' }}>
                     {plan.is_active ? 'Active' : 'Inactive'}
                   </span>
                 </div>
                 <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 5 }}>
-                {plan.price_usd > 0 && currentPlan !== plan.name.toLowerCase() && (
+                {plan.price_usd > 0 && currentPlan !== planKey(plan.name) && (
                   <button
                     className="primary-btn"
                     style={{ width: '100%', justifyContent: 'center', background: color, marginBottom: 8 }}
@@ -375,10 +422,43 @@ export default function PaymentsView({ session }) {
         </div>
       )}
 
+      {/* Access policy tab */}
+      {tab === 'access-policy' && (
+        <div style={{ display: 'grid', gap: 14 }}>
+          <div className="qm-editor">
+            <div className="qm-editor-header">
+              <strong style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <ShieldCheck size={18} color="#2b8a7d" /> Enrollment and Access Policy
+              </strong>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12 }}>
+              {[
+                ['Student self-signup', 'Learners create an account, confirm their email, and receive student access only.'],
+                ['Paid course unlock', 'Stripe or Paystack webhooks activate paid subscriptions automatically after successful payment.'],
+                ['Manual/offline payment', 'Finance or admin reviews pending invoices, confirms payment, then activates the subscription.'],
+                ['Staff access', 'Instructors, finance, content reviewers, admins, and super admins are invited or assigned by an admin.'],
+              ].map(([title, body]) => (
+                <div key={title} className="stat-card" style={{ textAlign: 'left' }}>
+                  <div style={{ fontWeight: 800, color: '#17212f', marginBottom: 6 }}>{title}</div>
+                  <div style={{ fontSize: '0.85rem', lineHeight: 1.5, color: '#42585e' }}>{body}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div style={{ padding: '12px 14px', border: '1px solid #f1d59b', background: '#fff8e8', borderRadius: 8, color: '#72520a', fontSize: '0.86rem', display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+            <AlertTriangle size={16} style={{ marginTop: 2, flexShrink: 0 }} />
+            <span>Best flow: public students pay and unlock automatically; staff and school/cohort users should be invited or assigned by admin. Manual approvals are only for confirmed offline payments.</span>
+          </div>
+        </div>
+      )}
+
       {/* Invoices tab */}
       {tab === 'invoices' && (
-        <div style={{ overflowX: 'auto' }}>
-          <table className="admin-table">
+        <div>
+          {paymentMessage && <div style={{ padding: '10px 12px', background: '#e2f5f2', border: '1px solid #b7ded8', color: '#135f55', borderRadius: 8, marginBottom: 12, fontSize: '0.86rem' }}>{paymentMessage}</div>}
+          {paymentError && <div style={{ padding: '10px 12px', background: '#fff1ed', border: '1px solid #f2b9ae', color: '#8a2c21', borderRadius: 8, marginBottom: 12, fontSize: '0.86rem' }}>{paymentError}</div>}
+          <div style={{ overflowX: 'auto' }}>
+            <table className="admin-table">
             <thead>
               <tr>
                 <th>User</th>
@@ -387,6 +467,7 @@ export default function PaymentsView({ session }) {
                 <th>Method</th>
                 <th>Status</th>
                 <th>Date</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -402,10 +483,26 @@ export default function PaymentsView({ session }) {
                   <td style={{ color: '#607478', fontSize: '0.84rem' }}>
                     {new Date(inv.created_at).toLocaleDateString()}
                   </td>
+                  <td>
+                    {inv.status === 'pending' ? (
+                      <button
+                        className="ghost-btn"
+                        onClick={() => activateManualInvoice(inv)}
+                        disabled={!inv.user_id || !inv.plan_name || activatingInvoice === inv.id}
+                        title={inv.user_id && inv.plan_name ? 'Mark paid and activate subscription' : 'Needs a real user and plan'}
+                        style={{ whiteSpace: 'nowrap' }}
+                      >
+                        {activatingInvoice === inv.id ? 'Activating...' : 'Approve access'}
+                      </button>
+                    ) : (
+                      <span style={{ color: '#8a999c', fontSize: '0.82rem' }}>No action</span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
-          </table>
+            </table>
+          </div>
         </div>
       )}
 

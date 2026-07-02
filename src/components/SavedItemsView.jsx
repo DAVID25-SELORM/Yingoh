@@ -4,6 +4,7 @@ import { getSavedItems, unsaveItem } from '../services/supabase';
 
 const TYPE_LABELS = {
   ai_answer: 'AI Answers',
+  correction_plan: 'Correction Plans',
   question: 'Questions',
   flashcard: 'Flashcards',
   video: 'Videos',
@@ -13,6 +14,7 @@ const TYPE_LABELS = {
 
 const TYPE_ICONS = {
   ai_answer: Brain,
+  correction_plan: FileText,
   question: BookmarkCheck,
   flashcard: Layers,
   video: Film,

@@ -66,13 +66,29 @@ export async function signInWithEmail(email, password) {
 
 export async function signUpWithEmail({ email, password, fullName }) {
   if (!supabase) return { data: null, error: new Error('Supabase is not configured.') };
-  return supabase.auth.signUp({ email, password, options: { data: { full_name: fullName } } });
+  return supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: { full_name: fullName },
+      emailRedirectTo: authRedirectUrl,
+    },
+  });
 }
 
 export async function sendPasswordResetEmail(email) {
   if (!supabase) return { data: null, error: new Error('Supabase is not configured.') };
   return supabase.auth.resetPasswordForEmail(email, {
     redirectTo: authRedirectUrl,
+  });
+}
+
+export async function resendEmailConfirmation(email) {
+  if (!supabase) return { data: null, error: new Error('Supabase is not configured.') };
+  return supabase.auth.resend({
+    type: 'signup',
+    email,
+    options: { emailRedirectTo: authRedirectUrl },
   });
 }
 
@@ -87,12 +103,25 @@ export async function signOut() {
 }
 
 // ─── Questions ─────────────────────────────────────────────
-export async function getQuestions({ topic, type, bookmarked, userId, limit = 500 } = {}) {
+export async function getQuestions({ topic, type, limit = 500, includeUnpublished = false } = {}) {
   if (!supabase) return { data: null, error: new Error('Not configured') };
-  let query = supabase.from('questions').select('*').eq('status', 'published').limit(limit);
-  if (topic) query = query.eq('topic', topic);
-  if (type) query = query.eq('question_type', type);
-  return query;
+  const pageSize = 1000;
+  const requested = Number.isFinite(limit) ? Math.max(0, limit) : Infinity;
+  const rows = [];
+  let offset = 0;
+  while (rows.length < requested) {
+    const take = Math.min(pageSize, requested - rows.length);
+    let query = supabase.from('questions').select('*');
+    if (!includeUnpublished) query = query.eq('status', 'published');
+    if (topic) query = query.eq('topic', topic);
+    if (type) query = query.eq('question_type', type);
+    const { data, error } = await query.order('created_at', { ascending: true }).range(offset, offset + take - 1);
+    if (error) return { data: rows.length ? rows : null, error };
+    rows.push(...(data ?? []));
+    if (!data?.length || data.length < take) break;
+    offset += data.length;
+  }
+  return { data: rows, error: null };
 }
 
 export async function getBookmarkedQuestionIds(userId) {
