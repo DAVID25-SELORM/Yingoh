@@ -6,6 +6,8 @@ export default function ContentReviewer() {
   const [queue, setQueue] = useState([]);
   const [selected, setSelected] = useState(null);
   const [rejectNote, setRejectNote] = useState('');
+  const [referenceUrl, setReferenceUrl] = useState('');
+  const [reviewError, setReviewError] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(false);
 
   useEffect(() => {
@@ -22,13 +24,33 @@ export default function ContentReviewer() {
   }
 
   async function approve(q) {
-    if (supabase) await supabase.from('questions').update({ status: 'published' }).eq('id', q.id);
+    if (!referenceUrl.trim()) {
+      setSelected(q);
+      setReviewError('Add an authoritative clinical reference before approval.');
+      return;
+    }
+    const { error } = await supabase.rpc('review_question', {
+      target_question_id: q.id,
+      decision: 'approved',
+      clinical_reference: referenceUrl.trim(),
+      reviewer_notes: rejectNote.trim() || null,
+    });
+    if (error) { setReviewError(error.message); return; }
     setQueue((prev) => prev.filter((x) => x.id !== q.id));
     if (selected?.id === q.id) setSelected(null);
+    setReferenceUrl('');
+    setRejectNote('');
+    setReviewError('');
   }
 
   async function reject(q) {
-    if (supabase) await supabase.from('questions').update({ status: 'rejected', review_note: rejectNote }).eq('id', q.id);
+    const { error } = await supabase.rpc('review_question', {
+      target_question_id: q.id,
+      decision: 'changes_requested',
+      clinical_reference: referenceUrl.trim() || '',
+      reviewer_notes: rejectNote.trim(),
+    });
+    if (error) { setReviewError(error.message); return; }
     setQueue((prev) => prev.filter((x) => x.id !== q.id));
     if (selected?.id === q.id) setSelected(null);
     setRejectNote('');
@@ -64,8 +86,8 @@ export default function ContentReviewer() {
                     {q.prompt}
                   </p>
                   <div style={{ display: 'flex', gap: 6 }}>
-                    <button className="primary-btn" style={{ flex: 1, justifyContent: 'center', fontSize: '0.78rem', padding: '5px 0' }} onClick={(e) => { e.stopPropagation(); approve(q); }}>
-                      <ThumbsUp size={12} /> Approve
+                    <button className="primary-btn" style={{ flex: 1, justifyContent: 'center', fontSize: '0.78rem', padding: '5px 0' }} onClick={(e) => { e.stopPropagation(); setSelected(q); setReviewError(''); }}>
+                      <ThumbsUp size={12} /> Review
                     </button>
                     <button className="ghost-btn" style={{ flex: 1, justifyContent: 'center', fontSize: '0.78rem', padding: '5px 0', color: '#8a2c21' }} onClick={(e) => { e.stopPropagation(); setSelected(q); setShowRejectModal(true); }}>
                       <ThumbsDown size={12} /> Reject
@@ -104,6 +126,17 @@ export default function ContentReviewer() {
                 {selected.rationale}
               </div>
             )}
+            <div className="qm-form-row" style={{ marginTop: 14 }}>
+              <label>Authoritative clinical reference</label>
+              <input
+                type="url"
+                value={referenceUrl}
+                onChange={(e) => { setReferenceUrl(e.target.value); setReviewError(''); }}
+                placeholder="https://www.cdc.gov/... or another authoritative clinical source"
+              />
+              <small style={{ color: '#607478' }}>Required before publishing. Confirm the source directly supports the answer and rationale.</small>
+            </div>
+            {reviewError && <div className="form-message" style={{ color: '#8a2c21', marginTop: 10 }}>{reviewError}</div>}
             <div className="editor-footer" style={{ marginTop: 16 }}>
               <button className="ghost-btn" style={{ color: '#8a2c21' }} onClick={() => setShowRejectModal(true)}>
                 <XCircle size={15} /> Reject
@@ -125,7 +158,7 @@ export default function ContentReviewer() {
             <textarea
               className="editor-textarea"
               rows={4}
-              placeholder="e.g. The rationale needs more clinical context. Please clarify why option B is incorrect and add a reference to NCSBN guidelines…"
+              placeholder="Explain what must be corrected before this question can be published…"
               value={rejectNote}
               onChange={(e) => setRejectNote(e.target.value)}
             />
