@@ -1,37 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Activity, AlertTriangle, BarChart3, Target, TrendingUp, Users, Zap } from 'lucide-react';
+import { Activity, AlertTriangle, BarChart3, CalendarDays, CheckCircle2, ClipboardCheck, Target, TrendingUp, Zap } from 'lucide-react';
 import { calculatePassProbability, getAttemptStats, getExamHistory } from '../services/supabase';
-
-const DEMO_TOPIC_STATS = [
-  { topic: 'Pharmacology', correct: 34, total: 50, trend: -2 },
-  { topic: 'Safety and Infection Control', correct: 41, total: 50, trend: +5 },
-  { topic: 'Medical-Surgical', correct: 38, total: 49, trend: +3 },
-  { topic: 'NGN Case Studies', correct: 30, total: 49, trend: -1 },
-  { topic: 'Maternal and Newborn', correct: 37, total: 50, trend: +2 },
-  { topic: 'Mental Health', correct: 35, total: 49, trend: +1 },
-  { topic: 'Pediatrics', correct: 40, total: 50, trend: +4 },
-  { topic: 'Leadership and Management', correct: 37, total: 49, trend: +2 },
-];
-
-const DEMO_WEEKLY = [45, 22, 38, 50, 17, 42, 30];
-const DEMO_EXAM_HISTORY = [
-  { mode: 'practice', score_pct: 68, total_questions: 25, completed_at: new Date(Date.now() - 86400000 * 1).toISOString() },
-  { mode: 'timed', score_pct: 72, total_questions: 50, completed_at: new Date(Date.now() - 86400000 * 3).toISOString() },
-  { mode: 'cat', score_pct: 75, total_questions: 25, completed_at: new Date(Date.now() - 86400000 * 5).toISOString() },
-  { mode: 'practice', score_pct: 64, total_questions: 10, completed_at: new Date(Date.now() - 86400000 * 7).toISOString() },
-  { mode: 'assessment', score_pct: 78, total_questions: 100, completed_at: new Date(Date.now() - 86400000 * 10).toISOString() },
-];
-
-// Peer percentile lookup (simulated benchmark)
-function getPeerPercentile(score) {
-  if (score >= 90) return 97;
-  if (score >= 82) return 90;
-  if (score >= 76) return 80;
-  if (score >= 70) return 65;
-  if (score >= 65) return 50;
-  if (score >= 58) return 35;
-  return 20;
-}
 
 function PassGauge({ value }) {
   const color = value >= 75 ? '#29b7a3' : value >= 55 ? '#e3a72f' : '#e85d4f';
@@ -115,13 +84,22 @@ export default function AnalyticsView({ session, onNavigate }) {
   const [examHistory, setExamHistory] = useState([]);
   const [weeklyData, setWeeklyData] = useState(Array(7).fill(0));
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
 
   const userId = session?.user?.id;
 
   useEffect(() => {
     if (!userId) return;
     async function load() {
-      const { data: attempts } = await getAttemptStats(userId);
+      setLoading(true);
+      setLoadError('');
+      const { data: attempts, error: attemptsError } = await getAttemptStats(userId);
+      if (attemptsError) {
+        setLoadError('Your analytics could not be loaded. Please retry.');
+        setLoading(false);
+        return;
+      }
       if (attempts?.length) {
         const prob = calculatePassProbability(attempts);
         if (prob !== null) setPassProbability(prob);
@@ -148,33 +126,80 @@ export default function AnalyticsView({ session, onNavigate }) {
         const days = Array(7).fill(0);
         attempts.forEach((a) => {
           const dayDiff = Math.floor((now - new Date(a.created_at)) / 86400000);
-          if (dayDiff < 7) days[6 - dayDiff]++;
+          if (dayDiff >= 0 && dayDiff < 7) days[6 - dayDiff]++;
         });
         setWeeklyData(days);
       }
 
-      const { data: history } = await getExamHistory(userId);
+      const { data: history, error: historyError } = await getExamHistory(userId);
+      if (historyError) setLoadError('Question analytics loaded, but exam history is temporarily unavailable.');
       if (history?.length) setExamHistory(history);
       setLoading(false);
     }
     load();
-  }, [userId]);
+  }, [userId, reloadKey]);
 
-  const peerPercentile = getPeerPercentile(overallPct);
   const weakTopics = topicStats.filter((s) => s.total > 0 && Math.round((s.correct / s.total) * 100) < 72);
   const strongTopics = topicStats.filter((s) => s.total > 0 && Math.round((s.correct / s.total) * 100) >= 80);
   const ngnScore = topicStats.find((s) => s.topic === 'NGN Case Studies');
   const ngnPct = ngnScore ? Math.round((ngnScore.correct / ngnScore.total) * 100) : 0;
+  const goalRows = [
+    { label: 'Overall accuracy', value: overallPct, total: totalAttempts },
+    ...topicStats
+      .map((topic) => ({
+        label: topic.topic,
+        value: Math.round((topic.correct / topic.total) * 100),
+        total: topic.total,
+      }))
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 3),
+  ];
+
+  if (loading) {
+    return (
+      <section className="content-band">
+        <div className="section-title"><h2>Performance Analytics</h2><BarChart3 size={22} /></div>
+        <div className="surface" style={{ padding: 42, textAlign: 'center', color: '#607478' }}>
+          <Activity size={30} style={{ margin: '0 auto 12px', color: '#2b8a7d' }} />
+          <strong style={{ display: 'block', color: '#17212f', marginBottom: 6 }}>Preparing your performance dashboard</strong>
+          <span>Loading practice activity, topic accuracy, and exam history…</span>
+        </div>
+      </section>
+    );
+  }
 
   if (!loading && totalAttempts === 0) {
     return (
       <section className="content-band">
         <div className="section-title"><h2>Performance Analytics</h2><BarChart3 size={22} /></div>
-        <div className="empty-state" style={{ padding: '56px 24px', textAlign: 'center' }}>
+        {loadError && (
+          <div style={{ padding: '11px 14px', marginBottom: 14, borderRadius: 10, background: '#fff1ed', color: '#8a2c21', border: '1px solid #f2b9ae' }}>
+            {loadError} <button className="ghost-btn" onClick={() => setReloadKey((value) => value + 1)}>Retry</button>
+          </div>
+        )}
+        <div className="surface" style={{ padding: '38px 28px', textAlign: 'center' }}>
           <Activity size={34} style={{ margin: '0 auto 12px', color: '#2b8a7d' }} />
-          <h3 style={{ margin: '0 0 8px' }}>Your analytics will grow with you</h3>
-          <p style={{ maxWidth: 520, margin: '0 auto 18px' }}>Complete your first practice set to unlock real topic performance, weekly activity, and readiness insights.</p>
-          <button className="primary-btn" onClick={() => onNavigate?.('Questions')}>Start practice</button>
+          <h3 style={{ margin: '0 0 8px' }}>Build your first performance baseline</h3>
+          <p style={{ maxWidth: 600, margin: '0 auto 24px', color: '#607478', lineHeight: 1.55 }}>
+            Complete a short practice set. NurseFaculty will use your real answers—not sample data—to identify strengths, weak areas, study consistency, and readiness trends.
+          </p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12, margin: '0 auto 24px', maxWidth: 760, textAlign: 'left' }}>
+            {[
+              [ClipboardCheck, '1. Practice', 'Answer at least 10 questions to establish an initial accuracy baseline.'],
+              [TrendingUp, '2. Review', 'See performance by topic and the areas that need focused correction.'],
+              [CalendarDays, '3. Improve', 'Use weekly activity and your planner to build a consistent study rhythm.'],
+            ].map(([Icon, title, description]) => (
+              <div key={title} style={{ padding: 16, border: '1px solid #dbe6e4', borderRadius: 12, background: '#f8fbfa' }}>
+                <Icon size={19} color="#2b8a7d" />
+                <strong style={{ display: 'block', margin: '8px 0 5px', color: '#17212f' }}>{title}</strong>
+                <span style={{ color: '#607478', fontSize: '0.82rem', lineHeight: 1.45 }}>{description}</span>
+              </div>
+            ))}
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <button className="primary-btn" onClick={() => onNavigate?.('Questions')}>Start a practice set</button>
+            <button className="ghost-btn" onClick={() => onNavigate?.('Planner')}>Set up study planner</button>
+          </div>
         </div>
       </section>
     );
@@ -183,6 +208,11 @@ export default function AnalyticsView({ session, onNavigate }) {
   return (
     <section className="content-band">
       <div className="section-title"><h2>Performance Analytics</h2><BarChart3 size={22} /></div>
+      {loadError && (
+        <div style={{ padding: '11px 14px', marginBottom: 14, borderRadius: 10, background: '#fff8e8', color: '#72520a', border: '1px solid #f1d59b' }}>
+          {loadError} <button className="ghost-btn" onClick={() => setReloadKey((value) => value + 1)}>Retry</button>
+        </div>
+      )}
 
       {/* Top metrics */}
       <div className="metrics-row" style={{ marginBottom: 20 }}>
@@ -197,9 +227,9 @@ export default function AnalyticsView({ session, onNavigate }) {
           <small>Next Gen NCLEX items</small>
         </div>
         <div className="metric metric-gold">
-          <span>Peer Percentile</span>
-          <strong>{peerPercentile}<sup style={{ fontSize: '1rem' }}>th</sup></strong>
-          <small>vs. other NCLEX candidates</small>
+          <span>Completed Exams</span>
+          <strong>{examHistory.length}</strong>
+          <small>CAT, timed, and readiness exams</small>
         </div>
         <div className="metric metric-violet">
           <span>Areas Mastered</span>
@@ -222,6 +252,11 @@ export default function AnalyticsView({ session, onNavigate }) {
                     ? 'You are making progress. Prioritize weak areas and aim for 72%+ across all topics.'
                     : 'Increase your daily practice and focus on high-yield topics. Consider booking a coaching session.'}
               </p>
+              {totalAttempts < 50 && (
+                <p style={{ margin: '10px 0 0', color: '#875f08', fontSize: '0.8rem', lineHeight: 1.45 }}>
+                  Early estimate based on {totalAttempts} answered question{totalAttempts === 1 ? '' : 's'}. Complete at least 50 across several topics for a more stable readiness signal.
+                </p>
+              )}
               {weakTopics.length > 0 && (
                 <div style={{ marginTop: 12, padding: 12, background: '#fff0ee', borderRadius: 8, border: '1px solid #f2b7ae' }}>
                   <strong style={{ color: '#8a2c21', fontSize: '0.88rem' }}>⚠️ At-risk topics:</strong>
@@ -247,37 +282,32 @@ export default function AnalyticsView({ session, onNavigate }) {
           </div>
         </div>
 
-        {/* Peer benchmarking */}
+        {/* Personal goal comparison */}
         <div className="surface">
           <div className="section-title">
-            <h3>Peer Comparison</h3>
-            <Users size={18} />
+            <h3>72% Goal Comparison</h3>
+            <CheckCircle2 size={18} />
           </div>
           <div style={{ display: 'grid', gap: 14 }}>
-            {[
-              { label: 'Your overall score', you: overallPct, peers: 71 },
-              { label: 'Pharmacology', you: topicStats.find((t) => t.topic === 'Pharmacology') ? Math.round((topicStats.find((t) => t.topic === 'Pharmacology').correct / topicStats.find((t) => t.topic === 'Pharmacology').total) * 100) : 68, peers: 70 },
-              { label: 'NGN Case Studies', you: ngnPct, peers: 65 },
-              { label: 'Medical-Surgical', you: topicStats.find((t) => t.topic === 'Medical-Surgical') ? Math.round((topicStats.find((t) => t.topic === 'Medical-Surgical').correct / topicStats.find((t) => t.topic === 'Medical-Surgical').total) * 100) : 77, peers: 73 },
-            ].map(({ label, you, peers }) => (
+            {goalRows.map(({ label, value, total }) => (
               <div key={label}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: 4 }}>
                   <span style={{ color: '#42585e' }}>{label}</span>
                   <span>
-                    <strong style={{ color: you >= peers ? '#135f55' : '#8a2c21' }}>You: {you}%</strong>
-                    <span style={{ color: '#8a999c' }}> vs Avg: {peers}%</span>
+                    <strong style={{ color: value >= 72 ? '#135f55' : '#8a2c21' }}>{value}%</strong>
+                    <span style={{ color: '#8a999c' }}> · {total} answered</span>
                   </span>
                 </div>
-                <div style={{ display: 'flex', gap: 4, height: 8 }}>
-                  <div style={{ flex: you, background: you >= 72 ? '#29b7a3' : '#e85d4f', borderRadius: 4 }} />
-                  <div style={{ flex: 100 - you, background: '#edf2f1', borderRadius: 4 }} />
+                <div className="progress-track" style={{ position: 'relative' }}>
+                  <span style={{ width: `${value}%`, background: value >= 72 ? '#29b7a3' : '#e85d4f' }} />
+                  <i title="72% goal" style={{ position: 'absolute', left: '72%', top: -3, bottom: -3, width: 2, background: '#102027', borderRadius: 2 }} />
                 </div>
               </div>
             ))}
           </div>
-          <div style={{ marginTop: 16, padding: 12, background: '#f0edff', borderRadius: 8, fontSize: '0.86rem', color: '#51408c' }}>
-            <strong>Peer Percentile: {peerPercentile}th</strong><br />
-            You are scoring higher than {peerPercentile}% of NCLEX candidates in our platform.
+          <div style={{ marginTop: 16, padding: 12, background: '#eef7f5', borderRadius: 8, fontSize: '0.86rem', color: '#135f55' }}>
+            <strong>Your data only</strong><br />
+            Comparisons use your completed NurseFaculty questions against the 72% study goal. No simulated peer scores are shown.
           </div>
         </div>
       </div>
