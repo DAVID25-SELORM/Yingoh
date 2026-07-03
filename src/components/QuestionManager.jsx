@@ -593,7 +593,7 @@ export default function QuestionManager() {
             <label>Available From</label>
             <select value={editing.minimum_plan ?? 'pro'} onChange={(e) => updateEditing('minimum_plan', e.target.value)}>
               <option value="free">Free — included in the 25-question sampler</option>
-              <option value="starter">Starter — included in the 500-question package</option>
+              <option value="starter">30-Day Pass — included in the 2,000-question package</option>
               <option value="pro">Pro — complete bank only</option>
             </select>
           </div>

@@ -395,7 +395,7 @@ function PublicLanding({ isPasswordRecovery }) {
     <main className="public-site">
       <header className="public-header">
         <a className="public-brand" href="#top" aria-label="NurseFaculty home">
-          <img className="public-logo" src="/nursefaculty-logo.svg" alt="NurseFaculty NCLEX Preparation" />
+          <img className="public-logo" src="/nursefaculty-brand.png" alt="NurseFaculty — Learn. Practice. Pass." />
         </a>
         <a className="public-signin-link" href="#signin">Sign in</a>
       </header>
@@ -460,7 +460,7 @@ function PublicLanding({ isPasswordRecovery }) {
       </section>
 
       <footer className="public-footer">
-        <div className="public-brand"><img className="public-logo" src="/nursefaculty-logo.svg" alt="NurseFaculty NCLEX Preparation" /></div>
+        <div className="public-brand"><img className="public-logo" src="/nursefaculty-brand.png" alt="NurseFaculty — Learn. Practice. Pass." /></div>
         <p>Personalized NCLEX coaching for thoughtful, confident nursing practice.</p>
       </footer>
     </main>
@@ -529,7 +529,7 @@ function App() {
   if (!authReady || (session && accessLoading)) {
     return (
       <main className="app-loading">
-        <img src="/nursefaculty-mark.svg" alt="" />
+        <img src="/nursefaculty-mark.png" alt="" />
         <strong>NurseFaculty</strong>
         <span>Preparing your study space…</span>
       </main>
@@ -542,7 +542,7 @@ function App() {
     <main className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <span className="brand-mark"><img src="/nursefaculty-mark.svg" alt="" /></span>
+          <span className="brand-mark"><img src="/nursefaculty-mark.png" alt="" /></span>
           <div><strong>NurseFaculty</strong><small>NCLEX Preparation</small></div>
         </div>
 
@@ -602,7 +602,7 @@ function App() {
       <section className="workspace">
         <header className="topbar">
           <div>
-            <span className="topbar-brand"><img src="/nursefaculty-mark.svg" alt="" /> NurseFaculty NCLEX Preparation</span>
+            <span className="topbar-brand"><img src="/nursefaculty-mark.png" alt="" /> NurseFaculty NCLEX Preparation</span>
             <h2>{activeView}</h2>
           </div>
           <div className="topbar-actions">

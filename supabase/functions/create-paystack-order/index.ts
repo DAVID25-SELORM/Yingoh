@@ -10,18 +10,20 @@ const corsHeaders = {
 };
 
 // Paystack amounts are in pesewas (GHS) or kobo (NGN) — multiply USD by exchange rate
-const USD_TO_GHS = 15; // approximate; update as needed
+const USD_TO_GHS = 11.34; // indicative rate; update when the gateway is configured
 
 const PLAN_AMOUNTS_GHS: Record<string, number> = {
-  basic:   Math.round(9.99 * USD_TO_GHS * 100), // in pesewas
-  pro:     Math.round(19.99 * USD_TO_GHS * 100),
-  premium: Math.round(29.99 * USD_TO_GHS * 100),
+  thirty_day: Math.round(19 * USD_TO_GHS * 100),
+  ninety_day: Math.round(49 * USD_TO_GHS * 100),
+  master_180: Math.round(79 * USD_TO_GHS * 100),
+  faculty_365: Math.round(129 * USD_TO_GHS * 100),
 };
 
 const PLAN_NAMES: Record<string, string> = {
-  basic: 'Starter Plan',
-  pro: 'Pro Plan',
-  premium: 'Premium Plan',
+  thirty_day: '30-Day Pass',
+  ninety_day: '90-Day Success Plan',
+  master_180: '180-Day Master Plan',
+  faculty_365: '365-Day Faculty Pass',
 };
 
 Deno.serve(async (req) => {

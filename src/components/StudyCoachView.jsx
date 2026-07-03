@@ -161,21 +161,21 @@ export default function StudyCoachView({ session }) {
       )}
       {error && <div className="form-message" style={{ color: '#8a2c21', marginBottom: 12 }}>{error}</div>}
 
-      <div className="ai-layout">
-        <aside className="ai-history">
+      <div className="coach-layout">
+        <aside className="coach-history">
           <strong>Recent Chats</strong>
           <button className="ghost-btn" onClick={() => startNew()} style={{ width: '100%', margin: '10px 0' }}>New conversation</button>
           {conversations.length === 0 ? (
             <p>No saved conversations yet.</p>
           ) : conversations.map((conv) => (
-            <button key={conv.id} className={conversationId === conv.id ? 'ai-history-active' : ''} onClick={() => openConversation(conv)}>
+            <button key={conv.id} className={conversationId === conv.id ? 'coach-history-active' : ''} onClick={() => openConversation(conv)}>
               <span>{conv.title}</span>
               <small>{conv.mode}</small>
             </button>
           ))}
         </aside>
 
-        <div className="ai-main">
+        <div className="coach-main">
           <div className="tab-bar" style={{ marginBottom: 12 }}>
             {TABS.map(({ key, label, icon: Icon }) => (
               <button key={key} className={`tab-btn ${activeTab === key ? 'tab-active' : ''}`} onClick={() => startNew(key)}>
@@ -193,19 +193,19 @@ export default function StudyCoachView({ session }) {
             </div>
           )}
 
-          <div className="ai-chat-window">
+          <div className="coach-chat-window">
             {messages.length === 0 && (
-              <div className="ai-empty">
+              <div className="coach-empty">
                 <tabMeta.icon size={36} />
                 <strong>{emptyText}</strong>
                 <span>{tabMeta.placeholder}</span>
               </div>
             )}
             {messages.map((msg) => (
-              <div key={msg.id} className={`ai-row ai-row-${msg.role}`}>
-                <div className={`ai-bubble ai-bubble-${msg.role} ${msg.is_error ? 'ai-bubble-error' : ''}`}>
+              <div key={msg.id} className={`coach-row coach-row-${msg.role}`}>
+                <div className={`coach-bubble coach-bubble-${msg.role} ${msg.is_error ? 'coach-bubble-error' : ''}`}>
                   {msg.role === 'assistant' && (
-                    <div className="ai-bubble-head">
+                    <div className="coach-bubble-head">
                       <span><Brain size={12} /> NurseFaculty Study Coach</span>
                       <button className="icon-btn" title="Save answer" onClick={() => saveAnswer(msg)}>
                         {savedAnswerIds.has(msg.id) ? <BookmarkCheck size={14} /> : <Bookmark size={14} />}
@@ -217,14 +217,14 @@ export default function StudyCoachView({ session }) {
               </div>
             ))}
             {loading && (
-              <div className="ai-row ai-row-assistant">
-                <div className="ai-bubble ai-bubble-assistant"><Loader2 size={15} className="spin" /> Thinking like an NCLEX coach...</div>
+              <div className="coach-row coach-row-assistant">
+                <div className="coach-bubble coach-bubble-assistant"><Loader2 size={15} className="spin" /> Thinking like an NCLEX coach...</div>
               </div>
             )}
             <div ref={bottomRef} />
           </div>
 
-          <div className="ai-input-row">
+          <div className="coach-input-row">
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}

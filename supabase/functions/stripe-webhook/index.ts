@@ -25,7 +25,13 @@ Deno.serve(async (req) => {
     if (!userId) return;
 
     // Map Stripe plan to NurseFaculty plan
-    const lookupName = planId === 'basic' ? 'Starter' : planId;
+    const planNames: Record<string, string> = {
+      thirty_day: '30-Day Pass',
+      ninety_day: '90-Day Success Plan',
+      master_180: '180-Day Master Plan',
+      faculty_365: '365-Day Faculty Pass',
+    };
+    const lookupName = planNames[planId ?? ''] ?? planId;
     const { data: plan } = await supabase.from('payment_plans').select('name').ilike('name', lookupName ?? '').maybeSingle();
     const payload = {
       user_id: userId,

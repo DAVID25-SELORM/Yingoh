@@ -6,10 +6,10 @@ const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
 const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
 
 const PLAN_PRICE_MAP: Record<string, string> = {
-  // Map plan_id -> Stripe price ID (set in Stripe dashboard, add to env)
-  basic:   Deno.env.get('STRIPE_PRICE_BASIC')   ?? '',
-  pro:     Deno.env.get('STRIPE_PRICE_PRO')     ?? '',
-  premium: Deno.env.get('STRIPE_PRICE_PREMIUM') ?? '',
+  thirty_day: Deno.env.get('STRIPE_PRICE_30_DAY') ?? '',
+  ninety_day: Deno.env.get('STRIPE_PRICE_90_DAY') ?? '',
+  master_180: Deno.env.get('STRIPE_PRICE_180_DAY') ?? '',
+  faculty_365: Deno.env.get('STRIPE_PRICE_365_DAY') ?? '',
 };
 
 const corsHeaders = {

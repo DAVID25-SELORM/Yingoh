@@ -3,9 +3,9 @@ import { Lock, Sparkles, Star } from 'lucide-react';
 import { useSubscription, createCheckoutSession } from '../hooks/useSubscription';
 
 const PLAN_DETAILS = {
-  basic: { label: 'Starter', price: '$9.99/mo', color: '#2b8a7d', features: ['500 questions', 'Practice and timed modes', 'Videos and notes', 'Study planner'] },
-  pro:   { label: 'Pro', price: '$19.99/mo', color: '#e3a72f', features: ['Complete growing question bank', 'CAT and NGN simulator', 'Study Coach rationale support', 'Adaptive study plan'] },
-  premium: { label: 'Premium', price: '$29.99/mo', color: '#c17f44', features: ['Everything in Pro', 'Live classes', 'Mentorship and coaching', 'International nurse pathway'] },
+  basic: { label: '30-Day Pass', price: '$19 / 30 days', color: '#2563eb', features: ['2,000+ questions', 'Practice and timed modes', 'Videos and notes', 'Study Coach support'] },
+  pro:   { label: '90-Day Success Plan', price: '$49 / 90 days', color: '#e3a72f', features: ['Complete question bank', 'Unlimited CAT and NGN practice', 'Personalized Study Coach', 'Adaptive study plan'] },
+  premium: { label: '180-Day Master Plan', price: '$79 / 180 days', color: '#c17f44', features: ['Everything in the 90-Day plan', 'Live classes', 'Mentorship and coaching', 'International nurse pathway'] },
 };
 
 // Wraps any child — shows upgrade prompt if user doesn't have required plan

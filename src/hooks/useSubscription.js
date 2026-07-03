@@ -7,9 +7,9 @@ const ADMIN_ROLES = new Set(['admin', 'super_admin']);
 
 export function normalizePlanName(value) {
   const name = String(value ?? 'free').trim().toLowerCase();
-  if (name.includes('premium')) return 'premium';
-  if (name.includes('pro')) return 'pro';
-  if (name.includes('basic') || name.includes('starter')) return 'basic';
+  if (name.includes('365') || name.includes('180') || name.includes('faculty') || name.includes('master') || name.includes('premium')) return 'premium';
+  if (name.includes('90') || name.includes('success') || name.includes('pro')) return 'pro';
+  if (name.includes('30') || name.includes('basic') || name.includes('starter')) return 'basic';
   return 'free';
 }
 

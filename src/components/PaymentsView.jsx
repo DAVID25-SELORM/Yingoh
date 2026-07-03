@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { AlertTriangle, CheckCircle2, DollarSign, Tag, FileText, PlusCircle, Search, ShieldCheck, Sparkles, ToggleLeft, ToggleRight, Users, X, Smartphone } from 'lucide-react';
 import { supabase } from '../services/supabase';
-import { useSubscription, createCheckoutSession } from '../hooks/useSubscription';
+import { useSubscription, createCheckoutSession, normalizePlanName } from '../hooks/useSubscription';
 import { SUBSCRIPTION_PLANS } from '../data/subscriptionPlans';
 
 const DEMO_PLANS = SUBSCRIPTION_PLANS;
@@ -29,7 +29,13 @@ const DEMO_PROMOS = [
   { id: 'p3', code: 'NURSE10', discount_pct: 10, max_uses: null, used_count: 12, expires_at: null, is_active: true },
 ];
 
-const PLAN_COLORS = { Free: '#8a999c', Basic: '#2b8a7d', Starter: '#2b8a7d', Pro: '#e3a72f', Premium: '#c17f44' };
+const PLAN_COLORS = {
+  'Explorer Pass': '#2b8a7d',
+  '30-Day Pass': '#2563eb',
+  '90-Day Success Plan': '#e3a72f',
+  '180-Day Master Plan': '#dc6b2f',
+  '365-Day Faculty Pass': '#7c3aed',
+};
 const USD_TO_GHS_RATE = 11.34;
 const CARD_GATEWAY_ENABLED = false;
 
@@ -42,11 +48,17 @@ function formatGhs(usdAmount) {
 }
 
 function planKey(name) {
-  return name?.toLowerCase() === 'starter' ? 'basic' : name?.toLowerCase();
+  const value = String(name ?? '').toLowerCase();
+  if (value.includes('365')) return 'faculty_365';
+  if (value.includes('180')) return 'master_180';
+  if (value.includes('90')) return 'ninety_day';
+  if (value.includes('30')) return 'thirty_day';
+  if (value.includes('explorer') || value === 'free') return 'free';
+  return value === 'starter' || value === 'basic' ? 'thirty_day' : value;
 }
 
 export default function PaymentsView({ session, canManage = false }) {
-  const { plan: currentPlan, loading: subLoading } = useSubscription(session);
+  const { plan: currentPlan, planLabel: currentPlanLabel, loading: subLoading } = useSubscription(session);
   const [checkingOut, setCheckingOut] = useState('');
   const [tab, setTab] = useState('plans');
   const [customerNotice, setCustomerNotice] = useState(null);
@@ -85,7 +97,7 @@ export default function PaymentsView({ session, canManage = false }) {
   const [subStatusFilter, setSubStatusFilter] = useState('all');
   const [newPromo, setNewPromo] = useState({ code: '', discount_pct: 10, max_uses: '', expires_at: '' });
   const [showPromoForm, setShowPromoForm] = useState(false);
-  const [mmPlan, setMmPlan] = useState('basic');
+  const [mmPlan, setMmPlan] = useState('thirty_day');
   const [mmPhone, setMmPhone] = useState('');
   const [mmChannel, setMmChannel] = useState('mtn');
   const [mmLoading, setMmLoading] = useState(false);
@@ -126,7 +138,7 @@ export default function PaymentsView({ session, canManage = false }) {
             full_name: s.profiles?.full_name ?? '—',
             plan_name: s.plan_name ?? '—',
             status: s.status,
-            amount_usd: plans.find((plan) => planKey(plan.name) === planKey(s.plan_name))?.price_usd ?? 0,
+            amount_usd: plans.find((plan) => normalizePlanName(plan.name) === normalizePlanName(s.plan_name))?.price_usd ?? 0,
             started_at: s.created_at,
             current_period_end: s.current_period_end,
             payment_method: s.payment_method ?? 'stripe',
@@ -274,6 +286,10 @@ export default function PaymentsView({ session, canManage = false }) {
           {plans.map((plan) => {
             const color = PLAN_COLORS[plan.name] ?? '#607478';
             const features = Array.isArray(plan.features) ? plan.features : (typeof plan.features === 'string' ? JSON.parse(plan.features) : []);
+            const normalizedCurrentLabel = String(currentPlanLabel ?? '').trim().toLowerCase();
+            const isLegacyPlanLabel = ['free', 'starter', 'basic', 'pro', 'premium'].includes(normalizedCurrentLabel);
+            const isCurrentPlan = normalizedCurrentLabel === String(plan.name).toLowerCase()
+              || (isLegacyPlanLabel && currentPlan === normalizePlanName(plan.name));
             const questionAccess = plan.question_limit == null
               ? `All ${bankCount.toLocaleString()} available questions`
               : `Up to ${Math.min(Number(plan.question_limit), bankCount).toLocaleString()} of ${bankCount.toLocaleString()} available questions`;
@@ -284,9 +300,9 @@ export default function PaymentsView({ session, canManage = false }) {
                     <div style={{ fontWeight: 800, fontSize: '1.05rem', color }}>{plan.name}</div>
                     <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#17212f', lineHeight: 1.1 }}>
                       {plan.price_usd === 0 ? 'Free' : `$${Number(plan.price_usd).toFixed(2)}`}
-                      {plan.price_usd > 0 && <span style={{ fontSize: '0.75rem', fontWeight: 500, color: '#607478' }}>/mo</span>}
+                      {plan.price_usd > 0 && <span style={{ fontSize: '0.75rem', fontWeight: 500, color: '#607478' }}> / {plan.duration_days} days</span>}
                     </div>
-                    {!subLoading && currentPlan === planKey(plan.name) && (
+                    {!subLoading && isCurrentPlan && (
                       <span style={{ fontSize: '0.72rem', fontWeight: 700, padding: '2px 8px', background: '#e2f5f2', color: '#135f55', borderRadius: 12 }}>Current Plan</span>
                     )}
                     <div style={{ marginTop: 7, fontSize: '0.76rem', fontWeight: 700, color }}>{questionAccess}</div>
@@ -296,14 +312,14 @@ export default function PaymentsView({ session, canManage = false }) {
                   </span>
                 </div>
                 <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 5 }}>
-                {plan.price_usd > 0 && currentPlan !== planKey(plan.name) && (
+                {plan.price_usd > 0 && !isCurrentPlan && (
                   <button
                     className="primary-btn"
                     style={{ width: '100%', justifyContent: 'center', background: color, marginBottom: 8 }}
                     onClick={() => handleCheckout(plan)}
                     disabled={checkingOut === plan.name}
                   >
-                    <Sparkles size={14} /> {checkingOut === plan.name ? 'Starting secure checkout…' : `Choose ${plan.name} — $${Number(plan.price_usd).toFixed(2)}/mo`}
+                    <Sparkles size={14} /> {checkingOut === plan.name ? 'Starting secure checkout…' : `Choose ${plan.name} — $${Number(plan.price_usd).toFixed(2)}`}
                   </button>
                 )}
                   {features.map((f, i) => (
@@ -346,7 +362,7 @@ export default function PaymentsView({ session, canManage = false }) {
             </div>
             <div style={{ padding: 22 }}>
               <div style={{ padding: '18px 20px', borderRadius: 14, background: 'linear-gradient(135deg, #e9f6f4, #f8fbfa)', border: '1px solid #cfe5e1' }}>
-                <span style={{ display: 'block', color: '#607478', fontSize: '0.8rem', marginBottom: 4 }}>Estimated monthly amount</span>
+                <span style={{ display: 'block', color: '#607478', fontSize: '0.8rem', marginBottom: 4 }}>Estimated pass amount in Ghana cedis</span>
                 <strong style={{ display: 'block', color: '#102027', fontSize: '2rem', lineHeight: 1.1 }}>{formatGhs(selectedQuote.price_usd)}</strong>
                 <span style={{ display: 'block', color: '#607478', fontSize: '0.78rem', marginTop: 7 }}>
                   ${Number(selectedQuote.price_usd).toFixed(2)} USD × {USD_TO_GHS_RATE.toFixed(2)} GHS
@@ -506,7 +522,7 @@ export default function PaymentsView({ session, canManage = false }) {
               <select value={mmPlan} onChange={(e) => setMmPlan(e.target.value)} style={{ width: '100%', height: 42, borderRadius: 10, border: '1.5px solid #dbe6e4', padding: '0 14px', fontSize: '0.9rem' }}>
                 {plans.filter((plan) => Number(plan.price_usd) > 0).map((plan) => (
                   <option key={plan.id} value={planKey(plan.name)}>
-                    {plan.name} — {formatGhs(plan.price_usd)}/month
+                    {plan.name} — {formatGhs(plan.price_usd)} / {plan.duration_days} days
                   </option>
                 ))}
               </select>
