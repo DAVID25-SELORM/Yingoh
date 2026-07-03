@@ -1,4 +1,5 @@
-const ANTHROPIC_KEY = Deno.env.get('ANTHROPIC_API_KEY') ?? '';
+const OPENAI_KEY = Deno.env.get('OPENAI_API_KEY') ?? '';
+const OPENAI_MODEL = Deno.env.get('OPENAI_MODEL') ?? 'gpt-4o-mini';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -28,8 +29,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (!ANTHROPIC_KEY) {
-      return new Response(JSON.stringify({ error: 'ANTHROPIC_API_KEY not configured' }), {
+    if (!OPENAI_KEY) {
+      return new Response(JSON.stringify({ error: 'OPENAI_API_KEY not configured' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -41,32 +42,35 @@ Deno.serve(async (req) => {
       : systemPrompt;
 
     const messages = [
-      ...history.slice(-10),
+      { role: 'system', content: fullSystem },
+      ...history
+        .slice(-10)
+        .filter((item: { role?: string; content?: string }) => ['user', 'assistant'].includes(item?.role ?? '') && typeof item?.content === 'string')
+        .map((item: { role: string; content: string }) => ({ role: item.role, content: item.content })),
       { role: 'user', content: message },
     ];
 
-    const anthropicRes = await fetch('https://api.anthropic.com/v1/messages', {
+    const openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_KEY,
-        'anthropic-version': '2023-06-01',
+        Authorization: `Bearer ${OPENAI_KEY}`,
       },
       body: JSON.stringify({
-        model: 'claude-opus-4-8',
-        max_tokens: 2048,
-        system: fullSystem,
+        model: OPENAI_MODEL,
         messages,
+        max_tokens: 1800,
+        temperature: mode === 'quiz' ? 0.7 : 0.35,
       }),
     });
 
-    if (!anthropicRes.ok) {
-      const err = await anthropicRes.text();
-      throw new Error(`Anthropic API error ${anthropicRes.status}: ${err}`);
+    if (!openaiRes.ok) {
+      const err = await openaiRes.text();
+      throw new Error(`OpenAI API error ${openaiRes.status}: ${err}`);
     }
 
-    const data = await anthropicRes.json();
-    const reply = data.content?.[0]?.text ?? 'No response from the Study Coach.';
+    const data = await openaiRes.json();
+    const reply = data.choices?.[0]?.message?.content?.trim() ?? 'No response from the Study Coach.';
 
     return new Response(JSON.stringify({ reply }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
