@@ -315,11 +315,12 @@ export default function PaymentsView({ session, canManage = false }) {
                 {plan.price_usd > 0 && !isCurrentPlan && (
                   <button
                     className="primary-btn"
-                    style={{ width: '100%', justifyContent: 'center', background: color, marginBottom: 8 }}
+                    style={{ width: '100%', minWidth: 0, justifyContent: 'center', background: color, marginBottom: 8 }}
                     onClick={() => handleCheckout(plan)}
                     disabled={checkingOut === plan.name}
+                    aria-label={`Choose ${plan.name} for $${Number(plan.price_usd).toFixed(2)}`}
                   >
-                    <Sparkles size={14} /> {checkingOut === plan.name ? 'Starting secure checkout…' : `Choose ${plan.name} — $${Number(plan.price_usd).toFixed(2)}`}
+                    <Sparkles size={14} /> {checkingOut === plan.name ? 'Starting checkout…' : 'Choose plan'}
                   </button>
                 )}
                   {features.map((f, i) => (

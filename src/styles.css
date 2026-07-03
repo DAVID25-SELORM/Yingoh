@@ -898,6 +898,7 @@ input, select, textarea { font: inherit; }
 .payment-plan-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 10px; }
 .payment-plan-heading > div { min-width: 0; }
 .payment-plan-heading > span { flex-shrink: 0; }
+.payment-plan-card .primary-btn { white-space: normal; overflow-wrap: anywhere; text-align: center; }
 .admin-table { width: 100%; min-width: 720px; border-collapse: collapse; }
 .admin-table th, .admin-table td { padding: 10px 12px; text-align: left; vertical-align: top; border-bottom: 1px solid #e5eeec; }
 .admin-table th { color: #42585e; font-size: .76rem; text-transform: uppercase; letter-spacing: .035em; background: #f7faf9; }
