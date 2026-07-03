@@ -30,9 +30,10 @@ export const supabase = supabaseConfig.isConfigured
     })
   : null;
 
-export const yingohTables = {
+export const nurseFacultyTables = {
   profiles: 'profiles',
   roles: 'roles',
+  userRoles: 'user_roles',
   courses: 'courses',
   lessons: 'lessons',
   questions: 'questions',
@@ -50,6 +51,21 @@ export const yingohTables = {
   studyCoachConversations: 'study_coach_conversations',
   savedItems: 'saved_items',
   userProgress: 'user_progress',
+  notifications: 'notifications',
+  videoLessons: 'video_lessons',
+  videoProgress: 'video_progress',
+  forumThreads: 'forum_threads',
+  forumReplies: 'forum_replies',
+  assignments: 'assignments',
+  assignmentSubmissions: 'assignment_submissions',
+  userCertificates: 'user_certificates',
+  paymentPlans: 'payment_plans',
+  invoices: 'invoices',
+  promoCodes: 'promo_codes',
+  classSchedules: 'class_schedules',
+  pendingInvites: 'pending_invites',
+  auditLogs: 'audit_logs',
+  adminAuditLogs: 'admin_audit_logs',
 };
 
 // ─── Auth ──────────────────────────────────────────────────

@@ -33,7 +33,7 @@ export const SUBSCRIPTION_PLANS = [
     price_usd: 19.99,
     duration_days: 30,
     question_limit: null,
-    features: ['Complete growing question bank', 'NGN clinical judgment simulator', 'CAT exams', 'AI rationale coach', 'Adaptive study plan', 'Readiness analytics'],
+    features: ['Complete growing question bank', 'NGN clinical judgment simulator', 'CAT exams', 'Study Coach rationale support', 'Adaptive study plan', 'Readiness analytics'],
     is_active: true,
     sort_order: 3,
   },

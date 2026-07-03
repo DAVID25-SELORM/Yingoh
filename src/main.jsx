@@ -9,7 +9,7 @@ import {
 import {
   checkTableAvailability, getCurrentSession, onAuthStateChange,
   isConfiguredSuperAdmin, resendEmailConfirmation, sendPasswordResetEmail, signInWithEmail, signOut,
-  signUpWithEmail, supabaseConfig, updatePassword, yingohTables,
+  signUpWithEmail, supabaseConfig, updatePassword, nurseFacultyTables,
 } from './services/supabase';
 import StudentDashboard from './components/StudentDashboard';
 import QuestionBankView from './components/QuestionBankView';
@@ -59,7 +59,7 @@ const modules = [
   { name: 'Practice & Exam Modes', phase: 'Growth', priority: 'Medium', icon: Target, summary: 'Practice, tutor mode, timed exams, CAT simulator, custom quiz builder, readiness exams, daily quiz, weekly challenge.' },
   { name: 'Rationales & Review', phase: 'Growth', priority: 'Medium', icon: BookOpen, summary: 'Answer explanations, nursing tips, references, bookmarks, personal notes, and error reports.' },
   { name: 'Analytics', phase: 'Growth', priority: 'Medium', icon: BarChart3, summary: 'Overall score, topic performance, NGN readiness, pass probability, reports, at-risk student detection.' },
-  { name: 'AI Learning Assistant', phase: 'Growth', priority: 'Medium', icon: Brain, summary: 'Study Coach, rationale explainer, quiz generator, study planner, weak area detector, lesson summarizer.' },
+  { name: 'Study Coach', phase: 'Growth', priority: 'Medium', icon: Brain, summary: 'Rationale support, quiz generation, study planning, weak-area detection, and lesson summaries.' },
   { name: 'Flashcards & Pharmacology', phase: 'Growth', priority: 'Medium', icon: Stethoscope, summary: 'Drug cards, disease cards, lab values, spaced repetition, MOA, side effects, contraindications.' },
   { name: 'Resources', phase: 'Growth', priority: 'Medium', icon: BookOpen, summary: 'Notes, care plans, concept maps, ECG, ABG, isolation precautions, drug handbook, worksheets.' },
   { name: 'Community', phase: 'Growth', priority: 'Medium', icon: MessageSquareText, summary: 'Discussion forum, study groups, ask instructors, comments, announcements, mentor groups, success stories.' },
@@ -67,7 +67,7 @@ const modules = [
   { name: 'Certificates', phase: 'Growth', priority: 'Medium', icon: FileBadge, summary: 'Completion, attendance, and readiness exam certificates with verification codes.' },
   { name: 'Professional Add-ons', phase: 'Expansion', priority: 'Medium', icon: GraduationCap, summary: 'Sponsor portal, career center, USRN checklist, visa prep, resume builder, job board, CPD and OSCE.' },
   { name: 'Security', phase: 'Expansion', priority: 'Medium', icon: LockKeyhole, summary: 'Encrypted data, role access, audit logs, backups, screenshot controls, suspicious activity tracking.' },
-  { name: 'Scalability', phase: 'Expansion', priority: 'Medium', icon: Activity, summary: 'Web, Android, iOS, cloud database, push notifications, offline capability, AI integration.' },
+  { name: 'Scalability', phase: 'Expansion', priority: 'Medium', icon: Activity, summary: 'Web, Android, iOS, cloud database, push notifications, offline capability, and coaching services.' },
 ];
 
 const roles = [
@@ -117,7 +117,7 @@ function ModuleRoadmap() {
 }
 
 function AdminConsole() {
-  const requiredTables = Object.values(yingohTables);
+  const requiredTables = Object.values(nurseFacultyTables);
   const [tableHealth, setTableHealth] = useState([]);
   const [isChecking, setIsChecking] = useState(false);
 
@@ -374,7 +374,7 @@ const NAV = [
 
 const VALID_VIEW_KEYS = new Set(NAV.map((n) => n.viewKey ?? n.label));
 const DEFAULT_VIEW = 'Dashboard';
-const ACTIVE_VIEW_STORAGE_KEY = 'yingoh.activeView';
+const ACTIVE_VIEW_STORAGE_KEY = 'nursefaculty.activeView';
 
 function getInitialView() {
   if (typeof window === 'undefined') return DEFAULT_VIEW;
@@ -395,7 +395,7 @@ function PublicLanding({ isPasswordRecovery }) {
     <main className="public-site">
       <header className="public-header">
         <a className="public-brand" href="#top" aria-label="NurseFaculty home">
-          <img className="public-logo" src="/yingoh-logo.svg" alt="NurseFaculty NCLEX Preparation" />
+          <img className="public-logo" src="/nursefaculty-logo.svg" alt="NurseFaculty NCLEX Preparation" />
         </a>
         <a className="public-signin-link" href="#signin">Sign in</a>
       </header>
@@ -407,7 +407,7 @@ function PublicLanding({ isPasswordRecovery }) {
           <p>Learn the concept, practice clinical judgment, understand every rationale, and focus each day on what will move your score.</p>
           <div className="public-hero-actions">
             <a className="public-primary-link" href="#signin">Start studying</a>
-            <a className="public-secondary-link" href="#why-yingoh">Explore NurseFaculty</a>
+            <a className="public-secondary-link" href="#why-nursefaculty">Explore NurseFaculty</a>
           </div>
           <div className="public-trust-row">
             <span><CheckCircle2 size={16} /> NGN practice</span>
@@ -430,7 +430,7 @@ function PublicLanding({ isPasswordRecovery }) {
         </div>
       </section>
 
-      <section className="public-features" id="why-yingoh">
+      <section className="public-features" id="why-nursefaculty">
         <div className="public-section-heading">
           <span className="eyebrow">More than a question bank</span>
           <h2>A complete NCLEX preparation system</h2>
@@ -460,8 +460,8 @@ function PublicLanding({ isPasswordRecovery }) {
       </section>
 
       <footer className="public-footer">
-        <div className="public-brand"><img className="public-logo" src="/yingoh-logo.svg" alt="NurseFaculty NCLEX Preparation" /></div>
-        <p>AI-powered NCLEX coaching for thoughtful, confident nursing practice.</p>
+        <div className="public-brand"><img className="public-logo" src="/nursefaculty-logo.svg" alt="NurseFaculty NCLEX Preparation" /></div>
+        <p>Personalized NCLEX coaching for thoughtful, confident nursing practice.</p>
       </footer>
     </main>
   );
@@ -529,7 +529,7 @@ function App() {
   if (!authReady || (session && accessLoading)) {
     return (
       <main className="app-loading">
-        <img src="/yingoh-mark.svg" alt="" />
+        <img src="/nursefaculty-mark.svg" alt="" />
         <strong>NurseFaculty</strong>
         <span>Preparing your study space…</span>
       </main>
@@ -542,7 +542,7 @@ function App() {
     <main className="app-shell">
       <aside className="sidebar">
         <div className="brand">
-          <span className="brand-mark"><img src="/yingoh-mark.svg" alt="" /></span>
+          <span className="brand-mark"><img src="/nursefaculty-mark.svg" alt="" /></span>
           <div><strong>NurseFaculty</strong><small>NCLEX Preparation</small></div>
         </div>
 
@@ -602,7 +602,7 @@ function App() {
       <section className="workspace">
         <header className="topbar">
           <div>
-            <span className="topbar-brand"><img src="/yingoh-mark.svg" alt="" /> NurseFaculty NCLEX Preparation</span>
+            <span className="topbar-brand"><img src="/nursefaculty-mark.svg" alt="" /> NurseFaculty NCLEX Preparation</span>
             <h2>{activeView}</h2>
           </div>
           <div className="topbar-actions">

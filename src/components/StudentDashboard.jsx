@@ -157,7 +157,7 @@ export default function StudentDashboard({ session, onNavigate }) {
       <div className="hero-panel">
         <img src={dashboardImage} alt="Nursing students preparing for NCLEX" />
         <div className="hero-copy">
-          <span className="hero-brand"><img src="/yingoh-mark.svg" alt="" /> NurseFaculty NCLEX Preparation</span>
+          <span className="hero-brand"><img src="/nursefaculty-mark.svg" alt="" /> NurseFaculty NCLEX Preparation</span>
           <h1>Adaptive NCLEX prep, live coaching, and progress intelligence.</h1>
           <p>Personalized study plans, clinical reasoning practice, and readiness tracking for NCLEX candidates.</p>
           <div className="hero-actions">

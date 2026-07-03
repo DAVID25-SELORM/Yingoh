@@ -4,7 +4,7 @@ import { useSubscription, createCheckoutSession } from '../hooks/useSubscription
 
 const PLAN_DETAILS = {
   basic: { label: 'Starter', price: '$9.99/mo', color: '#2b8a7d', features: ['500 questions', 'Practice and timed modes', 'Videos and notes', 'Study planner'] },
-  pro:   { label: 'Pro', price: '$19.99/mo', color: '#e3a72f', features: ['Complete growing question bank', 'CAT and NGN simulator', 'AI rationale coach', 'Adaptive study plan'] },
+  pro:   { label: 'Pro', price: '$19.99/mo', color: '#e3a72f', features: ['Complete growing question bank', 'CAT and NGN simulator', 'Study Coach rationale support', 'Adaptive study plan'] },
   premium: { label: 'Premium', price: '$29.99/mo', color: '#c17f44', features: ['Everything in Pro', 'Live classes', 'Mentorship and coaching', 'International nurse pathway'] },
 };
 

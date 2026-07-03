@@ -3,7 +3,7 @@ import { BookmarkCheck, Brain, FileText, Film, Layers, Search, Trash2 } from 'lu
 import { getSavedItems, unsaveItem } from '../services/supabase';
 
 const TYPE_LABELS = {
-  ai_answer: 'AI Answers',
+  ai_answer: 'Study Coach Answers',
   correction_plan: 'Correction Plans',
   question: 'Questions',
   flashcard: 'Flashcards',
@@ -56,7 +56,7 @@ export default function SavedItemsView({ session }) {
         <div className="saved-empty">
           <BookmarkCheck size={34} />
           <h3>Sign in to view saved items</h3>
-          <p>Your saved AI answers, questions, flashcards, videos, resources, and notes will appear here.</p>
+          <p>Your saved coaching answers, questions, flashcards, videos, resources, and notes will appear here.</p>
         </div>
       </section>
     );

@@ -3,7 +3,7 @@ import {
   Activity, AlertTriangle, BarChart3, CheckCircle2, RefreshCw,
   Search, Shield, Trash2, UserCheck, UserX, Users,
 } from 'lucide-react';
-import { supabase, checkTableAvailability, yingohTables } from '../services/supabase';
+import { supabase, checkTableAvailability, nurseFacultyTables } from '../services/supabase';
 
 const DEMO_STATS = {
   total_users: 142,
@@ -104,7 +104,7 @@ export default function SuperAdminPanel({ session }) {
     } catch (_) {}
 
     // Table health
-    const health = await checkTableAvailability(Object.values(yingohTables));
+    const health = await checkTableAvailability(Object.values(nurseFacultyTables));
     setTableHealth(health);
 
     // Audit logs
@@ -133,7 +133,7 @@ export default function SuperAdminPanel({ session }) {
   useEffect(() => {
     if (tab === 'users') loadUsers();
     if (tab === 'system') {
-      checkTableAvailability(Object.values(yingohTables)).then(setTableHealth);
+      checkTableAvailability(Object.values(nurseFacultyTables)).then(setTableHealth);
     }
   }, [tab]);
 
@@ -345,12 +345,12 @@ export default function SuperAdminPanel({ session }) {
             <div className="table-list" style={{ gap: 8 }}>
               {(tableHealth.length
                 ? tableHealth
-                : Object.values(yingohTables).map((name) => ({ name, status: 'checking', detail: 'Checking…' }))
+                : Object.values(nurseFacultyTables).map((name) => ({ name, status: 'checking', detail: 'Checking…' }))
               ).map((t) => (
                 <span key={t.name} className={`table-${t.status}`} title={t.detail}>{t.name}</span>
               ))}
             </div>
-            <button className="ghost-btn" style={{ marginTop: 14 }} onClick={() => checkTableAvailability(Object.values(yingohTables)).then(setTableHealth)}>
+            <button className="ghost-btn" style={{ marginTop: 14 }} onClick={() => checkTableAvailability(Object.values(nurseFacultyTables)).then(setTableHealth)}>
               <RefreshCw size={15} /> Re-check tables
             </button>
           </div>

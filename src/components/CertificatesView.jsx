@@ -29,7 +29,7 @@ function CertificatePrint({ cert, userName }) {
       <div style={{ position: 'absolute', bottom: 12, left: 12, width: 40, height: 40, border: `3px solid ${color}44`, borderRadius: 4 }} />
       <div style={{ position: 'absolute', bottom: 12, right: 12, width: 40, height: 40, border: `3px solid ${color}44`, borderRadius: 4 }} />
 
-      <img src="/yingoh-mark.svg" alt="NurseFaculty" style={{ width: 78, height: 78, objectFit: 'contain', marginBottom: 10 }} />
+      <img src="/nursefaculty-mark.svg" alt="NurseFaculty" style={{ width: 78, height: 78, objectFit: 'contain', marginBottom: 10 }} />
       <div style={{ fontSize: '0.9rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: color, fontWeight: 700, marginBottom: 6 }}>Certificate of Achievement</div>
       <div style={{ fontSize: '0.8rem', color: '#8a999c', marginBottom: 20 }}>NurseFaculty NCLEX Preparation</div>
       <div style={{ width: 60, height: 2, background: color, margin: '0 auto 24px' }} />

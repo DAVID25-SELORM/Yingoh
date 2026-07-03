@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
     }
 
     const data = await anthropicRes.json();
-    const reply = data.content?.[0]?.text ?? 'No response from AI.';
+    const reply = data.content?.[0]?.text ?? 'No response from the Study Coach.';
 
     return new Response(JSON.stringify({ reply }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

@@ -326,7 +326,7 @@ export default function QuestionBankView({ session }) {
     try {
       let reply = DEMO_COACH_REPLY;
       if (supabase) {
-        const { data, error } = await supabase.functions.invoke('ai-tutor', {
+        const { data, error } = await supabase.functions.invoke('study-coach', {
           body: {
             mode: action === 'similar' ? 'quiz' : 'explainer',
             message: prompt,
@@ -693,7 +693,7 @@ export default function QuestionBankView({ session }) {
             </div>
           )}
           {!supabase && !coachReply && (
-            <p className="qb-coach-note">Demo mode will show a sample coaching response. Connect Supabase for live AI coaching.</p>
+            <p className="qb-coach-note">Preview mode shows a sample coaching response. Connect the Study Coach service for live guidance.</p>
           )}
           {coachReply && !userId && (
             <p className="qb-coach-note">Sign in to save Study Coach answers to Saved Items.</p>

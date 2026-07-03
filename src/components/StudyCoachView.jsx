@@ -94,7 +94,7 @@ export default function StudyCoachView({ session }) {
       let reply = DEMO_REPLY;
       if (supabase) {
         const apiHistory = next.slice(-10).map((m) => ({ role: m.role, content: m.content }));
-        const { data, error: fnError } = await supabase.functions.invoke('ai-tutor', {
+        const { data, error: fnError } = await supabase.functions.invoke('study-coach', {
           body: {
             mode: activeTab,
             message: prompt,
@@ -103,7 +103,7 @@ export default function StudyCoachView({ session }) {
           },
         });
         if (fnError) throw fnError;
-        reply = data?.reply ?? 'No response from AI.';
+        reply = data?.reply ?? 'No response from the Study Coach.';
       } else {
         await new Promise((resolve) => setTimeout(resolve, 700));
       }
@@ -156,7 +156,7 @@ export default function StudyCoachView({ session }) {
 
       {!supabase && (
         <div className="setup-alert" style={{ marginBottom: 14 }}>
-          Demo mode. Connect Supabase and set ANTHROPIC_API_KEY for live AI responses.
+          Preview mode. Connect the Study Coach service to enable live coaching responses.
         </div>
       )}
       {error && <div className="form-message" style={{ color: '#8a2c21', marginBottom: 12 }}>{error}</div>}
