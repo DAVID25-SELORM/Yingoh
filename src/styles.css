@@ -899,6 +899,17 @@ input, select, textarea { font: inherit; }
 .payment-plan-heading > div { min-width: 0; }
 .payment-plan-heading > span { flex-shrink: 0; }
 .payment-plan-card .primary-btn { white-space: normal; overflow-wrap: anywhere; text-align: center; }
+.faculty-member-badge {
+  display: inline-flex; width: fit-content; padding: 4px 9px; border-radius: 999px;
+  background: #f1eafe; color: #6d28d9; font-size: .7rem; font-weight: 800;
+  text-transform: uppercase; letter-spacing: .04em;
+}
+.analytics-locked-insight {
+  width: 150px; min-height: 130px; padding: 18px; border-radius: 14px;
+  display: grid; place-items: center; align-content: center; gap: 7px; text-align: center;
+  background: #f5f2ff; border: 1px solid #ddd3f8; color: #6750a4;
+}
+.analytics-locked-insight span { color: #607478; font-size: .76rem; line-height: 1.35; }
 .admin-table { width: 100%; min-width: 720px; border-collapse: collapse; }
 .admin-table th, .admin-table td { padding: 10px 12px; text-align: left; vertical-align: top; border-bottom: 1px solid #e5eeec; }
 .admin-table th { color: #42585e; font-size: .76rem; text-transform: uppercase; letter-spacing: .035em; background: #f7faf9; }

@@ -353,6 +353,7 @@ const NAV = [
   { label: 'Saved Items', icon: BookmarkCheck, group: 'learn', more: true },
   { label: 'Videos', icon: MonitorPlay, group: 'learn', more: true },
   { label: 'Quiz Builder', icon: Target, group: 'learn', more: true },
+  { label: 'Live Classes', icon: Video, group: 'learn', more: true },
   { label: 'Community', icon: MessageSquareText, group: 'learn', more: true },
   { label: 'Certificates', icon: FileBadge, group: 'learn', more: true },
   { label: 'Resources', icon: BookOpen, group: 'learn', more: true },
@@ -477,7 +478,7 @@ function App() {
   const [session, setSession] = useState(null);
   const [authReady, setAuthReady] = useState(false);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
-  const { roles, hasAdminAccess, planLabel, loading: accessLoading } = useSubscription(session);
+  const { roles, hasAdminAccess, planLabel, isFaculty, loading: accessLoading } = useSubscription(session);
   const navigateTo = (view) => {
     setActiveView(view);
     setMobileNavOpen(false);
@@ -628,6 +629,7 @@ function App() {
         <div className="sidebar-card">
           <span className="eyebrow">Your plan</span>
           <strong>{planLabel}</strong>
+          {isFaculty && <span className="faculty-member-badge">Faculty Member</span>}
           <p>Keep building momentum—your questions, notes, and progress are saved automatically.</p>
         </div>
       </aside>
@@ -670,7 +672,16 @@ function App() {
         {activeView === 'Analytics' && <AnalyticsView session={session} onNavigate={setActiveView} />}
         {activeView === 'Account' && <AccountAccess session={session} isPasswordRecovery={isPasswordRecovery} />}
         {activeView === 'Videos' && <VideoLearning session={session} onNavigate={setActiveView} />}
-        {activeView === 'Quiz Builder' && <CustomQuizBuilder session={session} />}
+        {activeView === 'Quiz Builder' && (
+          <SubscriptionGate session={session} requiredPlan="pro" featureName="custom exams and review mode" onUpgrade={() => setActiveView('Billing')}>
+            <CustomQuizBuilder session={session} />
+          </SubscriptionGate>
+        )}
+        {activeView === 'Live Classes' && (
+          <SubscriptionGate session={session} requiredPlan="master" featureName="weekly live classes and masterclasses" onUpgrade={() => setActiveView('Billing')}>
+            <VirtualClassroom session={session} />
+          </SubscriptionGate>
+        )}
         {activeView === 'Community' && <CommunityForum session={session} />}
         {activeView === 'Certificates' && (
           <SubscriptionGate session={session} requiredPlan="pro" featureName="certificates" onUpgrade={() => setActiveView('Billing')}>
@@ -691,12 +702,12 @@ function App() {
         {activeView === 'Study Coach' && <StudyCoachView session={session} />}
         {activeView === 'Resources' && <ResourcesView session={session} />}
         {activeView === 'Assignments' && (
-          <SubscriptionGate session={session} requiredPlan="premium" featureName="assignments and instructor feedback" onUpgrade={() => setActiveView('Billing')}>
+          <SubscriptionGate session={session} requiredPlan="master" featureName="assignments and instructor feedback" onUpgrade={() => setActiveView('Billing')}>
             <AssignmentsView session={session} />
           </SubscriptionGate>
         )}
         {activeView === 'Professional' && (
-          <SubscriptionGate session={session} requiredPlan="premium" featureName="professional resources" onUpgrade={() => setActiveView('Billing')}>
+          <SubscriptionGate session={session} requiredPlan="master" featureName="professional resources" onUpgrade={() => setActiveView('Billing')}>
             <ProfessionalAddons session={session} />
           </SubscriptionGate>
         )}

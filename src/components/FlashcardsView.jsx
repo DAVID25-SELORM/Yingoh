@@ -4,6 +4,7 @@ import {
   getFlashcardDecks, getFlashcardsForDeck, getUserFlashcardProgress,
   saveItem, sm2, upsertFlashcardProgress,
 } from '../services/supabase';
+import { useSubscription } from '../hooks/useSubscription';
 
 const DEMO_DECKS = [
   { id: 'demo-pharm', name: 'NCLEX Pharmacology Essentials', topic: 'Pharmacology', card_count: 15 },
@@ -58,6 +59,7 @@ const QUALITY_BUTTONS = [
 ];
 
 export default function FlashcardsView({ session }) {
+  const subscription = useSubscription(session);
   const [decks, setDecks] = useState([]);
   const [selectedDeck, setSelectedDeck] = useState(null);
   const [cards, setCards] = useState([]);
@@ -84,7 +86,9 @@ export default function FlashcardsView({ session }) {
     setSessionResults({ again: 0, hard: 0, good: 0, easy: 0 });
 
     const { data: cardData } = await getFlashcardsForDeck(deck.id);
-    const deckCards = cardData?.length ? cardData : (DEMO_CARDS[deck.id] ?? []);
+    const demoAccessibleIds = Object.values(DEMO_CARDS).flat().slice(0, subscription.entitlements.flashcardLimit).map((item) => item.id);
+    const fallbackCards = (DEMO_CARDS[deck.id] ?? []).filter((item) => demoAccessibleIds.includes(item.id));
+    const deckCards = cardData?.length ? cardData : fallbackCards;
     setCards(deckCards);
 
     if (userId) {

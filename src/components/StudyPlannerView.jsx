@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { CalendarDays, CheckCircle2, Save, Sparkles, Target } from 'lucide-react';
 import { getAttemptStats, getStudyPlan, saveStudyPlan } from '../services/supabase';
+import { useSubscription } from '../hooks/useSubscription';
 
 const ALL_TOPICS = [
   'Pharmacology', 'Safety and Infection Control', 'Medical-Surgical',
@@ -60,6 +61,7 @@ function TopicScoreBar({ topic, score, isWeak }) {
 }
 
 export default function StudyPlannerView({ session }) {
+  const subscription = useSubscription(session);
   const [examDate, setExamDate] = useState('');
   const [dailyTarget, setDailyTarget] = useState(25);
   const [topicScores, setTopicScores] = useState({});
@@ -70,6 +72,7 @@ export default function StudyPlannerView({ session }) {
   const [saving, setSaving] = useState(false);
 
   const userId = session?.user?.id;
+  const plannerMaxDate = new Date(Date.now() + subscription.entitlements.plannerDays * 86400000).toISOString().split('T')[0];
 
   // Demo topic scores when no real data
   const DEMO_SCORES = {
@@ -147,7 +150,7 @@ export default function StudyPlannerView({ session }) {
     <section className="content-band">
       <div className="section-title"><h2>Dynamic Study Planner</h2><CalendarDays size={22} /></div>
       <p style={{ color: '#5b6d72', marginTop: 0 }}>
-        Set your exam date and daily goal. Your plan auto-adjusts based on weak areas detected from your practice history.
+        Set your exam date and daily goal. Your {subscription.entitlements.plannerDays}-day planning window auto-adjusts based on weak areas detected from your practice history.
       </p>
 
       {/* Setup */}
@@ -160,6 +163,7 @@ export default function StudyPlannerView({ session }) {
             type="date"
             value={examDate}
             min={new Date().toISOString().split('T')[0]}
+            max={plannerMaxDate}
             onChange={(e) => { setExamDate(e.target.value); setSaved(false); }}
           />
         </div>

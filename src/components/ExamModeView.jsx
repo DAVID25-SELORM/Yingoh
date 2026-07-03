@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { CheckCircle2, ChevronRight, Clock, LockKeyhole, Target, Timer, Trophy, XCircle } from 'lucide-react';
-import { calculatePassProbability, completeExamSession, createExamSession, getQuestions, submitExamAnswer } from '../services/supabase';
+import { calculatePassProbability, completeExamSession, createExamSession, getExamUsage, getQuestions, submitExamAnswer } from '../services/supabase';
 import { DEMO_QUESTIONS } from '../data/demoQuestions';
 import { UpgradeCTA } from './SubscriptionGate';
 import { useSubscription } from '../hooks/useSubscription';
@@ -138,9 +138,30 @@ export default function ExamModeView({ session, onNavigate }) {
 
   const userId = session?.user?.id;
   const subscription = useSubscription(session);
+  const [examHistory, setExamHistory] = useState([]);
+  const [startError, setStartError] = useState('');
+
+  useEffect(() => {
+    if (!userId) return;
+    getExamUsage(userId).then(({ data }) => setExamHistory(data ?? []));
+  }, [userId]);
+
+  function quotaForMode(modeId) {
+    if (modeId === 'cat') return subscription.entitlements.catAttempts;
+    if (modeId === 'assessment') return subscription.entitlements.readinessAttempts;
+    return Infinity;
+  }
+
+  function usedForMode(modeId) {
+    return examHistory.filter((exam) => exam.mode === modeId).length;
+  }
 
   function requiredPlanForMode(modeId) {
-    return modeId === 'cat' || modeId === 'assessment' ? 'pro' : null;
+    const quota = quotaForMode(modeId);
+    if (quota === Infinity || usedForMode(modeId) < quota) return null;
+    if (subscription.plan === 'free') return 'basic';
+    if (subscription.plan === 'basic') return 'pro';
+    return 'faculty';
   }
 
   function modeIsLocked(modeId) {
@@ -161,8 +182,23 @@ export default function ExamModeView({ session, onNavigate }) {
   async function startExam() {
     if (!selectedMode) return;
     if (modeIsLocked(selectedMode)) return;
+    setStartError('');
     const effectiveCount = subscription.isFree ? Math.min(questionCount, 50) : questionCount;
     const qs = shuffleAndSlice(allQuestions, effectiveCount);
+    const timeLimitSeconds = selectedMode === 'timed'
+      ? effectiveCount * 60
+      : selectedMode === 'assessment' ? 360 * 60 : null;
+
+    if (userId) {
+      const { data, error } = await createExamSession(userId, selectedMode, qs.map((q) => q.id), timeLimitSeconds);
+      if (error || !data?.id) {
+        setStartError(error?.message ?? 'This exam could not be started. Check your plan allowance and try again.');
+        return;
+      }
+      setSessionId(data.id);
+      setExamHistory((current) => [...current, data]);
+    }
+
     setQuestions(qs);
     setIndex(0);
     setSelected([]);
@@ -173,18 +209,8 @@ export default function ExamModeView({ session, onNavigate }) {
     setStartTime(now);
     setQStartTime(now);
 
-    const mode = MODES.find((m) => m.id === selectedMode);
-    const timeLimitSeconds = selectedMode === 'timed'
-      ? effectiveCount * 60
-      : selectedMode === 'assessment' ? 360 * 60 : null;
-
     if (timeLimitSeconds) {
       setTimeLeft(timeLimitSeconds);
-    }
-
-    if (userId) {
-      const { data } = await createExamSession(userId, selectedMode, qs.map((q) => q.id), timeLimitSeconds);
-      if (data?.id) setSessionId(data.id);
     }
   }
 
@@ -296,7 +322,7 @@ export default function ExamModeView({ session, onNavigate }) {
                 <span className="em-icon">{locked ? <LockKeyhole size={24} /> : m.icon}</span>
                 <strong>{m.label}</strong>
                 <p>{m.desc}</p>
-                {locked && <span className="premium-mode-note">Requires Pro</span>}
+                {locked && <span className="premium-mode-note">Plan allowance used</span>}
                 {selectedMode === m.id && !locked && <CheckCircle2 size={18} className="em-check" />}
               </button>
             );
@@ -304,8 +330,9 @@ export default function ExamModeView({ session, onNavigate }) {
         </div>
 
         {selectedMode && modeIsLocked(selectedMode) && (
-          <UpgradeCTA session={session} requiredPlan="pro" onUpgrade={() => onNavigate?.('Billing')} style={{ marginTop: 16 }} />
+          <UpgradeCTA session={session} requiredPlan={requiredPlanForMode(selectedMode)} onUpgrade={() => onNavigate?.('Billing')} style={{ marginTop: 16 }} />
         )}
+        {startError && <div className="form-message" style={{ color: '#8a2c21', marginTop: 12 }}>{startError}</div>}
 
         {selectedMode && selectedMode !== 'assessment' && (
           <div className="exam-count-picker">

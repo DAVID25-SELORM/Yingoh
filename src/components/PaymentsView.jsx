@@ -109,7 +109,14 @@ export default function PaymentsView({ session, canManage = false }) {
     if (!supabase) return;
     supabase.rpc('published_question_count')
       .then(({ data }) => { if (Number.isFinite(Number(data))) setBankCount(Number(data)); });
-    supabase.from('payment_plans').select('*').order('sort_order').then(({ data }) => { if (data?.length) setPlans(data); });
+    supabase.from('payment_plans').select('*').order('sort_order').then(({ data }) => {
+      if (data?.length) {
+        setPlans(data.map((plan) => {
+          const canonical = SUBSCRIPTION_PLANS.find((item) => normalizePlanName(item.name) === normalizePlanName(plan.name));
+          return canonical ? { ...plan, features: canonical.features, question_limit: canonical.question_limit } : plan;
+        }));
+      }
+    });
     if (!canManage) return;
     supabase
       .from('invoices')
@@ -405,7 +412,7 @@ export default function PaymentsView({ session, canManage = false }) {
         const visibleSubs = subscribers.filter((s) => {
           const q = subSearch.toLowerCase();
           const matchSearch = !q || s.email?.toLowerCase().includes(q) || s.full_name?.toLowerCase().includes(q);
-          const matchPlan = subPlanFilter === 'all' || s.plan_name?.toLowerCase() === subPlanFilter;
+          const matchPlan = subPlanFilter === 'all' || normalizePlanName(s.plan_name) === subPlanFilter;
           const matchStatus = subStatusFilter === 'all' || s.status === subStatusFilter;
           return matchSearch && matchPlan && matchStatus;
         });
@@ -439,9 +446,10 @@ export default function PaymentsView({ session, canManage = false }) {
               <select value={subPlanFilter} onChange={(e) => setSubPlanFilter(e.target.value)}
                 style={{ height: 36, borderRadius: 8, border: '1px solid #dbe6e4', padding: '0 10px', fontSize: '0.86rem' }}>
                 <option value="all">All Plans</option>
-                <option value="basic">Basic</option>
-                <option value="pro">Pro</option>
-                <option value="premium">Premium</option>
+                <option value="basic">30-Day Pass</option>
+                <option value="pro">90-Day Success Plan</option>
+                <option value="master">180-Day Master Plan</option>
+                <option value="faculty">365-Day Faculty Pass</option>
               </select>
               <select value={subStatusFilter} onChange={(e) => setSubStatusFilter(e.target.value)}
                 style={{ height: 36, borderRadius: 8, border: '1px solid #dbe6e4', padding: '0 10px', fontSize: '0.86rem' }}>

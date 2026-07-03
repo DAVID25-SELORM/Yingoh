@@ -236,6 +236,14 @@ export async function getExamHistory(userId) {
     .limit(20);
 }
 
+export async function getExamUsage(userId) {
+  if (!supabase || !userId) return { data: [], error: null };
+  return supabase.from('exam_sessions')
+    .select('id, mode, status, started_at')
+    .eq('user_id', userId)
+    .in('status', ['active', 'completed']);
+}
+
 // ─── Flashcards ────────────────────────────────────────────
 export async function getFlashcardDecks() {
   if (!supabase) return { data: null, error: new Error('Not configured') };
@@ -369,6 +377,15 @@ export async function saveStudyCoachConversation(userId, { id, mode, title, mess
   };
   if (id) return supabase.from('study_coach_conversations').update(payload).eq('id', id).eq('user_id', userId).select().single();
   return supabase.from('study_coach_conversations').insert(payload).select().single();
+}
+
+export async function consumeStudyCoachQuestion() {
+  if (!supabase) return { data: -1, error: null };
+  const result = await supabase.rpc('consume_study_coach_question');
+  if (result.error?.code === 'PGRST202' || result.error?.message?.includes('schema cache')) {
+    return { data: null, error: null };
+  }
+  return result;
 }
 
 // Progress rollup

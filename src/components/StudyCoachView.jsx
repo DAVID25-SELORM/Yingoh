@@ -1,6 +1,7 @@
 ﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Brain, BookOpen, Bookmark, BookmarkCheck, CalendarDays, ClipboardList, Loader2, RotateCcw, Send, Sparkles } from 'lucide-react';
-import { getStudyCoachConversations, saveStudyCoachConversation, saveItem, supabase } from '../services/supabase';
+import { consumeStudyCoachQuestion, getStudyCoachConversations, saveStudyCoachConversation, saveItem, supabase } from '../services/supabase';
+import { useSubscription } from '../hooks/useSubscription';
 
 const TABS = [
   { key: 'tutor', label: 'Chat Tutor', icon: Brain, placeholder: 'Ask an NCLEX question or paste answer choices...' },
@@ -26,6 +27,7 @@ function makeTitle(text) {
 }
 
 export default function StudyCoachView({ session }) {
+  const subscription = useSubscription(session);
   const [activeTab, setActiveTab] = useState('tutor');
   const [conversations, setConversations] = useState([]);
   const [conversationId, setConversationId] = useState(null);
@@ -39,6 +41,13 @@ export default function StudyCoachView({ session }) {
 
   const userId = session?.user?.id;
   const tabMeta = useMemo(() => TABS.find((t) => t.key === activeTab), [activeTab]);
+  const today = new Date().toISOString().slice(0, 10);
+  const coachUsedToday = conversations.reduce((total, conversation) => (
+    total + (Array.isArray(conversation.messages) ? conversation.messages : [])
+      .filter((message) => message.role === 'user' && String(message.created_at ?? '').startsWith(today)).length
+  ), 0);
+  const coachLimit = subscription.entitlements.coachDailyLimit;
+  const coachLimitReached = Number.isFinite(coachLimit) && coachUsedToday >= coachLimit;
 
   useEffect(() => {
     async function load() {
@@ -82,6 +91,10 @@ export default function StudyCoachView({ session }) {
 
   async function send() {
     if (!input.trim() || loading) return;
+    if (coachLimitReached) {
+      setError(`You have used today’s ${coachLimit} Study Coach questions. Upgrade for unlimited coaching.`);
+      return;
+    }
     const prompt = input.trim();
     const userMsg = { id: `u-${Date.now()}`, role: 'user', content: prompt, created_at: new Date().toISOString() };
     const next = [...messages, userMsg];
@@ -93,6 +106,8 @@ export default function StudyCoachView({ session }) {
     try {
       let reply = DEMO_REPLY;
       if (supabase) {
+        const { error: quotaError } = await consumeStudyCoachQuestion();
+        if (quotaError) throw new Error(quotaError.message || 'Your Study Coach allowance has been used for today.');
         const apiHistory = next.slice(-10).map((m) => ({ role: m.role, content: m.content }));
         const { data, error: fnError } = await supabase.functions.invoke('study-coach', {
           body: {
@@ -224,6 +239,9 @@ export default function StudyCoachView({ session }) {
             <div ref={bottomRef} />
           </div>
 
+          {Number.isFinite(coachLimit) && (
+            <p className="qb-coach-note">{Math.max(0, coachLimit - coachUsedToday)} of {coachLimit} Study Coach questions remaining today.</p>
+          )}
           <div className="coach-input-row">
             <textarea
               value={input}
@@ -232,7 +250,7 @@ export default function StudyCoachView({ session }) {
               placeholder={tabMeta.placeholder}
               rows={3}
             />
-            <button className="primary-btn" onClick={send} disabled={loading || !input.trim()}>
+            <button className="primary-btn" onClick={send} disabled={loading || !input.trim() || coachLimitReached}>
               {loading ? <Loader2 size={15} className="spin" /> : <Send size={15} />} Send
             </button>
           </div>

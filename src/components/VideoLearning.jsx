@@ -25,7 +25,7 @@ export default function VideoLearning({ session, onNavigate }) {
   const [lockedVideo, setLockedVideo] = useState(null);
   const [savedVideos, setSavedVideos] = useState(new Set());
   const subscription = useSubscription(session);
-  const canWatchPremium = subscription.canAccess('pro');
+  const canWatchPremium = subscription.entitlements.premiumVideos;
 
   useEffect(() => {
     if (!supabase) return;
@@ -103,7 +103,7 @@ export default function VideoLearning({ session, onNavigate }) {
       {lockedVideo && (
         <UpgradeCTA
           session={session}
-          requiredPlan="pro"
+          requiredPlan="basic"
           onUpgrade={() => onNavigate?.('Billing')}
           style={{ marginBottom: 16 }}
         />

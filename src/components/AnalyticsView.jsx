@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Activity, AlertTriangle, BarChart3, CalendarDays, CheckCircle2, ClipboardCheck, Target, TrendingUp, Zap } from 'lucide-react';
 import { calculatePassProbability, getAttemptStats, getExamHistory } from '../services/supabase';
+import { useSubscription } from '../hooks/useSubscription';
 
 function PassGauge({ value }) {
   const color = value >= 75 ? '#29b7a3' : value >= 55 ? '#e3a72f' : '#e85d4f';
@@ -77,6 +78,7 @@ function MiniBarChart({ data, label }) {
 const MODE_LABELS = { practice: 'Practice', timed: 'Timed', cat: 'CAT', assessment: 'Assessment' };
 
 export default function AnalyticsView({ session, onNavigate }) {
+  const subscription = useSubscription(session);
   const [topicStats, setTopicStats] = useState([]);
   const [passProbability, setPassProbability] = useState(0);
   const [totalAttempts, setTotalAttempts] = useState(0);
@@ -242,7 +244,9 @@ export default function AnalyticsView({ session, onNavigate }) {
         {/* Pass probability + at-risk alerts */}
         <div className="surface" style={{ display: 'grid', gap: 20 }}>
           <div style={{ display: 'flex', gap: 24, alignItems: 'center', flexWrap: 'wrap' }}>
-            <PassGauge value={passProbability} />
+            {subscription.entitlements.detailedAnalytics
+              ? <PassGauge value={passProbability} />
+              : <div className="analytics-locked-insight"><BarChart3 size={25} /><strong>Pass probability</strong><span>Available with the 90-Day Success Plan</span></div>}
             <div style={{ flex: 1, minWidth: 180 }}>
               <h3 style={{ margin: '0 0 8px' }}>NCLEX Readiness</h3>
               <p style={{ margin: 0, color: '#5b6d72', lineHeight: 1.5, fontSize: '0.92rem' }}>
@@ -337,7 +341,7 @@ export default function AnalyticsView({ session, onNavigate }) {
       </div>
 
       {/* Weakness Detector */}
-      {weakTopics.length > 0 && (
+      {subscription.entitlements.weakAreaAnalysis && weakTopics.length > 0 && (
         <div className="surface" style={{ marginTop: 16, borderLeft: '4px solid #e85d4f' }}>
           <div className="section-title" style={{ marginBottom: 12 }}>
             <h3 style={{ display: 'flex', gap: 8, alignItems: 'center' }}><AlertTriangle size={18} color="#e85d4f" /> Weakness Detector</h3>
@@ -387,7 +391,7 @@ export default function AnalyticsView({ session, onNavigate }) {
       )}
 
       {/* Exam history */}
-      {examHistory.length > 0 && (
+      {subscription.entitlements.detailedAnalytics && examHistory.length > 0 && (
         <div className="surface" style={{ marginTop: 16 }}>
           <div className="section-title"><h3>Exam History</h3><Target size={18} /></div>
           <div style={{ display: 'grid', gap: 10 }}>

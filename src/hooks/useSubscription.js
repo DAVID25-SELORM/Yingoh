@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'react';
 import { isConfiguredSuperAdmin, supabase } from '../services/supabase';
-import { questionLimitFor } from '../data/subscriptionPlans';
+import { entitlementsFor, PLAN_LEVELS, questionLimitFor } from '../data/subscriptionPlans';
 
-const PLAN_LEVELS = { none: 0, free: 0, basic: 1, pro: 2, premium: 3 };
 const ADMIN_ROLES = new Set(['admin', 'super_admin']);
 
 export function normalizePlanName(value) {
   const name = String(value ?? 'free').trim().toLowerCase();
-  if (name.includes('365') || name.includes('180') || name.includes('faculty') || name.includes('master') || name.includes('premium')) return 'premium';
+  if (name.includes('365') || name.includes('faculty')) return 'faculty';
+  if (name.includes('180') || name.includes('master') || name.includes('premium')) return 'master';
   if (name.includes('90') || name.includes('success') || name.includes('pro')) return 'pro';
   if (name.includes('30') || name.includes('basic') || name.includes('starter')) return 'basic';
   return 'free';
@@ -63,6 +63,7 @@ export function useSubscription(session) {
     : configuredLimit == null
       ? questionLimitFor(planName)
       : Number(configuredLimit);
+  const entitlements = entitlementsFor(planName, hasAdminAccess);
   return {
     plan: planName,
     planLabel: sub?.plan_name ?? 'Free',
@@ -70,9 +71,12 @@ export function useSubscription(session) {
     isActive: Boolean(sub?.status === 'active'),
     isBasic: planMeets(planName, 'basic'),
     isPro: planMeets(planName, 'pro'),
-    isPremium: planName === 'premium',
+    isPremium: planMeets(planName, 'master'),
+    isMaster: planMeets(planName, 'master'),
+    isFaculty: planMeets(planName, 'faculty'),
     isFree: !sub || planName === 'free',
-    features: [],
+    features: entitlements,
+    entitlements,
     roles,
     hasAdminAccess,
     questionLimit,

@@ -5,7 +5,7 @@ import {
   CheckCircle2, XCircle, Filter, Loader2, RefreshCw, Sparkles,
 } from 'lucide-react';
 import {
-  bookmarkQuestion, getBookmarkedQuestionIds, getQuestions,
+  bookmarkQuestion, consumeStudyCoachQuestion, getBookmarkedQuestionIds, getQuestions,
   saveItem, submitAttempt, supabase, unbookmarkQuestion, unsaveItem,
 } from '../services/supabase';
 import { DEMO_QUESTIONS } from '../data/demoQuestions';
@@ -326,6 +326,8 @@ export default function QuestionBankView({ session }) {
     try {
       let reply = DEMO_COACH_REPLY;
       if (supabase) {
+        const { error: quotaError } = await consumeStudyCoachQuestion();
+        if (quotaError) throw new Error(quotaError.message || 'Your Study Coach allowance has been used for today.');
         const { data, error } = await supabase.functions.invoke('study-coach', {
           body: {
             mode: action === 'similar' ? 'quiz' : 'explainer',
