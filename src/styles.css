@@ -888,7 +888,16 @@ input, select, textarea { font: inherit; }
 .status-cancelled { background: #f2edf9; color: #5c3b7a; }
 
 /* ─── Payments ───────────────────────────────────── */
-.payment-plan-card { background: #fff; border: 1.5px solid #dbe6e4; border-radius: 14px; padding: 18px; display: grid; gap: 10px; }
+.payment-plans-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 185px), 1fr));
+  gap: 14px;
+  align-items: start;
+}
+.payment-plan-card { min-width: 0; background: #fff; border: 1.5px solid #dbe6e4; border-radius: 14px; padding: 18px; display: grid; gap: 10px; }
+.payment-plan-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 10px; }
+.payment-plan-heading > div { min-width: 0; }
+.payment-plan-heading > span { flex-shrink: 0; }
 .admin-table { width: 100%; min-width: 720px; border-collapse: collapse; }
 .admin-table th, .admin-table td { padding: 10px 12px; text-align: left; vertical-align: top; border-bottom: 1px solid #e5eeec; }
 .admin-table th { color: #42585e; font-size: .76rem; text-transform: uppercase; letter-spacing: .035em; background: #f7faf9; }

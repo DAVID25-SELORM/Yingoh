@@ -282,7 +282,7 @@ export default function PaymentsView({ session, canManage = false }) {
 
       {/* Plans tab */}
       {tab === 'plans' && (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 14 }}>
+        <div className="payment-plans-grid">
           {plans.map((plan) => {
             const color = PLAN_COLORS[plan.name] ?? '#607478';
             const features = Array.isArray(plan.features) ? plan.features : (typeof plan.features === 'string' ? JSON.parse(plan.features) : []);
@@ -295,7 +295,7 @@ export default function PaymentsView({ session, canManage = false }) {
               : `Up to ${Math.min(Number(plan.question_limit), bankCount).toLocaleString()} of ${bankCount.toLocaleString()} available questions`;
             return (
               <div key={plan.id} className="payment-plan-card" style={{ borderTop: `4px solid ${color}` }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 10 }}>
+                <div className="payment-plan-heading">
                   <div>
                     <div style={{ fontWeight: 800, fontSize: '1.05rem', color }}>{plan.name}</div>
                     <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#17212f', lineHeight: 1.1 }}>
