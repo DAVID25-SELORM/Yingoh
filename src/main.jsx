@@ -4,7 +4,7 @@ import {
   Activity, BarChart3, BookOpen, Brain, CalendarDays, CheckCircle2,
   ClipboardCheck, CreditCard, FileBadge, GraduationCap, LayoutDashboard,
   LockKeyhole, MessageSquareText, MonitorPlay, ShieldCheck, Sparkles, BookmarkCheck,
-  Stethoscope, Target, Users, Video, ChevronRight, Bell, CreditCard as PayIcon,
+  Stethoscope, Target, Users, Video, ChevronRight, Bell, Menu, X, CreditCard as PayIcon,
 } from 'lucide-react';
 import {
   checkTableAvailability, getCurrentSession, onAuthStateChange,
@@ -395,7 +395,8 @@ function PublicLanding({ isPasswordRecovery }) {
     <main className="public-site">
       <header className="public-header">
         <a className="public-brand" href="#top" aria-label="NurseFaculty home">
-          <img className="public-logo" src="/nursefaculty-brand.png" alt="NurseFaculty — Learn. Practice. Pass." />
+          <img src="/nursefaculty-mark.png" alt="" />
+          <span><strong>NurseFaculty</strong><small>Learn. Practice. Pass.</small></span>
         </a>
         <a className="public-signin-link" href="#signin">Sign in</a>
       </header>
@@ -460,7 +461,10 @@ function PublicLanding({ isPasswordRecovery }) {
       </section>
 
       <footer className="public-footer">
-        <div className="public-brand"><img className="public-logo" src="/nursefaculty-brand.png" alt="NurseFaculty — Learn. Practice. Pass." /></div>
+        <div className="public-brand">
+          <img src="/nursefaculty-mark.png" alt="" />
+          <span><strong>NurseFaculty</strong><small>Learn. Practice. Pass.</small></span>
+        </div>
         <p>Personalized NCLEX coaching for thoughtful, confident nursing practice.</p>
       </footer>
     </main>
@@ -469,10 +473,15 @@ function PublicLanding({ isPasswordRecovery }) {
 
 function App() {
   const [activeView, setActiveView] = useState(getInitialView);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [session, setSession] = useState(null);
   const [authReady, setAuthReady] = useState(false);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
   const { roles, hasAdminAccess, planLabel, loading: accessLoading } = useSubscription(session);
+  const navigateTo = (view) => {
+    setActiveView(view);
+    setMobileNavOpen(false);
+  };
 
   useEffect(() => {
     if (!VALID_VIEW_KEYS.has(activeView)) return;
@@ -480,6 +489,20 @@ function App() {
     const hash = `#/${encodeURIComponent(activeView)}`;
     if (window.location.hash !== hash) window.history.replaceState(null, '', hash);
   }, [activeView]);
+
+  useEffect(() => {
+    if (!mobileNavOpen) return undefined;
+    const previousOverflow = document.body.style.overflow;
+    const closeOnEscape = (event) => {
+      if (event.key === 'Escape') setMobileNavOpen(false);
+    };
+    document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [mobileNavOpen]);
 
   useEffect(() => {
     let mounted = true;
@@ -540,10 +563,20 @@ function App() {
 
   return (
     <main className="app-shell">
-      <aside className="sidebar">
+      {mobileNavOpen && (
+        <button
+          className="sidebar-scrim"
+          aria-label="Close navigation"
+          onClick={() => setMobileNavOpen(false)}
+        />
+      )}
+      <aside className={`sidebar ${mobileNavOpen ? 'sidebar-open' : ''}`} id="primary-navigation">
         <div className="brand">
           <span className="brand-mark"><img src="/nursefaculty-mark.png" alt="" /></span>
           <div><strong>NurseFaculty</strong><small>NCLEX Preparation</small></div>
+          <button className="sidebar-close" onClick={() => setMobileNavOpen(false)} aria-label="Close menu">
+            <X size={20} />
+          </button>
         </div>
 
         <nav>
@@ -552,7 +585,7 @@ function App() {
             <button
               key={label}
               className={activeView === label ? 'nav-active' : ''}
-              onClick={() => setActiveView(label)}
+              onClick={() => navigateTo(label)}
             >
               <Icon size={18} />{label}
             </button>
@@ -568,7 +601,7 @@ function App() {
             <button
               key={label}
               className={activeView === label ? 'nav-active' : ''}
-              onClick={() => setActiveView(label)}
+              onClick={() => navigateTo(label)}
             >
               <Icon size={18} />{label}
             </button>
@@ -582,7 +615,7 @@ function App() {
                   <button
                     key={key}
                     className={activeView === key ? 'nav-active' : ''}
-                    onClick={() => setActiveView(key)}
+                    onClick={() => navigateTo(key)}
                   >
                     <Icon size={18} />{label}
                   </button>
@@ -602,7 +635,18 @@ function App() {
       <section className="workspace">
         <header className="topbar">
           <div>
-            <span className="topbar-brand"><img src="/nursefaculty-mark.png" alt="" /> NurseFaculty NCLEX Preparation</span>
+            <div className="topbar-heading">
+              <button
+                className="mobile-nav-toggle"
+                onClick={() => setMobileNavOpen(true)}
+                aria-label="Open navigation"
+                aria-controls="primary-navigation"
+                aria-expanded={mobileNavOpen}
+              >
+                <Menu size={21} />
+              </button>
+              <span className="topbar-brand"><img src="/nursefaculty-mark.png" alt="" /> NurseFaculty NCLEX Preparation</span>
+            </div>
             <h2>{activeView}</h2>
           </div>
           <div className="topbar-actions">
