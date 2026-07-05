@@ -4,6 +4,7 @@ import { calculatePassProbability, completeExamSession, createExamSession, getEx
 import { DEMO_QUESTIONS } from '../data/demoQuestions';
 import { UpgradeCTA } from './SubscriptionGate';
 import { useSubscription } from '../hooks/useSubscription';
+import { isChoiceBasedQuestion } from '../utils/questionReadiness';
 
 const MODES = [
   {
@@ -170,10 +171,13 @@ export default function ExamModeView({ session, onNavigate }) {
   }
 
   useEffect(() => {
-    getQuestions({ limit: 500 }).then(({ data }) => {
-      setAllQuestions(data?.length ? data : DEMO_QUESTIONS);
+    if (subscription.loading) return;
+    const fallbackLimit = Number.isFinite(subscription.questionLimit) ? subscription.questionLimit : DEMO_QUESTIONS.length;
+    getQuestions({ limit: subscription.questionLimit }).then(({ data }) => {
+      const sourceQuestions = data?.length ? data : DEMO_QUESTIONS.slice(0, fallbackLimit);
+      setAllQuestions(sourceQuestions.filter(isChoiceBasedQuestion));
     });
-  }, []);
+  }, [subscription.loading, subscription.questionLimit]);
 
   function shuffleAndSlice(arr, n) {
     return [...arr].sort(() => Math.random() - 0.5).slice(0, Math.min(n, arr.length));

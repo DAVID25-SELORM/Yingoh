@@ -5,6 +5,8 @@ import {
 } from 'lucide-react';
 import { getQuestions, submitAttempt } from '../services/supabase';
 import { DEMO_QUESTIONS } from '../data/demoQuestions';
+import { useSubscription } from '../hooks/useSubscription';
+import { isChoiceBasedQuestion } from '../utils/questionReadiness';
 
 import { TOPICS } from '../data/topics';
 const MODES = [
@@ -23,6 +25,7 @@ function shuffle(arr) {
 }
 
 export default function CustomQuizBuilder({ session }) {
+  const subscription = useSubscription(session);
   const [allQuestions, setAllQuestions] = useState([]);
   const [setup, setSetup] = useState({ topics: [], types: [], count: 10, mode: 'tutor', onlyBookmarked: false });
   const [quiz, setQuiz] = useState(null); // null = setup screen
@@ -35,8 +38,13 @@ export default function CustomQuizBuilder({ session }) {
   const [finished, setFinished] = useState(false);
 
   useEffect(() => {
-    getQuestions({ limit: 500 }).then(({ data }) => setAllQuestions(data?.length ? data : DEMO_QUESTIONS));
-  }, []);
+    if (subscription.loading) return;
+    const fallbackLimit = Number.isFinite(subscription.questionLimit) ? subscription.questionLimit : DEMO_QUESTIONS.length;
+    getQuestions({ limit: subscription.questionLimit }).then(({ data }) => {
+      const sourceQuestions = data?.length ? data : DEMO_QUESTIONS.slice(0, fallbackLimit);
+      setAllQuestions(sourceQuestions.filter(isChoiceBasedQuestion));
+    });
+  }, [subscription.loading, subscription.questionLimit]);
 
   useEffect(() => {
     if (!timerActive || setup.mode !== 'timed') return;
