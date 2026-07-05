@@ -10,7 +10,7 @@ update public.payment_plans set features = '[
   "Everything in the 90-Day Success Plan","Live virtual classes and Q&A",
   "Class recordings when available","Instructor assignments and feedback",
   "Professional U.S. RN pathway","Visa and career preparation center",
-  "CPD activity tracker","OSCE preparation guide","180-day adaptive study planner",
+  "CPD activity tracker","Clinical skills review","180-day adaptive study planner",
   "Instructor-led strategy sessions"
 ]'::jsonb where lower(name) = '180-day master plan';
 

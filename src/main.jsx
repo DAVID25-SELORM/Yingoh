@@ -65,7 +65,7 @@ const modules = [
   { name: 'Community', phase: 'Growth', priority: 'Medium', icon: MessageSquareText, summary: 'Discussion forum, study groups, ask instructors, comments, announcements, mentor groups, success stories.' },
   { name: 'Assignments', phase: 'Growth', priority: 'Medium', icon: ClipboardCheck, summary: 'Homework, quiz submissions, uploads, instructor grading, feedback, and deadlines.' },
   { name: 'Certificates', phase: 'Growth', priority: 'Medium', icon: FileBadge, summary: 'Completion, attendance, and readiness exam certificates with verification codes.' },
-  { name: 'Professional Add-ons', phase: 'Expansion', priority: 'Medium', icon: GraduationCap, summary: 'Sponsor portal, career center, USRN checklist, visa prep, resume builder, job board, CPD and OSCE.' },
+  { name: 'Professional Add-ons', phase: 'Expansion', priority: 'Medium', icon: GraduationCap, summary: 'Sponsor portal, career center, USRN checklist, visa prep, resume builder, job board, and CPD tracking.' },
   { name: 'Security', phase: 'Expansion', priority: 'Medium', icon: LockKeyhole, summary: 'Encrypted data, role access, audit logs, backups, screenshot controls, suspicious activity tracking.' },
   { name: 'Scalability', phase: 'Expansion', priority: 'Medium', icon: Activity, summary: 'Web, Android, iOS, cloud database, push notifications, offline capability, and coaching services.' },
 ];

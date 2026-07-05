@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
-import { GraduationCap, CheckCircle2, Circle, Briefcase, Plane, Award, BookOpen, Stethoscope } from 'lucide-react';
+import { GraduationCap, CheckCircle2, Circle, Briefcase, Plane, Award, BookOpen } from 'lucide-react';
 
 const TABS = [
   { key: 'usrn',    label: 'USRN Checklist',  icon: CheckCircle2 },
   { key: 'visa',    label: 'Visa Prep',        icon: Plane },
   { key: 'career',  label: 'Career Center',    icon: Briefcase },
   { key: 'cpd',     label: 'CPD Tracker',      icon: Award },
-  { key: 'osce',    label: 'OSCE Guide',       icon: Stethoscope },
 ];
 
 const USRN_STEPS = [
@@ -79,7 +78,7 @@ const CPD_CATEGORIES = [
   { category: 'Self-Directed Learning', color: '#c17f44', examples: 'Online courses (Coursera, Medscape CME), nursing journals, webinars' },
 ];
 
-const OSCE_STATIONS = [
+const CLINICAL_SKILL_STATIONS = [
   { station: 'Patient Assessment', skills: ['Head-to-toe assessment in order', 'Vital sign measurement and documentation', 'Neuro assessment: GCS, pupils, orientation', 'Pain assessment using PQRST', 'Skin assessment: color, turgor, wounds'], color: '#2b8a7d' },
   { station: 'Medication Administration', skills: ['5 Rights verification (patient, drug, dose, route, time)', 'Double-check calculation: dimensional analysis', 'IV push rate calculation', 'Insulin administration technique', 'Document after administration — never before'], color: '#e3a72f' },
   { station: 'Wound Care / Sterile Technique', skills: ['Don sterile gloves without contamination', 'Wound irrigation technique', 'Dressing change: wet-to-moist, dry, transparent film', 'Culture specimen collection', 'Document wound characteristics'], color: '#c17f44' },
@@ -312,14 +311,14 @@ export default function ProfessionalAddons({ session }) {
         </div>
       )}
 
-      {/* OSCE Guide */}
-      {tab === 'osce' && (
+      {/* Clinical Skills Guide */}
+      {tab === 'clinical-skills' && (
         <div>
           <div style={{ padding: '12px 16px', background: '#e9f1ef', borderRadius: 10, fontSize: '0.85rem', color: '#135f55', marginBottom: 16, lineHeight: 1.6 }}>
-            <strong>OSCE (Objective Structured Clinical Examination)</strong> tests hands-on nursing skills in timed stations. Each station typically runs 5-10 minutes. Focus on: correct sequence, communication with patient/examiner, and documentation.
+            <strong>Clinical skills review</strong> helps students organize hands-on nursing skills, safe sequencing, patient communication, and documentation.
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 16 }}>
-            {OSCE_STATIONS.map((station) => (
+            {CLINICAL_SKILL_STATIONS.map((station) => (
               <div key={station.station} style={{ border: '1.5px solid #dbe6e4', borderLeft: `4px solid ${station.color}`, borderRadius: 12, padding: '14px 16px', background: '#fff' }}>
                 <strong style={{ display: 'block', marginBottom: 10, color: station.color, fontSize: '0.96rem' }}>{station.station}</strong>
                 <ul style={{ margin: 0, padding: 0, listStyle: 'none', display: 'grid', gap: 5 }}>
@@ -334,7 +333,7 @@ export default function ProfessionalAddons({ session }) {
             ))}
           </div>
           <div style={{ marginTop: 16, padding: '14px 16px', background: '#fff', border: '1.5px solid #dbe6e4', borderRadius: 12 }}>
-            <strong style={{ display: 'block', marginBottom: 8, color: '#17212f' }}>General OSCE Tips</strong>
+            <strong style={{ display: 'block', marginBottom: 8, color: '#17212f' }}>General Clinical Skills Tips</strong>
             <div style={{ display: 'grid', gap: 5 }}>
               {[
                 'Introduce yourself and verify patient identity (name + DOB) at every station',
