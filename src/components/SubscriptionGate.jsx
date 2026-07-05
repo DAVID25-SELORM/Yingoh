@@ -3,10 +3,10 @@ import { Lock, Sparkles, Star } from 'lucide-react';
 import { useSubscription, createCheckoutSession } from '../hooks/useSubscription';
 
 const PLAN_DETAILS = {
-  basic: { label: '30-Day Pass', price: '$19 / 30 days', color: '#2563eb', features: ['2,000+ questions', 'Practice and timed modes', 'Videos and notes', 'Study Coach support'] },
-  pro:   { label: '90-Day Success Plan', price: '$49 / 90 days', color: '#e3a72f', features: ['Complete question bank', 'Unlimited CAT and NGN practice', 'Personalized Study Coach', 'Adaptive study plan'] },
-  master: { label: '180-Day Master Plan', price: '$79 / 180 days', color: '#c17f44', features: ['Everything in the 90-Day plan', 'Live classes', 'Mentorship and coaching', 'International nurse pathway'] },
-  faculty: { label: '365-Day Faculty Pass', price: '$129 / 365 days', color: '#7c3aed', features: ['Everything in the 180-Day plan', 'Priority support', 'Early feature access', 'Faculty Member badge'] },
+  basic: { label: '30-Day Pass', price: '$19 / 30 days', color: '#2563eb', features: ['Up to 2,000 questions', 'Practice and timed modes', 'All video lessons', 'Study Coach support'] },
+  pro:   { label: '90-Day Success Plan', price: '$49 / 90 days', color: '#e3a72f', features: ['Complete question bank', 'Unlimited CAT and readiness exams', 'Custom exams and review mode', 'All courses, notes and drug guide'] },
+  master: { label: '180-Day Master Plan', price: '$79 / 180 days', color: '#c17f44', features: ['Everything in the 90-Day plan', 'Live virtual classes', 'Instructor assignments and feedback', 'Professional U.S. RN pathway'] },
+  faculty: { label: '365-Day Faculty Pass', price: '$129 / 365 days', color: '#7c3aed', features: ['Everything in the 180-Day plan', 'Full-year unlimited access', 'Priority customer support', 'Faculty Member badge'] },
 };
 
 // Wraps any child — shows upgrade prompt if user doesn't have required plan

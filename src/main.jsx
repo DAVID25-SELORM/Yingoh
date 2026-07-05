@@ -700,7 +700,11 @@ function App() {
         {activeView === 'Video Manager' && (hasAdminAccess || isInstructor) && <VideoManager session={session} />}
         {activeView === 'Audit Logs' && hasAdminAccess && <AuditLogView session={session} />}
         {activeView === 'Study Coach' && <StudyCoachView session={session} />}
-        {activeView === 'Resources' && <ResourcesView session={session} />}
+        {activeView === 'Resources' && (
+          <SubscriptionGate session={session} requiredPlan="pro" featureName="all courses, notes, and drug guide" onUpgrade={() => setActiveView('Billing')}>
+            <ResourcesView session={session} />
+          </SubscriptionGate>
+        )}
         {activeView === 'Assignments' && (
           <SubscriptionGate session={session} requiredPlan="master" featureName="assignments and instructor feedback" onUpgrade={() => setActiveView('Billing')}>
             <AssignmentsView session={session} />
