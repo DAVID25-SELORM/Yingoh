@@ -236,6 +236,32 @@ export async function getExamHistory(userId) {
     .limit(20);
 }
 
+// Empirical difficulty proxy for the CAT Simulator: raw per-question correctness
+// rows, aggregated client-side by adaptiveEngine.js (no stored difficulty column
+// exists, so this stands in for calibrated item difficulty).
+export async function getQuestionDifficultyStats(questionIds) {
+  if (!supabase || !questionIds?.length) return { data: [], error: null };
+  const idBatchSize = 1000;
+  const rowPageSize = 1000;
+  const rows = [];
+  for (let offset = 0; offset < questionIds.length; offset += idBatchSize) {
+    const idsPage = questionIds.slice(offset, offset + idBatchSize);
+    let rowOffset = 0;
+    while (true) {
+      const { data, error } = await supabase
+        .from('exam_session_answers')
+        .select('question_id, is_correct')
+        .in('question_id', idsPage)
+        .range(rowOffset, rowOffset + rowPageSize - 1);
+      if (error) return { data: rows.length ? rows : null, error };
+      rows.push(...(data ?? []));
+      if (!data?.length || data.length < rowPageSize) break;
+      rowOffset += data.length;
+    }
+  }
+  return { data: rows, error: null };
+}
+
 export async function getExamUsage(userId) {
   if (!supabase || !userId) return { data: [], error: null };
   return supabase.from('exam_sessions')

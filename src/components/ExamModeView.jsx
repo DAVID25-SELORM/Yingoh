@@ -1,10 +1,15 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { CheckCircle2, ChevronRight, Clock, LockKeyhole, Target, Timer, Trophy, XCircle } from 'lucide-react';
-import { calculatePassProbability, completeExamSession, createExamSession, getExamUsage, getQuestions, submitExamAnswer } from '../services/supabase';
+import { calculatePassProbability, completeExamSession, createExamSession, getExamUsage, getQuestionDifficultyStats, getQuestions, submitExamAnswer } from '../services/supabase';
 import { DEMO_QUESTIONS } from '../data/demoQuestions';
 import { UpgradeCTA } from './SubscriptionGate';
 import { useSubscription } from '../hooks/useSubscription';
-import { isChoiceBasedQuestion } from '../utils/questionReadiness';
+import { isChoiceBasedQuestion, isPracticeReadyQuestion } from '../utils/questionReadiness';
+import CATSimulatorView from './CATSimulatorView';
+import { computeDifficultyStats } from '../utils/adaptiveEngine';
+
+const CAT_MIN_ITEMS = 85;
+const CAT_MAX_ITEMS = 150;
 
 const MODES = [
   {
@@ -61,12 +66,12 @@ function isAnswerCorrect(question, selected) {
   return selected.length === 1 && selected[0] === question.correct_answer?.ids?.[0];
 }
 
-function ResultScreen({ answers, questions, mode, timeUsed, onRestart }) {
+function ResultScreen({ answers, questions, mode, timeUsed, passedOverride, onRestart }) {
   const correct = answers.filter((a) => a.correct).length;
   const total = answers.length;
-  const score = Math.round((correct / total) * 100);
+  const score = total ? Math.round((correct / total) * 100) : 0;
   const prob = calculatePassProbability(answers.map((a) => ({ is_correct: a.correct })));
-  const passed = score >= 72;
+  const passed = passedOverride ?? score >= 72;
 
   const byTopic = {};
   answers.forEach((a) => {
@@ -126,6 +131,9 @@ export default function ExamModeView({ session, onNavigate }) {
   const [questionCount, setQuestionCount] = useState(25);
   const [questions, setQuestions] = useState([]);
   const [allQuestions, setAllQuestions] = useState([]);
+  const [catQuestions, setCatQuestions] = useState([]);
+  const [catConfig, setCatConfig] = useState(null);
+  const [catPassed, setCatPassed] = useState(null);
   const [index, setIndex] = useState(0);
   const [selected, setSelected] = useState([]);
   const [submitted, setSubmitted] = useState(false);
@@ -176,6 +184,7 @@ export default function ExamModeView({ session, onNavigate }) {
     getQuestions({ limit: subscription.questionLimit }).then(({ data }) => {
       const sourceQuestions = data?.length ? data : DEMO_QUESTIONS.slice(0, fallbackLimit);
       setAllQuestions(sourceQuestions.filter(isChoiceBasedQuestion));
+      setCatQuestions(sourceQuestions.filter(isPracticeReadyQuestion));
     });
   }, [subscription.loading, subscription.questionLimit]);
 
@@ -183,10 +192,39 @@ export default function ExamModeView({ session, onNavigate }) {
     return [...arr].sort(() => Math.random() - 0.5).slice(0, Math.min(n, arr.length));
   }
 
+  async function startCatExam() {
+    const pool = catQuestions;
+    const maxItems = Math.min(CAT_MAX_ITEMS, pool.length);
+    const minItems = Math.min(CAT_MIN_ITEMS, maxItems);
+    const { data: rawStats } = await getQuestionDifficultyStats(pool.map((q) => q.id));
+    const statsMap = computeDifficultyStats(rawStats);
+
+    if (userId) {
+      const { data, error } = await createExamSession(userId, 'cat', pool.map((q) => q.id), null);
+      if (error || !data?.id) {
+        setStartError(error?.message ?? 'This exam could not be started. Check your plan allowance and try again.');
+        return;
+      }
+      setSessionId(data.id);
+      setExamHistory((current) => [...current, data]);
+    }
+
+    setCatConfig({ pool, maxItems, minItems, statsMap });
+    setAnswers([]);
+    setPhase('exam');
+    setStartTime(Date.now());
+  }
+
   async function startExam() {
     if (!selectedMode) return;
     if (modeIsLocked(selectedMode)) return;
     setStartError('');
+
+    if (selectedMode === 'cat') {
+      await startCatExam();
+      return;
+    }
+
     const effectiveCount = subscription.isFree ? Math.min(questionCount, 50) : questionCount;
     const qs = shuffleAndSlice(allQuestions, effectiveCount);
     const timeLimitSeconds = selectedMode === 'timed'
@@ -278,7 +316,7 @@ export default function ExamModeView({ session, onNavigate }) {
     setTotalTimeUsed(used);
     const correct = finalAnswers.filter((a) => a.correct).length;
     const total = finalAnswers.length;
-    const score = Math.round((correct / total) * 100);
+    const score = total ? Math.round((correct / total) * 100) : 0;
     const prob = calculatePassProbability(finalAnswers.map((a) => ({ is_correct: a.correct })));
 
     if (userId && sessionId) {
@@ -293,6 +331,27 @@ export default function ExamModeView({ session, onNavigate }) {
 
   async function endExam() {
     await finishExam(answers);
+  }
+
+  async function handleCatComplete(result) {
+    clearInterval(timerRef.current);
+    const used = result.timeUsed ?? Math.round((Date.now() - startTime) / 1000);
+    setTotalTimeUsed(used);
+    const correct = result.answers.filter((a) => a.correct).length;
+    const total = result.answers.length;
+    const score = total ? Math.round((correct / total) * 100) : 0;
+    const prob = calculatePassProbability(result.answers.map((a) => ({ is_correct: a.correct })));
+
+    if (userId && sessionId) {
+      await completeExamSession(sessionId, {
+        correctCount: correct, totalQuestions: total,
+        scorePercent: score, passProbability: prob, timeUsedSeconds: used,
+      });
+    }
+    setQuestions(result.questions);
+    setAnswers(result.answers);
+    setCatPassed(result.passed);
+    setPhase('result');
   }
 
   function nextQuestion() {
@@ -338,7 +397,16 @@ export default function ExamModeView({ session, onNavigate }) {
         )}
         {startError && <div className="form-message" style={{ color: '#8a2c21', marginTop: 12 }}>{startError}</div>}
 
-        {selectedMode && selectedMode !== 'assessment' && (
+        {selectedMode === 'cat' && (
+          <div className="exam-count-picker">
+            <strong>Exam length</strong>
+            <p style={{ margin: '4px 0 0', fontSize: '0.82rem', color: '#607478' }}>
+              Length is adaptive — just like the real NCLEX, the exam ends automatically once your ability level is clear (no fixed question count to choose).
+            </p>
+          </div>
+        )}
+
+        {selectedMode && selectedMode !== 'assessment' && selectedMode !== 'cat' && (
           <div className="exam-count-picker">
             <strong>How many questions?</strong>
             {subscription.isFree && (
@@ -369,11 +437,29 @@ export default function ExamModeView({ session, onNavigate }) {
           className="primary-btn"
           style={{ marginTop: 20, width: '100%', justifyContent: 'center', minHeight: 48, fontSize: '1rem' }}
           onClick={startExam}
-          disabled={!selectedMode || !allQuestions.length || modeIsLocked(selectedMode)}
+          disabled={!selectedMode || !(selectedMode === 'cat' ? catQuestions.length : allQuestions.length) || modeIsLocked(selectedMode)}
         >
           Let's go <ChevronRight size={20} />
         </button>
       </section>
+    );
+  }
+
+  if (phase === 'exam' && selectedMode === 'cat' && catConfig) {
+    return (
+      <CATSimulatorView
+        session={session}
+        pool={catConfig.pool}
+        maxItems={catConfig.maxItems}
+        minItems={catConfig.minItems}
+        statsMap={catConfig.statsMap}
+        sessionId={sessionId}
+        onSubmitAnswer={(questionId, answer, correct, timeTaken) => {
+          if (userId && sessionId) submitExamAnswer(sessionId, questionId, answer, correct, timeTaken);
+        }}
+        onComplete={handleCatComplete}
+        onExit={handleCatComplete}
+      />
     );
   }
 
@@ -385,7 +471,8 @@ export default function ExamModeView({ session, onNavigate }) {
           questions={questions}
           mode={selectedMode}
           timeUsed={totalTimeUsed}
-          onRestart={() => { setPhase('setup'); setAnswers([]); setSessionId(null); }}
+          passedOverride={selectedMode === 'cat' ? catPassed : undefined}
+          onRestart={() => { setPhase('setup'); setAnswers([]); setSessionId(null); setCatPassed(null); }}
         />
       </section>
     );

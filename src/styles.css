@@ -1163,3 +1163,110 @@ input, select, textarea { font: inherit; }
     padding-top: 2rem;
   }
 }
+
+/* ─── CAT Simulator (Pearson VUE Style) ─────────────────────
+   Deliberately plain/clinical — breaks from the app's teal/coral
+   branding to mimic the real testing-center screen. */
+.cat-sim-overlay {
+  position: fixed; inset: 0; z-index: 500;
+  background: #ffffff; color: #1a1a1a;
+  display: flex; flex-direction: column;
+  font-family: Arial, Helvetica, sans-serif;
+}
+.cat-sim-topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 24px; border-bottom: 2px solid #1a1a1a;
+  font-size: 0.86rem; font-weight: 700; flex-shrink: 0;
+}
+.cat-sim-topbar-brand { letter-spacing: 0.01em; }
+.cat-sim-topbar-item { font-variant-numeric: tabular-nums; }
+.cat-sim-topbar-timer { font-variant-numeric: tabular-nums; color: #3a3a3a; }
+
+.cat-sim-body { position: relative; flex: 1; overflow-y: auto; padding: 32px 24px; }
+.cat-sim-question { max-width: 760px; margin: 0 auto; }
+.cat-sim-prompt { font-size: 1.05rem; line-height: 1.7; color: #111; margin: 0 0 22px; }
+.cat-sim-lock-overlay { position: absolute; inset: 0; z-index: 5; cursor: not-allowed; }
+
+.cat-sim-sata-hint { font-size: 0.82rem; font-weight: 700; color: #3a3a3a; margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.03em; }
+.cat-sim-choice-list { display: grid; gap: 10px; }
+.cat-sim-choice {
+  display: flex; align-items: stretch; gap: 0;
+  border: 1.5px solid #8a8a8a; border-radius: 6px; overflow: hidden;
+  background: #fff;
+}
+.cat-sim-choice-main {
+  flex: 1; display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px; background: none; border: none; text-align: left; cursor: pointer;
+  font-size: 0.95rem; color: #1a1a1a;
+}
+.cat-sim-choice-selected { border-color: #0b5fff; box-shadow: inset 0 0 0 1px #0b5fff; }
+.cat-sim-choice-selected .cat-sim-choice-main { background: #eaf1ff; }
+.cat-sim-choice-struck .cat-sim-choice-text { text-decoration: line-through; color: #9a9a9a; }
+.cat-sim-choice-mark {
+  flex-shrink: 0; width: 20px; height: 20px; display: grid; place-items: center;
+  border: 2px solid #6a6a6a; font-size: 0.72rem; font-weight: 900; color: #fff;
+}
+.cat-sim-choice-mark-circle { border-radius: 50%; }
+.cat-sim-choice-mark-box { border-radius: 3px; }
+.cat-sim-choice-selected .cat-sim-choice-mark { background: #0b5fff; border-color: #0b5fff; }
+.cat-sim-strike-toggle {
+  flex-shrink: 0; width: 34px; border: none; border-left: 1.5px solid #8a8a8a;
+  background: #f3f3f3; color: #4a4a4a; font-weight: 800; font-size: 0.78rem;
+  text-decoration: line-through; cursor: pointer;
+}
+.cat-sim-strike-toggle:hover { background: #e6e6e6; }
+
+.cat-sim-toolbar {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 24px; border-top: 2px solid #1a1a1a; flex-shrink: 0; flex-wrap: wrap;
+}
+.cat-sim-toolbar-left { display: flex; gap: 8px; flex-wrap: wrap; }
+.cat-sim-tool-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 14px; border: 1.5px solid #6a6a6a; border-radius: 5px;
+  background: #fff; color: #1a1a1a; font-size: 0.82rem; font-weight: 700; cursor: pointer;
+}
+.cat-sim-tool-btn:hover { background: #f0f0f0; }
+.cat-sim-flag-active { background: #fff4d6; border-color: #d9a916; color: #7a5a00; }
+.cat-sim-end-btn { color: #8a2c21; border-color: #c98177; }
+.cat-sim-overlay .primary-btn.cat-sim-next-btn {
+  background: #0b5fff; border-color: #0b5fff; min-width: 120px; justify-content: center;
+}
+.cat-sim-overlay .primary-btn.cat-sim-next-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.cat-sim-calculator-popover {
+  position: fixed; right: 24px; bottom: 76px; z-index: 20;
+  width: 220px; background: #fff; border: 2px solid #1a1a1a; border-radius: 8px;
+  box-shadow: 0 12px 32px rgba(0,0,0,0.25); padding: 10px;
+}
+.cat-sim-calc-head { display: flex; align-items: center; justify-content: space-between; font-weight: 800; font-size: 0.8rem; margin-bottom: 8px; }
+.cat-sim-calc-display {
+  background: #1a1a1a; color: #fff; text-align: right; padding: 10px 12px;
+  border-radius: 5px; font-size: 1.15rem; font-variant-numeric: tabular-nums; margin-bottom: 8px;
+  overflow-x: auto; white-space: nowrap;
+}
+.cat-sim-calc-keys { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.cat-sim-calc-key {
+  padding: 10px 0; border: 1px solid #c0c0c0; border-radius: 5px; background: #f6f6f6;
+  font-weight: 700; font-size: 0.9rem; cursor: pointer;
+}
+.cat-sim-calc-key:hover { background: #eaeaea; }
+
+.cat-sim-confirm-backdrop {
+  position: fixed; inset: 0; z-index: 30; background: rgba(0,0,0,0.45);
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.cat-sim-confirm-modal {
+  background: #fff; border-radius: 10px; padding: 24px; max-width: 420px; width: 100%;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+}
+.cat-sim-confirm-modal h3 { margin: 0 0 10px; font-size: 1.1rem; color: #1a1a1a; }
+.cat-sim-confirm-modal p { margin: 0 0 18px; color: #3a3a3a; font-size: 0.9rem; line-height: 1.5; }
+.cat-sim-confirm-actions { display: flex; gap: 10px; justify-content: flex-end; }
+
+@media (max-width: 720px) {
+  .cat-sim-toolbar { flex-direction: column; align-items: stretch; }
+  .cat-sim-toolbar-left { justify-content: center; }
+  .cat-sim-next-btn { width: 100%; }
+  .cat-sim-calculator-popover { left: 12px; right: 12px; width: auto; bottom: 140px; }
+}
