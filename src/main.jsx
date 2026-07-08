@@ -79,6 +79,11 @@ const roles = [
   { name: 'Content Reviewer', scope: 'Review questions, rationales, references, and reported errors before publishing.' },
 ];
 
+const developerSignature = {
+  name: 'Neon Digital Technologies',
+  email: 'neondigitaltechnologies@gmail.com',
+};
+
 function ModuleCard({ module }) {
   const Icon = module.icon;
   return (
@@ -466,7 +471,12 @@ function PublicLanding({ isPasswordRecovery }) {
           <img src="/nursefaculty-mark.png" alt="" />
           <span><strong>NurseFaculty</strong><small>Learn. Practice. Pass.</small></span>
         </div>
-        <p>Personalized NCLEX coaching for thoughtful, confident nursing practice.</p>
+        <div className="signature-block">
+          <p>Personalized NCLEX coaching for thoughtful, confident nursing practice.</p>
+          <span>
+            Built by {developerSignature.name} · <a href={`mailto:${developerSignature.email}`}>{developerSignature.email}</a>
+          </span>
+        </div>
       </footer>
     </main>
   );
@@ -715,6 +725,10 @@ function App() {
             <ProfessionalAddons session={session} />
           </SubscriptionGate>
         )}
+        <footer className="app-signature" aria-label="Developer signature">
+          <span>Built by {developerSignature.name}</span>
+          <a href={`mailto:${developerSignature.email}`}>{developerSignature.email}</a>
+        </footer>
       </section>
     </main>
   );

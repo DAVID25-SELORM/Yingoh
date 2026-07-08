@@ -71,6 +71,25 @@ input, select, textarea { font: inherit; }
 
 .workspace { min-width: 0; width: 100%; max-width: 100%; padding: 20px; overflow-x: hidden; }
 
+.app-signature {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+  padding: 14px 2px 0;
+  border-top: 1px solid #dbe6e4;
+  color: #718386;
+  font-size: 0.78rem;
+}
+.app-signature a {
+  color: #2b8a7d;
+  font-weight: 700;
+  text-decoration: none;
+}
+.app-signature a:hover { text-decoration: underline; }
+
 /* ─── Topbar ─────────────────────────────────────── */
 .topbar {
   display: flex; justify-content: space-between;
@@ -1132,6 +1151,23 @@ input, select, textarea { font: inherit; }
 .public-auth-section .account-checklist { display: none; }
 .public-footer { max-width: 1120px; margin: 0 auto; padding: 26px 28px 38px; border-top: 1px solid #dfebe9; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
 .public-footer p { color: #718386; font-size: .78rem; }
+.signature-block {
+  display: grid;
+  gap: 5px;
+  justify-items: end;
+  text-align: right;
+}
+.signature-block p { margin: 0; }
+.signature-block span {
+  color: #718386;
+  font-size: .76rem;
+}
+.signature-block a {
+  color: #2b8a7d;
+  font-weight: 700;
+  text-decoration: none;
+}
+.signature-block a:hover { text-decoration: underline; }
 @media (max-width: 900px) {
   .public-hero { grid-template-columns: 1fr; gap: 42px; padding-top: 52px; }
   .public-feature-grid { grid-template-columns: repeat(2,1fr); }
@@ -1150,6 +1186,7 @@ input, select, textarea { font: inherit; }
   .public-feature-grid { grid-template-columns: 1fr; }
   .public-features, .public-auth-section { padding: 64px 18px; }
   .public-footer { margin: 0 18px; padding-inline: 0; flex-direction: column; align-items: flex-start; }
+  .signature-block { justify-items: start; text-align: left; }
 }
 @media (max-width: 1200px) {
   .hero-title,
