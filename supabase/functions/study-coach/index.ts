@@ -16,6 +16,77 @@ const SYSTEM_PROMPTS: Record<string, string> = {
   planner: `You are an expert NCLEX study planner. Create detailed, realistic study schedules for nursing students preparing for the NCLEX. Ask about or use the provided exam date, current weak topics, and available study hours per day. Output a week-by-week plan with daily focus topics, recommended resources, and built-in review days. Be specific and actionable. Use plain text.`,
 };
 
+function isGpt5Model(model: string) {
+  return model.toLowerCase().startsWith('gpt-5');
+}
+
+async function callOpenAI({
+  model,
+  messages,
+  mode,
+}: {
+  model: string;
+  messages: Array<{ role: string; content: string }>;
+  mode: string;
+}) {
+  if (isGpt5Model(model)) {
+    const [system, ...conversation] = messages;
+    const input = conversation.map((item) => ({
+      role: item.role === 'assistant' ? 'assistant' : 'user',
+      content: item.content,
+    }));
+
+    const res = await fetch('https://api.openai.com/v1/responses', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${OPENAI_KEY}`,
+      },
+      body: JSON.stringify({
+        model,
+        instructions: system?.content ?? SYSTEM_PROMPTS.tutor,
+        input,
+        max_output_tokens: 1800,
+      }),
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      throw new Error(`OpenAI API error ${res.status}: ${data?.error?.message ?? JSON.stringify(data)}`);
+    }
+
+    const outputText = data.output_text
+      ?? data.output?.flatMap((item: { content?: Array<{ text?: string }> }) => item.content ?? [])
+        .map((content: { text?: string }) => content.text)
+        .filter(Boolean)
+        .join('\n')
+      ?? '';
+
+    return outputText.trim() || 'No response from the Study Coach.';
+  }
+
+  const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${OPENAI_KEY}`,
+    },
+    body: JSON.stringify({
+      model,
+      messages,
+      max_tokens: 1800,
+      temperature: mode === 'quiz' ? 0.7 : 0.35,
+    }),
+  });
+
+  const data = await res.json();
+  if (!res.ok) {
+    throw new Error(`OpenAI API error ${res.status}: ${data?.error?.message ?? JSON.stringify(data)}`);
+  }
+
+  return data.choices?.[0]?.message?.content?.trim() ?? 'No response from the Study Coach.';
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
@@ -50,27 +121,7 @@ Deno.serve(async (req) => {
       { role: 'user', content: message },
     ];
 
-    const openaiRes = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${OPENAI_KEY}`,
-      },
-      body: JSON.stringify({
-        model: OPENAI_MODEL,
-        messages,
-        max_tokens: 1800,
-        temperature: mode === 'quiz' ? 0.7 : 0.35,
-      }),
-    });
-
-    if (!openaiRes.ok) {
-      const err = await openaiRes.text();
-      throw new Error(`OpenAI API error ${openaiRes.status}: ${err}`);
-    }
-
-    const data = await openaiRes.json();
-    const reply = data.choices?.[0]?.message?.content?.trim() ?? 'No response from the Study Coach.';
+    const reply = await callOpenAI({ model: OPENAI_MODEL, messages, mode });
 
     return new Response(JSON.stringify({ reply }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

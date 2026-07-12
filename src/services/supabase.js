@@ -407,6 +407,9 @@ export async function saveStudyCoachConversation(userId, { id, mode, title, mess
 
 export async function consumeStudyCoachQuestion() {
   if (!supabase) return { data: -1, error: null };
+  if (import.meta.env.VITE_USE_STUDY_COACH_RPC !== 'true') {
+    return { data: null, error: null };
+  }
   const result = await supabase.rpc('consume_study_coach_question');
   if (result.error?.code === 'PGRST202' || result.error?.message?.includes('schema cache')) {
     return { data: null, error: null };
