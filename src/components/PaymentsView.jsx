@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { AlertTriangle, CheckCircle2, DollarSign, Tag, FileText, PlusCircle, Search, ShieldCheck, Sparkles, ToggleLeft, ToggleRight, Users, X, Smartphone } from 'lucide-react';
+import { AlertTriangle, BriefcaseBusiness, Building2, CheckCircle2, CreditCard, DollarSign, FileText, History, PlusCircle, ReceiptText, Search, ShieldCheck, Smartphone, Sparkles, Tag, ToggleLeft, ToggleRight, Users, X } from 'lucide-react';
 import { supabase } from '../services/supabase';
 import { useSubscription, createCheckoutSession, normalizePlanName } from '../hooks/useSubscription';
 import { SUBSCRIPTION_PLANS } from '../data/subscriptionPlans';
@@ -39,6 +39,37 @@ const PLAN_COLORS = {
 const USD_TO_GHS_RATE = 11.34;
 const CARD_GATEWAY_ENABLED = false;
 
+const INSTITUTION_PLANS = [
+  { id: 'campus_starter', name: 'Campus Starter', audience: 'Nursing schools', seats: 100, price: 499, term: 'annual', color: '#2367ff', features: ['100 student seats', '5 instructor accounts', 'LMS classrooms', 'Institution-branded certificates', 'Cohort analytics', 'Question-bank access'] },
+  { id: 'campus_premium', name: 'Campus Premium', audience: 'Nursing colleges', seats: 500, price: 1499, term: 'annual', color: '#8a35ff', features: ['500 student seats', 'Unlimited classrooms', 'Instructor management', 'Certificate templates', 'Department reports', 'Priority onboarding'] },
+  { id: 'hospital_training', name: 'Hospital Training', audience: 'Hospitals', seats: 250, price: 999, term: 'annual', color: '#dc6b2f', features: ['Staff training seats', 'Compliance tracking', 'Continuing education reports', 'Department dashboards', 'Certificate verification', 'Finance reports'] },
+];
+
+const ENTERPRISE_LICENSES = [
+  { label: 'Seats purchased', value: '500' },
+  { label: 'Seats assigned', value: '318' },
+  { label: 'Seats remaining', value: '182' },
+  { label: 'AI usage', value: '42%' },
+  { label: 'Certificates issued', value: '2,135' },
+  { label: 'Storage used', value: '58%' },
+];
+
+const FEATURE_MATRIX = [
+  ['Question bank', '150', '2,000+', '7,000+', '7,000+', '7,000+'],
+  ['Mock / CAT exams', '1', '5', 'Unlimited', 'Unlimited', 'Unlimited'],
+  ['Study Coach', '10/day', 'Unlimited', 'Personalized', 'Personalized', 'Institution-ready'],
+  ['Analytics', 'Basic', 'Weak areas', 'Detailed', 'Advanced', 'Institution'],
+  ['Certificates', '—', '—', 'Achievements', 'Formal + digital', 'Templates'],
+  ['LMS classrooms', '—', '—', '—', 'Assignments', 'Faculty tools'],
+  ['Live classes', '—', 'Video only', 'Video only', 'Included', 'Faculty webinars'],
+];
+
+const PAYMENT_METHODS = [
+  { title: 'Ghana Mobile Money', details: 'MTN MoMo, Telecel Cash, AirtelTigo Money via Paystack.', icon: Smartphone },
+  { title: 'International Cards', details: 'Visa and Mastercard once card gateway keys are configured.', icon: CreditCard },
+  { title: 'Institution Invoice', details: 'Annual school, hospital, and enterprise seat licensing.', icon: ReceiptText },
+];
+
 function formatGhs(usdAmount) {
   return new Intl.NumberFormat('en-GH', {
     style: 'currency',
@@ -58,9 +89,10 @@ function planKey(name) {
 }
 
 export default function PaymentsView({ session, canManage = false }) {
-  const { plan: currentPlan, planLabel: currentPlanLabel, loading: subLoading } = useSubscription(session);
+  const subscription = useSubscription(session);
+  const { plan: currentPlan, planLabel: currentPlanLabel, loading: subLoading } = subscription;
   const [checkingOut, setCheckingOut] = useState('');
-  const [tab, setTab] = useState('plans');
+  const [tab, setTab] = useState('my-subscription');
   const [customerNotice, setCustomerNotice] = useState(null);
   const [selectedQuote, setSelectedQuote] = useState(null);
 
@@ -156,6 +188,12 @@ export default function PaymentsView({ session, canManage = false }) {
 
   const totalRevenue = invoices.filter((i) => i.status === 'paid').reduce((s, i) => s + Number(i.amount_usd), 0);
   const pendingRevenue = invoices.filter((i) => i.status === 'pending').reduce((s, i) => s + Number(i.amount_usd), 0);
+  const activePlan = plans.find((plan) => normalizePlanName(plan.name) === currentPlan) ?? plans[0];
+  const questionLimit = Number.isFinite(subscription.questionLimit) ? subscription.questionLimit : bankCount;
+  const questionsRemaining = Math.max(0, Math.min(questionLimit, bankCount));
+  const coachLimitLabel = Number.isFinite(subscription.entitlements.coachDailyLimit)
+    ? `${subscription.entitlements.coachDailyLimit} chats/day`
+    : 'Unlimited';
 
   async function togglePromo(id, current) {
     if (supabase) await supabase.from('promo_codes').update({ is_active: !current }).eq('id', id);
@@ -280,15 +318,57 @@ export default function PaymentsView({ session, canManage = false }) {
       {/* Tabs */}
       <div className="tab-bar" style={{ marginBottom: 16 }}>
         {(canManage
-          ? [['plans', 'Plans'], ['subscribers', 'Subscribers'], ['mobile-money', 'Mobile Money'], ['access-policy', 'Access Policy'], ['invoices', 'Invoices'], ['promos', 'Promo Codes']]
-          : [['plans', 'Subscription plans'], ['mobile-money', 'Mobile Money']]
+          ? [
+              ['my-subscription', 'My Subscription'],
+              ['individual-plans', 'Individual Plans'],
+              ['institution-plans', 'Institution Plans'],
+              ['enterprise', 'Enterprise Licensing'],
+              ['payment-methods', 'Payment Methods'],
+              ['subscribers', 'Subscribers'],
+              ['invoices', 'Invoices'],
+              ['promos', 'Promo Codes'],
+              ['access-policy', 'Access Policy'],
+            ]
+          : [
+              ['my-subscription', 'My Subscription'],
+              ['individual-plans', 'Individual Plans'],
+              ['institution-plans', 'Institution Plans'],
+              ['payment-methods', 'Payment Methods'],
+            ]
         ).map(([key, label]) => (
           <button key={key} className={`tab-btn ${tab === key ? 'tab-active' : ''}`} onClick={() => setTab(key)}>{label}</button>
         ))}
       </div>
 
-      {/* Plans tab */}
-      {tab === 'plans' && (
+      {/* My subscription tab */}
+      {tab === 'my-subscription' && (
+        <div className="billing-overview-grid">
+          <div className="billing-current-card">
+            <div className="billing-card-kicker">Current Plan</div>
+            <h3>{currentPlanLabel || 'Explorer Pass'}</h3>
+            <p>{subscription.isActive ? 'Active subscription' : session ? 'Free access active' : 'Sign in to activate your plan'}</p>
+            <div className="billing-current-metrics">
+              <div><span>Expires</span><strong>{subscription.periodEnd ? new Date(subscription.periodEnd).toLocaleDateString() : 'No expiry'}</strong></div>
+              <div><span>Questions Remaining</span><strong>{questionsRemaining.toLocaleString()}</strong></div>
+              <div><span>Study Coach</span><strong>{coachLimitLabel}</strong></div>
+              <div><span>Renewal</span><strong>{subscription.isActive ? 'Auto renew ON' : 'Manual upgrade'}</strong></div>
+            </div>
+            <button className="primary-btn" onClick={() => setTab('individual-plans')}><Sparkles size={15} /> Upgrade or renew</button>
+          </div>
+          <div className="billing-license-card">
+            <div className="billing-card-kicker">Included Access</div>
+            <h3>{activePlan?.name || 'Explorer Pass'}</h3>
+            <ul>
+              {(activePlan?.features ?? []).slice(0, 8).map((feature) => (
+                <li key={feature}><CheckCircle2 size={14} /> {feature}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+
+      {/* Individual plans tab */}
+      {tab === 'individual-plans' && (
         <div className="payment-plans-grid">
           {plans.map((plan) => {
             const color = PLAN_COLORS[plan.name] ?? '#607478';
@@ -339,6 +419,113 @@ export default function PaymentsView({ session, canManage = false }) {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {tab === 'individual-plans' && (
+        <div className="billing-matrix-card">
+          <h3>Plan Comparison</h3>
+          <div className="billing-matrix-wrap">
+            <table className="billing-matrix">
+              <thead>
+                <tr>
+                  <th>Feature</th>
+                  <th>Explorer</th>
+                  <th>30-Day</th>
+                  <th>90-Day</th>
+                  <th>180-Day</th>
+                  <th>365-Day</th>
+                </tr>
+              </thead>
+              <tbody>
+                {FEATURE_MATRIX.map((row) => (
+                  <tr key={row[0]}>
+                    {row.map((cell) => <td key={cell}>{cell}</td>)}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {tab === 'institution-plans' && (
+        <div className="billing-section">
+          <div className="billing-section-head">
+            <div>
+              <h3>Institution Plans</h3>
+              <p>Seat-based licensing for nursing schools, colleges, hospitals, and training departments.</p>
+            </div>
+            <Building2 size={24} />
+          </div>
+          <div className="institution-plan-grid">
+            {INSTITUTION_PLANS.map((plan) => (
+              <article key={plan.id} className="institution-plan-card" style={{ borderTopColor: plan.color }}>
+                <span style={{ color: plan.color }}>{plan.audience}</span>
+                <h4>{plan.name}</h4>
+                <strong>${plan.price.toLocaleString()} <small>/ {plan.term}</small></strong>
+                <p>{plan.seats.toLocaleString()} seats included</p>
+                <ul>
+                  {plan.features.map((feature) => <li key={feature}><CheckCircle2 size={14} /> {feature}</li>)}
+                </ul>
+                <button className="ghost-btn" onClick={() => setCustomerNotice({ type: 'info', message: `${plan.name} is handled by invoice. Contact NurseFaculty finance to create the institution quote and seats.` })}>
+                  <ReceiptText size={14} /> Request invoice
+                </button>
+              </article>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab === 'enterprise' && (
+        <div className="billing-section">
+          <div className="billing-section-head">
+            <div>
+              <h3>Enterprise Licensing</h3>
+              <p>Manage seats, classroom access, certificates, AI usage, and institution billing in one place.</p>
+            </div>
+            <BriefcaseBusiness size={24} />
+          </div>
+          <div className="enterprise-grid">
+            {ENTERPRISE_LICENSES.map((item) => (
+              <div key={item.label} className="enterprise-stat">
+                <span>{item.label}</span>
+                <strong>{item.value}</strong>
+              </div>
+            ))}
+          </div>
+          <div className="license-workflow">
+            {['Buy seats', 'Invite learners', 'Assign licenses', 'Track usage', 'Export reports'].map((step, index) => (
+              <div key={step}>
+                <strong>{index + 1}</strong>
+                <span>{step}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab === 'payment-methods' && (
+        <div className="billing-section">
+          <div className="billing-section-head">
+            <div>
+              <h3>Payment Methods</h3>
+              <p>Local Ghana payments, international card payments, and institution invoicing.</p>
+            </div>
+            <CreditCard size={24} />
+          </div>
+          <div className="payment-method-grid">
+            {PAYMENT_METHODS.map((method) => {
+              const Icon = method.icon;
+              return (
+                <button key={method.title} className="payment-method-card" onClick={() => method.title.includes('Mobile') ? setTab('mobile-money') : setCustomerNotice({ type: 'info', message: `${method.title} is part of the billing roadmap. Mobile Money is available now while gateway configuration is completed.` })}>
+                  <Icon size={24} />
+                  <strong>{method.title}</strong>
+                  <span>{method.details}</span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
 
