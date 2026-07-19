@@ -17,6 +17,23 @@ const SYSTEM_PROMPTS: Record<string, string> = {
   planner: `You are an expert NCLEX study planner. Create detailed, realistic study schedules for nursing students preparing for the NCLEX. Ask about or use the provided exam date, current weak topics, and available study hours per day. Output a week-by-week plan with daily focus topics, recommended resources, and built-in review days. Be specific and actionable. Use plain text.`,
 };
 
+type ProviderFailure = {
+  status: number;
+  code?: string;
+  message: string;
+  provider: 'openai';
+};
+
+class ProviderError extends Error {
+  failure: ProviderFailure;
+
+  constructor(failure: ProviderFailure) {
+    super(failure.message);
+    this.name = 'ProviderError';
+    this.failure = failure;
+  }
+}
+
 function isGpt5Model(model: string) {
   return model.toLowerCase().startsWith('gpt-5');
 }
@@ -57,6 +74,29 @@ function responsePayload(reply: string, warning = '') {
   return { reply, answer: reply, warning };
 }
 
+function parseOpenAIError(status: number, text: string, data: any): ProviderFailure {
+  const message = data?.error?.message ?? text || 'Unknown provider error';
+  return {
+    provider: 'openai',
+    status,
+    code: data?.error?.code ?? data?.error?.type,
+    message,
+  };
+}
+
+function friendlyProviderDetail(failure: ProviderFailure) {
+  if (failure.status === 429 || failure.code === 'insufficient_quota') {
+    return 'OpenAI API quota or billing is unavailable. Check API credits/billing for the project that owns OPENAI_API_KEY.';
+  }
+  if (failure.status === 401) {
+    return 'OpenAI API key was rejected. Check the OPENAI_API_KEY secret in Supabase.';
+  }
+  if (failure.status === 404 || failure.code === 'model_not_found') {
+    return 'Configured OpenAI model is unavailable for this API key. Check OPENAI_MODEL or use gpt-4o-mini.';
+  }
+  return `OpenAI provider returned HTTP ${failure.status}.`;
+}
+
 async function callOpenAI({
   model,
   messages,
@@ -92,12 +132,13 @@ async function callOpenAI({
 
     const { text, data } = await readJsonResponse(res);
     if (!res.ok) {
-      console.error('OpenAI Responses API error', { status: res.status, body: text });
-      throw new Error(`OpenAI API error ${res.status}: ${data?.error?.message ?? text || 'Unknown provider error'}`);
+      const failure = parseOpenAIError(res.status, text, data);
+      console.error('OpenAI Responses API error', failure);
+      throw new ProviderError(failure);
     }
 
-    const outputText = data.output_text
-      ?? data.output?.flatMap((item: { content?: Array<{ text?: string }> }) => item.content ?? [])
+    const outputText = data?.output_text
+      ?? data?.output?.flatMap((item: { content?: Array<{ text?: string }> }) => item.content ?? [])
         .map((content: { text?: string }) => content.text)
         .filter(Boolean)
         .join('\n')
@@ -126,8 +167,9 @@ async function callOpenAI({
 
   const { text, data } = await readJsonResponse(res);
   if (!res.ok) {
-    console.error('OpenAI Chat Completions API error', { status: res.status, body: text });
-    throw new Error(`OpenAI API error ${res.status}: ${data?.error?.message ?? text || 'Unknown provider error'}`);
+    const failure = parseOpenAIError(res.status, text, data);
+    console.error('OpenAI Chat Completions API error', failure);
+    throw new ProviderError(failure);
   }
 
   const outputText = data?.choices?.[0]?.message?.content?.trim();
@@ -179,18 +221,24 @@ Deno.serve(async (req) => {
     try {
       reply = await callOpenAI({ model: OPENAI_MODEL, messages, mode });
     } catch (openaiErr) {
-      const detail = openaiErr instanceof Error ? openaiErr.message : String(openaiErr);
+      const detail = openaiErr instanceof ProviderError
+        ? friendlyProviderDetail(openaiErr.failure)
+        : openaiErr instanceof Error ? openaiErr.message : String(openaiErr);
       warning = detail;
       console.error('Study Coach primary model failed', { model: normalizeModel(OPENAI_MODEL), detail });
 
       try {
         reply = await callOpenAI({ model: FALLBACK_MODEL, messages, mode });
       } catch (fallbackErr) {
+        const fallbackDetail = fallbackErr instanceof ProviderError
+          ? friendlyProviderDetail(fallbackErr.failure)
+          : fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
         console.error('Study Coach fallback model failed', {
           model: normalizeModel(FALLBACK_MODEL),
-          detail: fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr),
+          detail: fallbackDetail,
         });
-        reply = fallbackReply(message, detail);
+        warning = fallbackDetail || detail;
+        reply = fallbackReply(message, warning);
       }
     }
 
