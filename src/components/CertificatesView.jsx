@@ -1,158 +1,391 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { Award, CheckCircle2, Download, ExternalLink, Star } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Award,
+  BadgeCheck,
+  BookOpenCheck,
+  CalendarCheck,
+  CheckCircle2,
+  Download,
+  ExternalLink,
+  FileBadge,
+  GraduationCap,
+  Medal,
+  Printer,
+  QrCode,
+  SearchCheck,
+  ShieldCheck,
+  Sparkles,
+  Star,
+  Trophy,
+} from 'lucide-react';
 import { supabase } from '../services/supabase';
 
-const CERT_TYPES = [
-  { type: 'readiness', label: 'NCLEX Readiness', color: '#29b7a3', icon: '🎯', desc: 'Awarded when your pass probability reaches 85% or higher.' },
-  { type: 'completion', label: 'Question Bank Champion', color: '#2b8a7d', icon: '📚', desc: 'Complete 500 or more practice questions.' },
-  { type: 'streak', label: '30-Day Study Streak', color: '#e3a72f', icon: '🔥', desc: 'Study consistently for 30 days in a row.' },
-  { type: 'attendance', label: 'Live Session Attendance', color: '#c17f44', icon: '🎓', desc: 'Attend 5 or more live instructor-led sessions.' },
+const ACHIEVEMENT_BADGES = [
+  { type: 'readiness', label: 'NCLEX Readiness', color: '#29b7a3', icon: Trophy, desc: 'Pass probability reaches 85% or higher.', target: '85% readiness' },
+  { type: 'completion', label: 'Question Bank Champion', color: '#2b8a7d', icon: BookOpenCheck, desc: 'Complete 500 or more practice questions.', target: '500 questions' },
+  { type: 'streak', label: '30-Day Study Streak', color: '#e3a72f', icon: Sparkles, desc: 'Study consistently for 30 days in a row.', target: '30 days' },
+  { type: 'attendance', label: 'Live Session Attendance', color: '#c17f44', icon: CalendarCheck, desc: 'Attend 5 or more live instructor-led sessions.', target: '5 sessions' },
+  { type: 'perfect_quiz', label: 'Perfect Quiz', color: '#6d5dfc', icon: Star, desc: 'Score 100% on a timed or practice quiz.', target: '100% score' },
+  { type: 'clinical_excellence', label: 'Clinical Excellence', color: '#ef5b52', icon: ShieldCheck, desc: 'Demonstrate strong clinical judgment across NGN cases.', target: 'NGN mastery' },
 ];
 
 const DEMO_CERTS = [
-  { id: 'c1', type: 'completion', title: 'Question Bank Champion', issued_at: new Date(Date.now() - 86400000 * 5).toISOString(), verification_code: 'YNG-A3F2B8', metadata: { questions_completed: 520 } },
-  { id: 'c2', type: 'streak', title: '30-Day Study Streak', issued_at: new Date(Date.now() - 86400000 * 10).toISOString(), verification_code: 'YNG-9K12CD', metadata: { streak_days: 30 } },
+  {
+    id: 'demo-1',
+    type: 'academic',
+    title: 'NCLEX Bootcamp Completion',
+    course_name: 'NCLEX-RN Intensive Bootcamp',
+    instructor_name: 'NurseFaculty Instructor',
+    institution_name: 'NurseFaculty',
+    credit_hours: 24,
+    grade: 'Pass',
+    issued_at: new Date(Date.now() - 86400000 * 8).toISOString(),
+    expires_at: null,
+    verification_code: 'NF-BOOT-24A9',
+    status: 'active',
+    metadata: { category: 'Academic Certificate', completion_date: new Date(Date.now() - 86400000 * 8).toISOString() },
+  },
+  {
+    id: 'demo-2',
+    type: 'professional',
+    title: 'Medication Safety Certificate',
+    course_name: 'Medication Safety for NCLEX Practice',
+    instructor_name: 'NurseFaculty Clinical Team',
+    institution_name: 'NurseFaculty',
+    credit_hours: 8,
+    grade: 'A',
+    issued_at: new Date(Date.now() - 86400000 * 18).toISOString(),
+    expires_at: new Date(Date.now() + 86400000 * 330).toISOString(),
+    verification_code: 'NF-MEDS-81F2',
+    status: 'active',
+    metadata: { category: 'Professional Certificate', completion_date: new Date(Date.now() - 86400000 * 18).toISOString() },
+  },
 ];
 
-const CERT_COLORS = Object.fromEntries(CERT_TYPES.map((c) => [c.type, c.color]));
-const CERT_ICONS = Object.fromEntries(CERT_TYPES.map((c) => [c.type, c.icon]));
+const DEMO_BADGES = [
+  { id: 'b1', type: 'completion', title: 'Question Bank Champion', issued_at: new Date(Date.now() - 86400000 * 5).toISOString(), verification_code: 'NF-BADGE-A3F2', metadata: { questions_completed: 520 } },
+  { id: 'b2', type: 'streak', title: '30-Day Study Streak', issued_at: new Date(Date.now() - 86400000 * 10).toISOString(), verification_code: 'NF-BADGE-9K12', metadata: { streak_days: 30 } },
+];
+
+const CATEGORY_STYLES = {
+  academic: { label: 'Academic', color: '#2367ff', icon: GraduationCap },
+  professional: { label: 'Professional', color: '#8a35ff', icon: ShieldCheck },
+  attendance: { label: 'Attendance', color: '#e89d23', icon: CalendarCheck },
+  achievement: { label: 'Achievement', color: '#29b7a3', icon: Medal },
+  completion: { label: 'Achievement', color: '#2b8a7d', icon: Trophy },
+  readiness: { label: 'Achievement', color: '#29b7a3', icon: Trophy },
+  streak: { label: 'Achievement', color: '#e3a72f', icon: Sparkles },
+};
+
+const AVAILABLE_CERTIFICATES = [
+  { title: 'Course Completion Certificate', category: 'Academic', criteria: 'Complete all course modules and pass the final assessment.' },
+  { title: 'NCLEX Bootcamp Certificate', category: 'Academic', criteria: 'Complete bootcamp lessons, readiness exam, and instructor review.' },
+  { title: 'Medication Safety Certificate', category: 'Professional', criteria: 'Score at least 80% in medication safety assessment.' },
+  { title: 'Infection Prevention Training', category: 'Professional', criteria: 'Complete training and safety scenario review.' },
+  { title: 'Live Webinar Attendance', category: 'Attendance', criteria: 'Attend eligible webinar and meet attendance threshold.' },
+  { title: 'Clinical Judgment Workshop', category: 'Professional', criteria: 'Complete NGN case study workshop activities.' },
+];
+
+function formatDate(value) {
+  if (!value) return 'Not set';
+  return new Date(value).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function getCategory(cert) {
+  return cert?.category || cert?.metadata?.category || cert?.type || 'academic';
+}
+
+function getStyle(cert) {
+  const key = String(getCategory(cert)).toLowerCase().split(' ')[0];
+  return CATEGORY_STYLES[key] || CATEGORY_STYLES.academic;
+}
 
 function CertificatePrint({ cert, userName }) {
-  const color = CERT_COLORS[cert.type] ?? '#29b7a3';
-  const issued = new Date(cert.issued_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+  const style = getStyle(cert);
+  const color = style.color;
+  const verificationUrl = cert.verification_url || `${window.location.origin}/#/VerifyCertificate/${cert.verification_code}`;
 
   return (
-    <div className="certificate-print" style={{ background: '#fff', border: `6px solid ${color}`, borderRadius: 16, padding: '48px 56px', maxWidth: 680, margin: '0 auto', textAlign: 'center', fontFamily: 'Georgia, serif', position: 'relative' }}>
-      {/* Corner ornaments */}
-      <div style={{ position: 'absolute', top: 12, left: 12, width: 40, height: 40, border: `3px solid ${color}44`, borderRadius: 4 }} />
-      <div style={{ position: 'absolute', top: 12, right: 12, width: 40, height: 40, border: `3px solid ${color}44`, borderRadius: 4 }} />
-      <div style={{ position: 'absolute', bottom: 12, left: 12, width: 40, height: 40, border: `3px solid ${color}44`, borderRadius: 4 }} />
-      <div style={{ position: 'absolute', bottom: 12, right: 12, width: 40, height: 40, border: `3px solid ${color}44`, borderRadius: 4 }} />
+    <div className="certificate-print">
+      <div className="certificate-ornament certificate-ornament-tl" />
+      <div className="certificate-ornament certificate-ornament-tr" />
+      <div className="certificate-ornament certificate-ornament-bl" />
+      <div className="certificate-ornament certificate-ornament-br" />
 
-      <img src="/nursefaculty-mark.png" alt="NurseFaculty" style={{ width: 78, height: 78, objectFit: 'contain', marginBottom: 10 }} />
-      <div style={{ fontSize: '0.9rem', letterSpacing: '0.15em', textTransform: 'uppercase', color: color, fontWeight: 700, marginBottom: 6 }}>Certificate of Achievement</div>
-      <div style={{ fontSize: '0.8rem', color: '#8a999c', marginBottom: 20 }}>NurseFaculty NCLEX Preparation</div>
-      <div style={{ width: 60, height: 2, background: color, margin: '0 auto 24px' }} />
-      <div style={{ fontSize: '0.9rem', color: '#607478', marginBottom: 6 }}>This certifies that</div>
-      <div style={{ fontSize: '2rem', fontWeight: 700, color: '#17212f', marginBottom: 6 }}>{userName || 'NCLEX Student'}</div>
-      <div style={{ fontSize: '0.9rem', color: '#607478', marginBottom: 12 }}>has successfully earned</div>
-      <div style={{ fontSize: '1.5rem', fontWeight: 700, color, marginBottom: 20 }}>{cert.title}</div>
+      <img src="/nursefaculty-mark.png" alt="NurseFaculty" className="certificate-print-logo" />
+      <div className="certificate-kicker" style={{ color }}>{style.label} Certificate</div>
+      <div className="certificate-institution">{cert.institution_name || 'NurseFaculty NCLEX Preparation'}</div>
+      <div className="certificate-rule" style={{ background: color }} />
 
-      {cert.metadata && Object.keys(cert.metadata).length > 0 && (
-        <div style={{ padding: '10px 20px', background: color + '11', borderRadius: 8, marginBottom: 20, fontSize: '0.88rem', color: '#42585e' }}>
-          {cert.metadata.questions_completed && `${cert.metadata.questions_completed.toLocaleString()} questions completed`}
-          {cert.metadata.streak_days && `${cert.metadata.streak_days}-day study streak achieved`}
-          {cert.metadata.sessions_attended && `${cert.metadata.sessions_attended} live sessions attended`}
+      <p>This certifies that</p>
+      <h1>{userName || cert.student_name || 'NCLEX Student'}</h1>
+      <p>has successfully completed</p>
+      <h2 style={{ color }}>{cert.title || cert.course_name}</h2>
+
+      <div className="certificate-print-meta">
+        <span>Course: {cert.course_name || cert.title}</span>
+        <span>Instructor: {cert.instructor_name || 'NurseFaculty Instructor'}</span>
+        <span>Issue Date: {formatDate(cert.issued_at)}</span>
+        <span>Credits: {cert.credit_hours ?? cert.metadata?.credit_hours ?? 'N/A'}</span>
+        <span>Grade: {cert.grade || cert.metadata?.grade || 'Completed'}</span>
+        <span>Expiry: {cert.expires_at ? formatDate(cert.expires_at) : 'No expiry'}</span>
+      </div>
+
+      <div className="certificate-verification-strip">
+        <QrCode size={44} />
+        <div>
+          <strong>Verification ID: {cert.verification_code || cert.certificate_number}</strong>
+          <small>{verificationUrl}</small>
         </div>
-      )}
+      </div>
+    </div>
+  );
+}
 
-      <div style={{ width: 60, height: 2, background: color + '44', margin: '0 auto 20px' }} />
-      <div style={{ fontSize: '0.82rem', color: '#8a999c' }}>Issued on {issued}</div>
-      <div style={{ fontSize: '0.78rem', color: '#c0cece', marginTop: 8, letterSpacing: '0.08em' }}>Verification Code: {cert.verification_code}</div>
+function StatCard({ label, value, tone }) {
+  return (
+    <div className={`credential-stat credential-stat-${tone}`}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function EmptyPanel({ title, text }) {
+  return (
+    <div className="credential-empty">
+      <FileBadge size={42} />
+      <h3>{title}</h3>
+      <p>{text}</p>
     </div>
   );
 }
 
 export default function CertificatesView({ session }) {
   const [certs, setCerts] = useState(supabase ? [] : DEMO_CERTS);
+  const [badges, setBadges] = useState(supabase ? [] : DEMO_BADGES);
+  const [activeTab, setActiveTab] = useState('certificates');
   const [preview, setPreview] = useState(null);
   const printRef = useRef();
 
   useEffect(() => {
     if (!supabase || !session?.user?.id) return;
-    supabase.from('user_certificates').select('*').eq('user_id', session.user.id).order('issued_at', { ascending: false }).then(({ data }) => {
-      if (data?.length) setCerts(data);
-    });
+    supabase
+      .from('user_certificates')
+      .select('*')
+      .eq('user_id', session.user.id)
+      .order('issued_at', { ascending: false })
+      .then(({ data }) => {
+        if (!data?.length) return;
+        const formal = data.filter((item) => ['academic', 'professional', 'attendance'].includes(String(item.category || item.type).toLowerCase()));
+        const achievement = data.filter((item) => !['academic', 'professional', 'attendance'].includes(String(item.category || item.type).toLowerCase()));
+        setCerts(formal);
+        setBadges(achievement);
+      });
   }, [session]);
 
   const userName = session?.user?.user_metadata?.full_name ?? session?.user?.email?.split('@')[0];
-  const earned = certs;
-  const notEarned = CERT_TYPES.filter((ct) => !certs.some((c) => c.type === ct.type));
+  const earnedBadges = badges;
+  const missingBadges = ACHIEVEMENT_BADGES.filter((badge) => !earnedBadges.some((item) => item.type === badge.type));
+  const transcriptRows = useMemo(() => certs.map((cert) => ({
+    course: cert.course_name || cert.title,
+    grade: cert.grade || cert.metadata?.grade || 'Completed',
+    hours: cert.credit_hours ?? cert.metadata?.credit_hours ?? '—',
+    status: cert.status === 'revoked' ? 'Revoked' : 'Completed',
+    date: formatDate(cert.issued_at),
+  })), [certs]);
+  const expiringSoon = certs.filter((cert) => {
+    if (!cert.expires_at) return false;
+    const days = (new Date(cert.expires_at).getTime() - Date.now()) / 86400000;
+    return days >= 0 && days <= 45;
+  }).length;
 
   function printCert() {
     window.print();
   }
 
-  return (
-    <section className="content-band">
-      <div className="section-title"><h2>My Certificates</h2><Award size={22} /></div>
+  function exportTranscriptCsv() {
+    const rows = [['Course', 'Grade', 'Hours', 'Status', 'Date'], ...transcriptRows.map((row) => [row.course, row.grade, row.hours, row.status, row.date])];
+    const csv = rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'nursefaculty-transcript.csv';
+    link.click();
+    URL.revokeObjectURL(url);
+  }
 
-      {/* Earned */}
-      {earned.length > 0 && (
+  const tabs = [
+    { id: 'certificates', label: 'Certificates', icon: FileBadge },
+    { id: 'achievements', label: 'Achievements', icon: Trophy },
+    { id: 'transcript', label: 'Transcript', icon: GraduationCap },
+    { id: 'credentials', label: 'Digital Credentials', icon: QrCode },
+  ];
+
+  return (
+    <section className="content-band credential-center">
+      <div className="section-title">
+        <div>
+          <h2>Credentials Center</h2>
+          <p>Formal certificates, achievement badges, transcripts, and verification records for your NurseFaculty learning.</p>
+        </div>
+        <Award size={22} />
+      </div>
+
+      <div className="credential-stats">
+        <StatCard label="Earned" value={certs.length + earnedBadges.length} tone="earned" />
+        <StatCard label="In Progress" value="3" tone="progress" />
+        <StatCard label="Available" value={AVAILABLE_CERTIFICATES.length + missingBadges.length} tone="available" />
+        <StatCard label="Expiring Soon" value={expiringSoon} tone="expiry" />
+      </div>
+
+      <div className="tab-bar credential-tabs">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button key={tab.id} className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`} onClick={() => setActiveTab(tab.id)}>
+              <Icon size={15} /> {tab.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {activeTab === 'certificates' && (
+        <div className="credential-section-grid">
+          <div className="credential-main-panel">
+            <h3>Academic & Professional Certificates</h3>
+            {certs.length ? (
+              <div className="credential-card-grid">
+                {certs.map((cert) => {
+                  const style = getStyle(cert);
+                  const Icon = style.icon;
+                  return (
+                    <article key={cert.id} className="credential-card" style={{ borderTopColor: style.color }}>
+                      <div className="credential-card-head">
+                        <span style={{ color: style.color }}><Icon size={16} /> {style.label}</span>
+                        <BadgeCheck size={18} color={style.color} />
+                      </div>
+                      <h4>{cert.title || cert.course_name}</h4>
+                      <p>{cert.course_name || 'NurseFaculty learning credential'}</p>
+                      <div className="credential-meta">
+                        <span>Instructor: {cert.instructor_name || 'NurseFaculty'}</span>
+                        <span>Issued: {formatDate(cert.issued_at)}</span>
+                        <span>Credits: {cert.credit_hours ?? cert.metadata?.credit_hours ?? 'N/A'}</span>
+                        <span>ID: {cert.verification_code || cert.certificate_number}</span>
+                      </div>
+                      <div className="credential-actions">
+                        <button className="ghost-btn" onClick={() => setPreview(cert)}><ExternalLink size={13} /> View</button>
+                        <button className="primary-btn" onClick={() => { setPreview(cert); setTimeout(printCert, 350); }}><Download size={13} /> PDF</button>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
+            ) : (
+              <EmptyPanel title="No formal certificates yet" text="Complete eligible courses, workshops, or live sessions to receive verifiable certificates." />
+            )}
+          </div>
+
+          <aside className="credential-side-panel">
+            <h3>Available Certificates</h3>
+            {AVAILABLE_CERTIFICATES.map((item) => (
+              <div key={item.title} className="credential-available-row">
+                <strong>{item.title}</strong>
+                <span>{item.category}</span>
+                <p>{item.criteria}</p>
+              </div>
+            ))}
+          </aside>
+        </div>
+      )}
+
+      {activeTab === 'achievements' && (
         <>
-          <h3 style={{ margin: '0 0 12px', color: '#2b8a7d', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Earned Certificates ({earned.length})</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14, marginBottom: 28 }}>
-            {earned.map((cert) => {
-              const color = CERT_COLORS[cert.type] ?? '#29b7a3';
-              const icon = CERT_ICONS[cert.type] ?? '🏅';
+          <h3 className="credential-subtitle">Achievement Badges</h3>
+          <div className="credential-card-grid">
+            {[...earnedBadges, ...missingBadges.map((badge) => ({ ...badge, locked: true, title: badge.label }))].map((badge) => {
+              const definition = ACHIEVEMENT_BADGES.find((item) => item.type === badge.type) || badge;
+              const Icon = definition.icon || Medal;
               return (
-                <div key={cert.id} className="cert-card" style={{ borderTop: `4px solid ${color}`, background: '#fff' }}>
-                  <div style={{ fontSize: '2rem', marginBottom: 8 }}>{icon}</div>
-                  <h4 style={{ margin: '0 0 6px', color }}>{cert.title}</h4>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
-                    <CheckCircle2 size={14} color={color} />
-                    <span style={{ fontSize: '0.8rem', color: '#607478' }}>
-                      Issued {new Date(cert.issued_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                    </span>
-                  </div>
-                  <div style={{ padding: '6px 10px', background: '#f7faf9', borderRadius: 6, fontSize: '0.76rem', color: '#8a999c', marginBottom: 12, fontFamily: 'monospace', letterSpacing: '0.05em' }}>
-                    {cert.verification_code}
-                  </div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button className="ghost-btn" style={{ flex: 1, justifyContent: 'center', fontSize: '0.8rem' }} onClick={() => setPreview(cert)}>
-                      <ExternalLink size={13} /> View
-                    </button>
-                    <button className="primary-btn" style={{ flex: 1, justifyContent: 'center', fontSize: '0.8rem' }} onClick={() => { setPreview(cert); setTimeout(printCert, 400); }}>
-                      <Download size={13} /> Download
-                    </button>
-                  </div>
-                </div>
+                <article key={badge.id || badge.type} className={`achievement-card ${badge.locked ? 'achievement-locked' : ''}`} style={{ borderTopColor: definition.color }}>
+                  <Icon size={30} color={definition.color} />
+                  <h4>{badge.title || definition.label}</h4>
+                  <p>{definition.desc}</p>
+                  <span>{badge.locked ? `Target: ${definition.target}` : `Earned ${formatDate(badge.issued_at)}`}</span>
+                </article>
               );
             })}
           </div>
         </>
       )}
 
-      {/* Not yet earned */}
-      {notEarned.length > 0 && (
-        <>
-          <h3 style={{ margin: '0 0 12px', color: '#8a999c', fontSize: '0.9rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Certificates to Earn ({notEarned.length})</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14, marginBottom: 24 }}>
-            {notEarned.map((ct) => (
-              <div key={ct.type} style={{ padding: '20px', borderRadius: 14, border: '2px dashed #dbe6e4', background: '#fafcfb', opacity: 0.8 }}>
-                <div style={{ fontSize: '2rem', marginBottom: 8, filter: 'grayscale(1) opacity(0.4)' }}>{ct.icon}</div>
-                <h4 style={{ margin: '0 0 6px', color: '#8a999c' }}>{ct.label}</h4>
-                <p style={{ margin: 0, fontSize: '0.83rem', color: '#8a999c' }}>{ct.desc}</p>
-              </div>
-            ))}
+      {activeTab === 'transcript' && (
+        <div className="credential-main-panel">
+          <div className="credential-panel-head">
+            <h3>Student Transcript</h3>
+            <div>
+              <button className="ghost-btn" onClick={exportTranscriptCsv}><Download size={14} /> CSV</button>
+              <button className="ghost-btn" onClick={() => window.print()}><Printer size={14} /> Print</button>
+            </div>
           </div>
-        </>
-      )}
-
-      {earned.length === 0 && (
-        <div style={{ textAlign: 'center', padding: 48 }}>
-          <Star size={40} color="#dbe6e4" style={{ margin: '0 auto 14px' }} />
-          <h3 style={{ color: '#607478' }}>No certificates yet</h3>
-          <p style={{ color: '#8a999c' }}>Complete milestones to earn your certificates. Start by answering 500 questions or maintaining a 30-day study streak!</p>
+          {transcriptRows.length ? (
+            <div className="transcript-table-wrap">
+              <table className="transcript-table">
+                <thead><tr><th>Course</th><th>Grade</th><th>Hours</th><th>Status</th><th>Date</th></tr></thead>
+                <tbody>{transcriptRows.map((row) => <tr key={`${row.course}-${row.date}`}><td>{row.course}</td><td>{row.grade}</td><td>{row.hours}</td><td>{row.status}</td><td>{row.date}</td></tr>)}</tbody>
+              </table>
+            </div>
+          ) : (
+            <EmptyPanel title="Transcript will appear here" text="Your completed courses, grades, hours, and certificate outcomes will be grouped into one exportable transcript." />
+          )}
         </div>
       )}
 
-      {/* Certificate preview modal */}
-      {preview && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', display: 'grid', placeItems: 'center', zIndex: 1000, padding: 24 }}>
-          <div style={{ background: '#fff', borderRadius: 16, overflow: 'auto', maxHeight: '90vh', maxWidth: 740, width: '100%' }}>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '12px 16px', borderBottom: '1px solid #e5eeec' }}>
-              <button className="ghost-btn" onClick={() => { setPreview(null); setTimeout(printCert, 300); }}><Download size={15} /> Print / Save PDF</button>
-              <button className="icon-btn" style={{ marginLeft: 8 }} onClick={() => setPreview(null)}>✕</button>
+      {activeTab === 'credentials' && (
+        <div className="credential-section-grid">
+          <div className="credential-main-panel">
+            <h3>Digital Credential Verification</h3>
+            <div className="verification-preview">
+              <SearchCheck size={42} />
+              <h4>Certificate Verified</h4>
+              <p>Employers, schools, and regulators can verify certificates using a public certificate ID or QR code.</p>
+              <div>
+                <span>Student</span><strong>{userName || 'Jane Doe'}</strong>
+                <span>Issued by</span><strong>NurseFaculty</strong>
+                <span>Status</span><strong>Verified</strong>
+              </div>
             </div>
-            <div id="cert-print-area" ref={printRef} style={{ padding: 24 }}>
+          </div>
+          <aside className="credential-side-panel">
+            <h3>Credential Standards</h3>
+            <ul className="credential-checklist">
+              <li><CheckCircle2 size={15} /> Certificate ID</li>
+              <li><CheckCircle2 size={15} /> Verification URL</li>
+              <li><CheckCircle2 size={15} /> QR-ready metadata</li>
+              <li><CheckCircle2 size={15} /> Institution branding</li>
+              <li><CheckCircle2 size={15} /> Revocation status</li>
+              <li><CheckCircle2 size={15} /> Expiry tracking</li>
+            </ul>
+          </aside>
+        </div>
+      )}
+
+      {preview && (
+        <div className="modal-backdrop">
+          <div className="certificate-modal">
+            <div className="certificate-modal-head">
+              <button className="ghost-btn" onClick={() => { setPreview(null); setTimeout(printCert, 300); }}><Download size={15} /> Print / Save PDF</button>
+              <button className="icon-btn" onClick={() => setPreview(null)}>×</button>
+            </div>
+            <div id="cert-print-area" ref={printRef}>
               <CertificatePrint cert={preview} userName={userName} />
             </div>
           </div>
         </div>
       )}
 
-      <style>{`@media print { body * { visibility: hidden; } #cert-print-area, #cert-print-area * { visibility: visible; } #cert-print-area { position: fixed; top: 0; left: 0; width: 100%; } }`}</style>
+      <style>{`@media print { body * { visibility: hidden; } #cert-print-area, #cert-print-area * { visibility: visible; } #cert-print-area { position: fixed; inset: 0; width: 100%; } }`}</style>
     </section>
   );
 }
