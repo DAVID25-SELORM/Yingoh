@@ -1,5 +1,6 @@
 const OPENAI_KEY = Deno.env.get('OPENAI_API_KEY') ?? '';
 const OPENAI_MODEL = Deno.env.get('OPENAI_MODEL') ?? 'gpt-5-mini';
+const FALLBACK_MODEL = Deno.env.get('OPENAI_FALLBACK_MODEL') ?? 'gpt-4o-mini';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -20,6 +21,29 @@ function isGpt5Model(model: string) {
   return model.toLowerCase().startsWith('gpt-5');
 }
 
+function normalizeModel(model: string) {
+  const requested = String(model || '').trim();
+  // Older project configs used "gpt-5-mini". Current OpenAI guidance uses
+  // the GPT-5.6 family names; luna is the low-latency / lower-cost lane.
+  if (requested === 'gpt-5-mini') return 'gpt-5.6-luna';
+  return requested || FALLBACK_MODEL;
+}
+
+function fallbackReply(message: string, detail = '') {
+  return `Concept:
+I can still help you study, but the live OpenAI Study Coach is temporarily unavailable.
+
+What to do now:
+Use ABCs, safety, Maslow, nursing process, and expected vs. unexpected findings. If this is a priority question, choose the action that prevents the most immediate harm.
+
+Clinical Tip:
+On NCLEX, urgent physiologic safety comes before teaching, documentation, routine comfort, or delayed provider notification.
+
+Your question:
+${message}
+${detail ? `\nTechnical note for admin: ${detail}` : ''}`;
+}
+
 async function callOpenAI({
   model,
   messages,
@@ -29,7 +53,9 @@ async function callOpenAI({
   messages: Array<{ role: string; content: string }>;
   mode: string;
 }) {
-  if (isGpt5Model(model)) {
+  const selectedModel = normalizeModel(model);
+
+  if (isGpt5Model(selectedModel)) {
     const [system, ...conversation] = messages;
     const input = conversation.map((item) => ({
       role: item.role === 'assistant' ? 'assistant' : 'user',
@@ -43,10 +69,11 @@ async function callOpenAI({
         Authorization: `Bearer ${OPENAI_KEY}`,
       },
       body: JSON.stringify({
-        model,
+        model: selectedModel,
         instructions: system?.content ?? SYSTEM_PROMPTS.tutor,
         input,
         max_output_tokens: 1800,
+        reasoning: { effort: 'low' },
       }),
     });
 
@@ -72,7 +99,7 @@ async function callOpenAI({
       Authorization: `Bearer ${OPENAI_KEY}`,
     },
     body: JSON.stringify({
-      model,
+      model: selectedModel,
       messages,
       max_tokens: 1800,
       temperature: mode === 'quiz' ? 0.7 : 0.35,
@@ -101,8 +128,11 @@ Deno.serve(async (req) => {
     }
 
     if (!OPENAI_KEY) {
-      return new Response(JSON.stringify({ error: 'OPENAI_API_KEY not configured' }), {
-        status: 500,
+      return new Response(JSON.stringify({
+        reply: fallbackReply(message, 'OPENAI_API_KEY is not configured.'),
+        warning: 'OPENAI_API_KEY not configured',
+      }), {
+        status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -121,14 +151,28 @@ Deno.serve(async (req) => {
       { role: 'user', content: message },
     ];
 
-    const reply = await callOpenAI({ model: OPENAI_MODEL, messages, mode });
+    let reply = '';
+    let warning = '';
+    try {
+      reply = await callOpenAI({ model: OPENAI_MODEL, messages, mode });
+    } catch (openaiErr) {
+      const detail = openaiErr instanceof Error ? openaiErr.message : String(openaiErr);
+      warning = detail;
 
-    return new Response(JSON.stringify({ reply }), {
+      try {
+        reply = await callOpenAI({ model: FALLBACK_MODEL, messages, mode });
+      } catch (_) {
+        reply = fallbackReply(message, detail);
+      }
+    }
+
+    return new Response(JSON.stringify({ reply, warning }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (err) {
-    return new Response(JSON.stringify({ error: err.message }), {
-      status: 500,
+    const detail = err instanceof Error ? err.message : String(err);
+    return new Response(JSON.stringify({ reply: fallbackReply('your Study Coach request', detail), warning: detail }), {
+      status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
