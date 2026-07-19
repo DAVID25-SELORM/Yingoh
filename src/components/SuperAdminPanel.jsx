@@ -4,6 +4,13 @@ import {
   Search, Shield, Trash2, UserCheck, UserX, Users,
 } from 'lucide-react';
 import { supabase, checkTableAvailability, nurseFacultyTables } from '../services/supabase';
+import {
+  getEffectivePermissions,
+  getPermissionGroupsForRoles,
+  RBAC_ROLES,
+  RBAC_ROLE_NAMES,
+  ROLE_LOOKUP,
+} from '../data/rbac';
 
 const DEMO_STATS = {
   total_users: 142,
@@ -37,16 +44,11 @@ const DEMO_AUDIT = [
   { id: 'a4', action: 'plan.create', target_table: 'payment_plans', details: { name: 'Premium', price: '$59.99' }, created_at: new Date(Date.now() - 86400000 * 2).toISOString() },
 ];
 
-const ROLE_COLORS = {
-  student: { bg: '#e9f6f4', color: '#135f55' },
-  instructor: { bg: '#fff4dd', color: '#875f08' },
-  admin: { bg: '#f0edff', color: '#51408c' },
-  super_admin: { bg: '#ffe8e3', color: '#8a2c21' },
-  content_reviewer: { bg: '#e9f6f4', color: '#216f65' },
-  finance: { bg: '#fff0ee', color: '#8a2c21' },
-};
+const ROLE_COLORS = Object.fromEntries(
+  RBAC_ROLES.map((role) => [role.name, { bg: `${role.color}1f`, color: role.color }])
+);
 
-const ALL_ROLES = ['student', 'instructor', 'admin', 'super_admin', 'finance', 'content_reviewer'];
+const ALL_ROLES = RBAC_ROLE_NAMES;
 
 function StatCard({ label, value, sub, color = '#29b7a3' }) {
   return (
@@ -62,8 +64,33 @@ function RoleBadge({ role }) {
   const style = ROLE_COLORS[role] ?? { bg: '#edf2f1', color: '#42585e' };
   return (
     <span style={{ ...style, borderRadius: 999, padding: '2px 8px', fontSize: '0.75rem', fontWeight: 700, display: 'inline-flex', marginRight: 4 }}>
-      {role}
+      {ROLE_LOOKUP[role]?.label ?? role}
     </span>
+  );
+}
+
+function EffectivePermissionPanel({ roles }) {
+  const effective = getEffectivePermissions(roles);
+  const groups = getPermissionGroupsForRoles(roles);
+  return (
+    <div style={{ padding: 14, borderRadius: 12, border: '1px solid #dde8e6', background: '#f8fbfa', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 10 }}>
+        <strong>Preview Effective Permissions</strong>
+        <span style={{ color: '#607478', fontSize: '0.8rem', fontWeight: 800 }}>{effective.length} granted</span>
+      </div>
+      <div style={{ display: 'grid', gap: 8, maxHeight: 220, overflow: 'auto' }}>
+        {groups.map((group) => (
+          <div key={group.key}>
+            <div style={{ fontSize: '0.74rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#2b8a7d', fontWeight: 800, marginBottom: 4 }}>{group.label}</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+              {group.granted.map(([key, label]) => (
+                <span key={key} style={{ padding: '3px 8px', border: '1px solid #dbe6e4', background: '#fff', borderRadius: 999, fontSize: '0.72rem', color: '#42585e' }}>{label}</span>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -307,15 +334,22 @@ export default function SuperAdminPanel({ session }) {
               <div className="modal-box" onClick={(e) => e.stopPropagation()}>
                 <h3>Manage Roles — {roleModal.full_name}</h3>
                 <p style={{ color: '#607478', margin: '0 0 16px' }}>{roleModal.email}</p>
+                <EffectivePermissionPanel roles={roleModal.roles ?? []} />
                 <div style={{ display: 'grid', gap: 8, marginBottom: 16 }}>
                   {ALL_ROLES.map((role) => {
                     const hasRole = roleModal.roles?.includes(role);
                     const isWorking = assigningRole === `${roleModal.id}:${role}`;
+                    const meta = ROLE_LOOKUP[role];
                     return (
                       <div key={role} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: '#f8fbfa', borderRadius: 8, border: '1px solid #dde8e6' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                           {hasRole ? <CheckCircle2 size={16} color="#29b7a3" /> : <div style={{ width: 16, height: 16, borderRadius: '50%', border: '2px solid #dde8e6' }} />}
-                          <RoleBadge role={role} />
+                          <div>
+                            <RoleBadge role={role} />
+                            <div style={{ fontSize: '0.76rem', color: '#607478', marginTop: 4 }}>
+                              <strong>{meta?.responsibility}</strong> · {meta?.permissions?.length ?? 0} permissions
+                            </div>
+                          </div>
                         </div>
                         {hasRole ? (
                           <button className="ghost-btn" style={{ minHeight: 28, padding: '0 10px', fontSize: '0.8rem', color: '#8a2c21' }} onClick={() => handleRemoveRole(roleModal.id, role)} disabled={isWorking}>
@@ -376,18 +410,14 @@ export default function SuperAdminPanel({ session }) {
           </div>
 
           <div className="surface">
-            <div className="section-title"><h3>Available Roles</h3></div>
+            <div className="section-title"><h3>Available Roles & Permission Groups</h3></div>
             <div style={{ display: 'grid', gap: 10 }}>
-              {[
-                { role: 'student', desc: 'Learn, practice, attend classes, view results and certificates.' },
-                { role: 'instructor', desc: 'Schedule classes, upload lessons, create quizzes, mark attendance.' },
-                { role: 'admin', desc: 'Manage users, courses, payments, reports, and subscriptions.' },
-                { role: 'finance', desc: 'View payments, invoices, receipts, refunds, reconciliation.' },
-                { role: 'content_reviewer', desc: 'Review questions, rationales, and reported errors before publishing.' },
-              ].map(({ role, desc }) => (
-                <div key={role} style={{ display: 'flex', gap: 12, padding: '10px 14px', background: '#f8fbfa', borderRadius: 8, border: '1px solid #dde8e6', alignItems: 'flex-start' }}>
-                  <RoleBadge role={role} />
-                  <span style={{ fontSize: '0.86rem', color: '#5b6d72', lineHeight: 1.45 }}>{desc}</span>
+              {RBAC_ROLES.map((role) => (
+                <div key={role.name} style={{ display: 'flex', gap: 12, padding: '10px 14px', background: '#f8fbfa', borderRadius: 8, border: '1px solid #dde8e6', alignItems: 'flex-start' }}>
+                  <RoleBadge role={role.name} />
+                  <span style={{ fontSize: '0.86rem', color: '#5b6d72', lineHeight: 1.45 }}>
+                    <strong>{role.responsibility}:</strong> {role.desc} <em>({role.permissions.length} permissions)</em>
+                  </span>
                 </div>
               ))}
             </div>

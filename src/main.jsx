@@ -390,7 +390,7 @@ function getInitialView() {
   return VALID_VIEW_KEYS.has(saved) ? saved : DEFAULT_VIEW;
 }
 
-const SUPER_ADMIN_VIEWS = new Set(['Super Admin', 'Users']);
+const SUPER_ADMIN_VIEWS = new Set(['Super Admin']);
 const ADMIN_VIEWS = new Set(['AdminQuestions', 'Audit Logs']);
 const FINANCE_VIEWS = new Set(['Payments']);
 const INSTRUCTOR_VIEWS = new Set(['Instructors', 'Announcements', 'Classroom', 'Video Manager']);
@@ -542,14 +542,24 @@ function App() {
   const manageNav = NAV.filter((n) => n.group === 'manage');
   const isInstructor = roles.includes('instructor');
   const isFinance = roles.includes('finance');
-  const isReviewer = roles.includes('content_reviewer');
+  const isReviewer = roles.includes('content_reviewer') || roles.includes('question_bank_manager') || roles.includes('guest_reviewer');
+  const isQuestionManager = roles.includes('question_bank_manager');
+  const isExamOfficer = roles.includes('exam_officer');
+  const isDepartmentAdmin = roles.includes('department_admin');
+  const isSupportOfficer = roles.includes('support_officer');
+  const isRegistrar = roles.includes('academic_registrar');
+  const isLibraryManager = roles.includes('library_manager');
+  const isAnalyticsManager = roles.includes('analytics_manager');
   const isSuperAdmin = roles.includes('super_admin') || isConfiguredSuperAdmin(session?.user?.email);
   const canAccessView = (view) => {
     if (SUPER_ADMIN_VIEWS.has(view)) return isSuperAdmin;
-    if (ADMIN_VIEWS.has(view)) return hasAdminAccess || (view === 'AdminQuestions' && isReviewer);
+    if (view === 'Users') return isSuperAdmin || isDepartmentAdmin || isSupportOfficer || isRegistrar;
+    if (view === 'Analytics') return true;
+    if (ADMIN_VIEWS.has(view)) return hasAdminAccess || (view === 'AdminQuestions' && (isReviewer || isInstructor || isQuestionManager || isExamOfficer));
     if (FINANCE_VIEWS.has(view)) return hasAdminAccess || isFinance;
-    if (INSTRUCTOR_VIEWS.has(view)) return hasAdminAccess || isInstructor;
-    if (REVIEWER_VIEWS.has(view)) return hasAdminAccess || isReviewer;
+    if (INSTRUCTOR_VIEWS.has(view)) return hasAdminAccess || isInstructor || isDepartmentAdmin || (view === 'Video Manager' && isLibraryManager) || (view === 'Classroom' && isExamOfficer);
+    if (REVIEWER_VIEWS.has(view)) return hasAdminAccess || isReviewer || isQuestionManager;
+    if (view === 'Resources') return true;
     return true;
   };
   const adminNav = NAV.filter((n) => n.group === 'admin' && canAccessView(n.viewKey ?? n.label));
@@ -558,7 +568,7 @@ function App() {
   useEffect(() => {
     if (!session || accessLoading) return;
     if (!canAccessView(activeView)) setActiveView('Dashboard');
-  }, [session, accessLoading, activeView, hasAdminAccess, isSuperAdmin, isInstructor, isFinance, isReviewer]);
+  }, [session, accessLoading, activeView, hasAdminAccess, isSuperAdmin, isInstructor, isFinance, isReviewer, isQuestionManager, isExamOfficer, isDepartmentAdmin, isSupportOfficer, isRegistrar, isLibraryManager, isAnalyticsManager]);
 
   if (!authReady || (session && accessLoading)) {
     return (

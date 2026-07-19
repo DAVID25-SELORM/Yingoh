@@ -1,18 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import {
-  CheckCircle2, Mail, PlusCircle, RefreshCw, Search,
+  CheckCircle2, Eye, Mail, PlusCircle, RefreshCw, Search,
   Shield, Trash2, User, UserCheck, X,
 } from 'lucide-react';
 import { supabase, signUpWithEmail, sendPasswordResetEmail } from '../services/supabase';
-
-const ALL_ROLES = [
-  { name: 'student', label: 'Student', color: '#2b8a7d', desc: 'Access learning content, practice questions, flashcards, planner, and notebook.' },
-  { name: 'instructor', label: 'Instructor', color: '#e3a72f', desc: 'Schedule classes, upload lessons, create quizzes, mark attendance, view analytics.' },
-  { name: 'admin', label: 'Admin', color: '#c17f44', desc: 'Manage users, courses, payments, announcements, support tickets, and reports.' },
-  { name: 'super_admin', label: 'Super Admin', color: '#8a2c21', desc: 'Full owner access across users, roles, content, payments, and operations.' },
-  { name: 'finance', label: 'Finance', color: '#8b5cf6', desc: 'View payments, invoices, receipts, refunds, promo codes, and reconciliation.' },
-  { name: 'content_reviewer', label: 'Content Reviewer', color: '#e94868', desc: 'Review and approve/reject questions and rationales before publishing.' },
-];
+import {
+  getEffectivePermissions,
+  getPermissionGroupsForRoles,
+  RBAC_ROLES as ALL_ROLES,
+  ROLE_COLORS,
+  ROLE_LOOKUP,
+} from '../data/rbac';
 
 const DEMO_USERS = [
   { id: 'u1', full_name: 'Selorm Gabiond', email: 'cryxtalcfc@gmail.com', country: 'Ghana', created_at: new Date(Date.now() - 86400000 * 30).toISOString(), roles: ['student', 'admin'] },
@@ -27,7 +25,40 @@ const DEMO_INVITES = [
   { id: 'i2', email: 'reviewer@content.com', full_name: 'Nana Yaw', role_name: 'content_reviewer', expires_at: new Date(Date.now() + 86400000 * 2).toISOString(), accepted_at: null, created_at: new Date(Date.now() - 86400000 * 5).toISOString() },
 ];
 
-const ROLE_COLORS = Object.fromEntries(ALL_ROLES.map((r) => [r.name, r.color]));
+function RolePill({ role }) {
+  const meta = ROLE_LOOKUP[role];
+  return (
+    <span style={{ padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 700, background: (ROLE_COLORS[role] ?? '#607478') + '22', color: ROLE_COLORS[role] ?? '#607478' }}>
+      {meta?.label ?? role.replace('_', ' ')}
+    </span>
+  );
+}
+
+function PermissionPreview({ roles }) {
+  const effective = getEffectivePermissions(roles);
+  const groups = getPermissionGroupsForRoles(roles);
+  return (
+    <div style={{ marginTop: 12, padding: 14, background: '#f8fbfa', border: '1px solid #dde8e6', borderRadius: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 10 }}>
+        <strong style={{ fontSize: '0.9rem' }}>Effective Permissions</strong>
+        <span style={{ fontSize: '0.78rem', color: '#607478', fontWeight: 700 }}>{effective.length} permissions granted</span>
+      </div>
+      <div style={{ display: 'grid', gap: 10, maxHeight: 260, overflow: 'auto' }}>
+        {groups.map((group) => (
+          <div key={group.key}>
+            <div style={{ fontSize: '0.76rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#2b8a7d', fontWeight: 800, marginBottom: 4 }}>{group.label}</div>
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {group.granted.map(([key, label]) => (
+                <span key={key} style={{ fontSize: '0.74rem', padding: '3px 8px', borderRadius: 999, background: '#fff', border: '1px solid #dbe6e4', color: '#42585e' }}>{label}</span>
+              ))}
+            </div>
+          </div>
+        ))}
+        {!groups.length && <span style={{ color: '#8a999c', fontSize: '0.84rem' }}>No permissions granted yet.</span>}
+      </div>
+    </div>
+  );
+}
 
 export default function UserManagement({ session }) {
   const [users, setUsers] = useState(supabase ? [] : DEMO_USERS);
@@ -35,6 +66,7 @@ export default function UserManagement({ session }) {
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState('users'); // users | invites | add
   const [roleModal, setRoleModal] = useState(null); // user obj
+  const [previewOpen, setPreviewOpen] = useState(true);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
@@ -187,7 +219,7 @@ export default function UserManagement({ session }) {
         {[
           { label: 'Total Users', value: users.length, color: '#29b7a3' },
           { label: 'Pending Invites', value: invites.filter((i) => !i.accepted_at).length, color: '#e3a72f' },
-          ...ALL_ROLES.map((r) => ({ label: r.label + 's', value: users.filter((u) => u.roles?.includes(r.name)).length, color: r.color })),
+          ...ALL_ROLES.slice(0, 6).map((r) => ({ label: r.label + 's', value: users.filter((u) => u.roles?.includes(r.name)).length, color: r.color })),
         ].map((s) => (
           <div key={s.label} className="stat-card" style={{ borderTop: `3px solid ${s.color}`, textAlign: 'center', padding: '12px 8px' }}>
             <div style={{ fontSize: '1.5rem', fontWeight: 800, color: s.color }}>{s.value}</div>
@@ -241,9 +273,7 @@ export default function UserManagement({ session }) {
                     <td>
                       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
                         {(u.roles ?? []).map((r) => (
-                          <span key={r} style={{ padding: '2px 8px', borderRadius: 12, fontSize: '0.72rem', fontWeight: 700, background: (ROLE_COLORS[r] ?? '#607478') + '22', color: ROLE_COLORS[r] ?? '#607478' }}>
-                            {r.replace('_', ' ')}
-                          </span>
+                          <RolePill key={r} role={r} />
                         ))}
                         {!u.roles?.length && <span style={{ color: '#8a999c', fontSize: '0.8rem' }}>No roles</span>}
                       </div>
@@ -346,6 +376,10 @@ export default function UserManagement({ session }) {
             <div style={{ padding: '10px 14px', background: '#f7faf9', borderRadius: 8, border: '1px solid #e1ebe9', marginBottom: 14, fontSize: '0.85rem', color: '#42585e' }}>
               <strong>{ALL_ROLES.find((r) => r.name === form.role)?.label}: </strong>
               {ALL_ROLES.find((r) => r.name === form.role)?.desc}
+              <div style={{ marginTop: 6, color: '#607478' }}>
+                Responsibility: {ALL_ROLES.find((r) => r.name === form.role)?.responsibility}
+              </div>
+              <PermissionPreview roles={[form.role]} />
             </div>
 
             <div style={{ padding: '10px 14px', background: form.invite_only ? '#e0f0ff' : '#fff6df', borderRadius: 8, border: `1px solid ${form.invite_only ? '#b3d4f5' : '#f2d6a0'}`, marginBottom: 14, fontSize: '0.84rem', color: form.invite_only ? '#1a5a8a' : '#875f08' }}>
@@ -373,7 +407,7 @@ export default function UserManagement({ session }) {
       {/* Role management modal */}
       {roleModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'grid', placeItems: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#fff', borderRadius: 14, padding: 28, width: 480, maxWidth: '90vw', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
+          <div style={{ background: '#fff', borderRadius: 14, padding: 28, width: 720, maxWidth: '94vw', maxHeight: '90vh', overflow: 'auto', boxShadow: '0 8px 32px rgba(0,0,0,0.18)' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <div>
                 <h3 style={{ margin: 0 }}>{roleModal.full_name || roleModal.email}</h3>
@@ -388,7 +422,12 @@ export default function UserManagement({ session }) {
                   <div key={role.name} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '10px 14px', borderRadius: 10, border: `1.5px solid ${hasRole ? role.color : '#dbe6e4'}`, background: hasRole ? role.color + '12' : '#fff' }}>
                     <div style={{ flex: 1 }}>
                       <div style={{ fontWeight: 700, color: hasRole ? role.color : '#17212f', fontSize: '0.9rem' }}>{role.label}</div>
-                      <div style={{ fontSize: '0.78rem', color: '#607478', marginTop: 2 }}>{role.desc}</div>
+                      <div style={{ fontSize: '0.78rem', color: '#607478', marginTop: 2 }}>
+                        <strong>{role.responsibility}:</strong> {role.desc}
+                      </div>
+                      <div style={{ fontSize: '0.74rem', color: '#8a999c', marginTop: 4 }}>
+                        {role.permissions.length} permissions
+                      </div>
                     </div>
                     <button
                       onClick={() => {
@@ -402,6 +441,13 @@ export default function UserManagement({ session }) {
                   </div>
                 );
               })}
+            </div>
+            <button className="ghost-btn" style={{ marginTop: 14 }} onClick={() => setPreviewOpen((value) => !value)}>
+              <Eye size={14} /> {previewOpen ? 'Hide' : 'Preview'} Effective Permissions
+            </button>
+            {previewOpen && <PermissionPreview roles={roleModal.roles ?? []} />}
+            <div style={{ marginTop: 14, padding: 12, borderRadius: 10, background: '#fff6df', border: '1px solid #f2d6a0', color: '#875f08', fontSize: '0.82rem' }}>
+              Least privilege reminder: assign only the smallest role set this person needs. Multiple roles are supported, and the preview above shows the combined access.
             </div>
             <div className="editor-footer" style={{ marginTop: 16 }}>
               <button className="primary-btn" onClick={() => setRoleModal(null)}>Done</button>
