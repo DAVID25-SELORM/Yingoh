@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { BookOpen, Calendar, Clock, Copy, Link2, PlusCircle, QrCode, Share2, Users, Video, X } from 'lucide-react';
+import { BookOpen, Calendar, CheckCircle2, Clock, Copy, Link2, PlusCircle, QrCode, Share2, UserMinus, Users, UserX, Video, X } from 'lucide-react';
 import {
   createCourseWithOwner,
   generateCourseEnrollmentLink,
   getCourseEnrollmentLinks,
   getMyCourses,
+  getCourseRoster,
+  setCourseEnrollmentLinkActive,
   supabase,
+  updateCourseMembershipStatus,
 } from '../services/supabase';
 import { JitsiRoom } from './JitsiRoom';
 
@@ -45,6 +48,7 @@ export default function InstructorTools({ session }) {
   const [courseForm, setCourseForm] = useState(EMPTY_COURSE);
   const [courses, setCourses] = useState([]);
   const [courseLinks, setCourseLinks] = useState({});
+  const [courseRosters, setCourseRosters] = useState({});
   const [activeCourseId, setActiveCourseId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [tab, setTab] = useState('dashboard');
@@ -117,6 +121,13 @@ export default function InstructorTools({ session }) {
     setCourseLinks((prev) => ({ ...prev, [courseId]: data ?? [] }));
   }
 
+  async function loadRoster(courseId) {
+    if (!courseId) return;
+    const { data, error } = await getCourseRoster(courseId);
+    if (error) setMessage(error.message);
+    else setCourseRosters((prev) => ({ ...prev, [courseId]: data ?? [] }));
+  }
+
   async function createEnrollmentLink(course) {
     setMessage('');
     const { data, error } = await generateCourseEnrollmentLink(course.id, {
@@ -130,6 +141,29 @@ export default function InstructorTools({ session }) {
     }
     setCourseLinks((prev) => ({ ...prev, [course.id]: [data, ...(prev[course.id] ?? [])] }));
     setMessage(`Enrollment link generated for ${course.title}.`);
+  }
+
+  async function toggleEnrollmentLink(link, isActive) {
+    const { data, error } = await setCourseEnrollmentLinkActive(link.id, isActive);
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+    setCourseLinks((prev) => ({
+      ...prev,
+      [link.course_id]: (prev[link.course_id] ?? []).map((item) => item.id === link.id ? data : item),
+    }));
+    setMessage(isActive ? 'Enrollment link enabled.' : 'Enrollment link disabled.');
+  }
+
+  async function updateEnrollment(courseId, userId, status) {
+    const { error } = await updateCourseMembershipStatus(courseId, userId, status);
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+    await loadRoster(courseId);
+    setMessage(`Enrollment marked as ${status.replace('_', ' ')}.`);
   }
 
   function joinUrl(code) {
@@ -154,6 +188,7 @@ export default function InstructorTools({ session }) {
   }
 
   const totalStudents = sessions.reduce((a, s) => a + (s.attendee_count ?? 0), 0);
+  const rosterStudentCount = Object.values(courseRosters).flat().filter((row) => row.status === 'enrolled' && row.membership_role === 'student').length;
 
   return (
     <section className="content-band">
@@ -181,7 +216,7 @@ export default function InstructorTools({ session }) {
         {[
           { label: 'Upcoming', value: upcoming.length, icon: Calendar, color: '#29b7a3' },
           { label: 'My Courses', value: courses.length, icon: BookOpen, color: '#2b8a7d' },
-          { label: 'Total Students', value: totalStudents, icon: Users, color: '#e3a72f' },
+          { label: 'Total Students', value: Math.max(totalStudents, rosterStudentCount), icon: Users, color: '#e3a72f' },
         ].map((s) => (
           <div key={s.label} className="stat-card" style={{ borderTop: `3px solid ${s.color}`, textAlign: 'center' }}>
             <s.icon size={20} color={s.color} style={{ margin: '0 auto 6px' }} />
@@ -318,6 +353,9 @@ export default function InstructorTools({ session }) {
           {courses.map((course) => {
             const links = courseLinks[course.id] ?? [];
             const activeLink = links.find((link) => link.is_active) ?? links[0];
+            const roster = courseRosters[course.id] ?? [];
+            const pending = roster.filter((row) => row.status === 'pending_approval');
+            const enrolled = roster.filter((row) => row.status === 'enrolled' && row.membership_role === 'student');
             return (
               <div key={course.id} className="classroom-card">
                 <div style={{ flex: 1 }}>
@@ -336,12 +374,63 @@ export default function InstructorTools({ session }) {
                   {activeLink && (
                     <div style={{ marginTop: 10, padding: 10, borderRadius: 10, background: '#f8fbfa', border: '1px solid #dbe6e4', fontSize: '0.82rem', color: '#42585e', wordBreak: 'break-all' }}>
                       {joinUrl(activeLink.code)}
+                      <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap' }}>
+                        <span className={`status-badge status-${activeLink.is_active ? 'paid' : 'failed'}`}>{activeLink.is_active ? 'Active link' : 'Disabled link'}</span>
+                        <span style={{ color: '#8a999c' }}>{activeLink.enrollment_method?.replace('_', ' ')}</span>
+                        {activeLink.expires_at && <span style={{ color: '#8a999c' }}>Expires {new Date(activeLink.expires_at).toLocaleDateString()}</span>}
+                      </div>
+                    </div>
+                  )}
+                  {roster.length > 0 && (
+                    <div style={{ marginTop: 12, display: 'grid', gap: 8 }}>
+                      <strong style={{ fontSize: '0.86rem' }}>Roster & enrollment requests</strong>
+                      {pending.length > 0 && (
+                        <div style={{ padding: 10, borderRadius: 10, background: '#fff6df', border: '1px solid #f2d6a0' }}>
+                          <div style={{ fontSize: '0.76rem', fontWeight: 800, color: '#875f08', textTransform: 'uppercase', marginBottom: 6 }}>Pending approval ({pending.length})</div>
+                          {pending.map((student) => (
+                            <div key={student.user_id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', padding: '6px 0', borderTop: '1px solid rgba(0,0,0,0.06)' }}>
+                              <div>
+                                <strong style={{ fontSize: '0.82rem' }}>{student.full_name || student.email}</strong>
+                                <div style={{ fontSize: '0.76rem', color: '#607478' }}>{student.email}{student.student_id ? ` · ID ${student.student_id}` : ''}</div>
+                              </div>
+                              <div style={{ display: 'flex', gap: 6 }}>
+                                <button className="ghost-btn" style={{ minHeight: 28, padding: '0 8px', color: '#8a2c21' }} onClick={() => updateEnrollment(course.id, student.user_id, 'rejected')}>
+                                  <UserX size={13} /> Reject
+                                </button>
+                                <button className="primary-btn" style={{ minHeight: 28, padding: '0 8px' }} onClick={() => updateEnrollment(course.id, student.user_id, 'enrolled')}>
+                                  <CheckCircle2 size={13} /> Approve
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {enrolled.length > 0 && (
+                        <div style={{ padding: 10, borderRadius: 10, background: '#f8fbfa', border: '1px solid #dbe6e4' }}>
+                          <div style={{ fontSize: '0.76rem', fontWeight: 800, color: '#2b8a7d', textTransform: 'uppercase', marginBottom: 6 }}>Enrolled students ({enrolled.length})</div>
+                          {enrolled.slice(0, 6).map((student) => (
+                            <div key={student.user_id} style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'center', padding: '5px 0', borderTop: '1px solid rgba(0,0,0,0.05)' }}>
+                              <div>
+                                <strong style={{ fontSize: '0.82rem' }}>{student.full_name || student.email}</strong>
+                                <div style={{ fontSize: '0.76rem', color: '#607478' }}>{student.email}</div>
+                              </div>
+                              <button className="ghost-btn" style={{ minHeight: 28, padding: '0 8px', color: '#8a2c21' }} onClick={() => updateEnrollment(course.id, student.user_id, 'removed')}>
+                                <UserMinus size={13} /> Remove
+                              </button>
+                            </div>
+                          ))}
+                          {enrolled.length > 6 && <div style={{ fontSize: '0.76rem', color: '#607478', marginTop: 6 }}>+ {enrolled.length - 6} more students</div>}
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-                  <button className="ghost-btn" onClick={() => { setActiveCourseId(course.id); loadLinks(course.id); }}>
+                  <button className="ghost-btn" onClick={() => { setActiveCourseId(course.id); loadLinks(course.id); loadRoster(course.id); }}>
                     <Link2 size={14} /> Load Links
+                  </button>
+                  <button className="ghost-btn" onClick={() => { setActiveCourseId(course.id); loadRoster(course.id); }}>
+                    <Users size={14} /> Roster
                   </button>
                   <button className="primary-btn" onClick={() => createEnrollmentLink(course)}>
                     <PlusCircle size={14} /> Generate Link
@@ -351,6 +440,9 @@ export default function InstructorTools({ session }) {
                       <button className="ghost-btn" onClick={() => copyLink(activeLink.code)}><Copy size={14} /> Copy</button>
                       <button className="ghost-btn" onClick={() => shareLink(activeLink.code, course.title)}><Share2 size={14} /> Share</button>
                       <button className="ghost-btn" title="QR code generation will use this URL"><QrCode size={14} /> QR Ready</button>
+                      <button className="ghost-btn" style={{ color: activeLink.is_active ? '#8a2c21' : '#135f55' }} onClick={() => toggleEnrollmentLink(activeLink, !activeLink.is_active)}>
+                        {activeLink.is_active ? 'Disable' : 'Enable'}
+                      </button>
                     </>
                   )}
                 </div>

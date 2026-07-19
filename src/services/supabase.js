@@ -508,6 +508,28 @@ export async function joinCourseByEnrollmentCode(code, studentId = null) {
   });
 }
 
+export async function getCourseRoster(courseId) {
+  if (!supabase || !courseId) return { data: [], error: null };
+  return supabase.rpc('get_course_roster', { p_course_id: courseId });
+}
+
+export async function updateCourseMembershipStatus(courseId, userId, status) {
+  if (!supabase || !courseId || !userId || !status) return { data: null, error: new Error('Missing enrollment status details') };
+  return supabase.rpc('update_course_membership_status', {
+    p_course_id: courseId,
+    p_user_id: userId,
+    p_status: status,
+  });
+}
+
+export async function setCourseEnrollmentLinkActive(linkId, isActive) {
+  if (!supabase || !linkId) return { data: null, error: new Error('Missing enrollment link') };
+  return supabase.rpc('set_course_enrollment_link_active', {
+    p_link_id: linkId,
+    p_is_active: isActive,
+  });
+}
+
 // Progress rollup
 export async function getUserProgress(userId) {
   if (!supabase || !userId) return { data: null, error: null };
