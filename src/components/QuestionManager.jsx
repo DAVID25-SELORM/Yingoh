@@ -27,6 +27,22 @@ const EMPTY_QUESTION = {
 
 const CHOICE_IDS = ['a', 'b', 'c', 'd', 'e', 'f'];
 const PAGE_SIZE = 100;
+const LIST_COLUMNS = 'id,topic,question_type,prompt,status,minimum_plan,created_at';
+const QUESTION_CACHE_PREFIX = 'nursefaculty.questionManager.page.v2';
+
+function questionCacheKey(status, topic, pageNumber) {
+  return `${QUESTION_CACHE_PREFIX}:${status}:${topic}:${pageNumber}`;
+}
+
+function clearQuestionCache() {
+  try {
+    Object.keys(window.sessionStorage)
+      .filter((key) => key.startsWith(QUESTION_CACHE_PREFIX))
+      .forEach((key) => window.sessionStorage.removeItem(key));
+  } catch {
+    // Cache is only a speed boost; ignore private-mode/storage failures.
+  }
+}
 
 export default function QuestionManager() {
   const [questions, setQuestions] = useState([]);
@@ -57,6 +73,17 @@ export default function QuestionManager() {
       });
       return;
     }
+    const { data: rpcData, error: rpcError } = await supabase.rpc('admin_question_manager_counts');
+    const rpcRow = Array.isArray(rpcData) ? rpcData[0] : rpcData;
+    if (!rpcError && rpcRow) {
+      setCounts({
+        total: Number(rpcRow.total ?? 0),
+        published: Number(rpcRow.published ?? 0),
+        draft: Number(rpcRow.draft ?? 0),
+      });
+      return;
+    }
+
     const [totalResult, publishedResult, draftResult] = await Promise.all([
       supabase.from('questions').select('id', { count: 'exact', head: true }),
       supabase.from('questions').select('id', { count: 'exact', head: true }).eq('status', 'published'),
@@ -70,6 +97,14 @@ export default function QuestionManager() {
   }
 
   async function loadQuestions() {
+    const cacheKey = questionCacheKey(statusFilter, topicFilter, page);
+    try {
+      const cached = window.sessionStorage.getItem(cacheKey);
+      if (cached) setQuestions(JSON.parse(cached));
+    } catch {
+      // If storage is unavailable, continue with the network request.
+    }
+
     setLoading(true);
     if (!supabase) {
       let rows = DEMO_QUESTIONS;
@@ -83,14 +118,34 @@ export default function QuestionManager() {
     const to = from + PAGE_SIZE - 1;
     let query = supabase
       .from('questions')
-      .select('id,topic,question_type,prompt,choices,correct_answer,rationale,strategy,status,minimum_plan,ngn_data,created_at')
+      .select(LIST_COLUMNS)
       .order('created_at', { ascending: false })
       .range(from, to);
     if (statusFilter !== 'all') query = query.eq('status', statusFilter);
     if (topicFilter !== 'All Topics') query = query.eq('topic', topicFilter);
     const { data, error } = await query;
-    if (!error) setQuestions(data ?? []);
+    if (!error) {
+      const rows = data ?? [];
+      setQuestions(rows);
+      try {
+        window.sessionStorage.setItem(cacheKey, JSON.stringify(rows));
+      } catch {
+        // Non-critical cache failure.
+      }
+    }
     setLoading(false);
+  }
+
+  async function fetchQuestionDetails(q) {
+    if (!supabase || Object.prototype.hasOwnProperty.call(q, 'choices')) return q;
+    const { data, error } = await supabase
+      .from('questions')
+      .select('*')
+      .eq('id', q.id)
+      .single();
+    if (error || !data) return q;
+    setQuestions((prev) => prev.map((item) => (item.id === data.id ? { ...item, ...data } : item)));
+    return data;
   }
 
   function openNew() {
@@ -98,9 +153,19 @@ export default function QuestionManager() {
     setIsNew(true);
   }
 
-  function openEdit(q) {
-    setEditing(JSON.parse(JSON.stringify(q)));
+  async function openEdit(q) {
+    const fullQuestion = await fetchQuestionDetails(q);
+    setEditing(JSON.parse(JSON.stringify(fullQuestion)));
     setIsNew(false);
+  }
+
+  async function togglePreview(q) {
+    if (preview?.id === q.id) {
+      setPreview(null);
+      return;
+    }
+    const fullQuestion = await fetchQuestionDetails(q);
+    setPreview(fullQuestion);
   }
 
   function closeEditor() { setEditing(null); setIsNew(false); }
@@ -162,6 +227,7 @@ export default function QuestionManager() {
         const { data } = await supabase.from('questions').update(payload).eq('id', editing.id).select().single();
         if (data) setQuestions((prev) => prev.map((q) => q.id === data.id ? data : q));
       }
+      clearQuestionCache();
       await loadCounts();
       await loadQuestions();
     } else {
@@ -178,6 +244,7 @@ export default function QuestionManager() {
     const newStatus = q.status === 'published' ? 'draft' : 'published';
     if (supabase) {
       await supabase.from('questions').update({ status: newStatus }).eq('id', q.id);
+      clearQuestionCache();
       await loadCounts();
       await loadQuestions();
       return;
@@ -189,6 +256,7 @@ export default function QuestionManager() {
     if (!window.confirm('Delete this question? This cannot be undone.')) return;
     if (supabase) {
       await supabase.from('questions').delete().eq('id', q.id);
+      clearQuestionCache();
       await loadCounts();
       await loadQuestions();
       return;
@@ -341,6 +409,7 @@ export default function QuestionManager() {
       }
     }
     if (supabase && added > 0) {
+      clearQuestionCache();
       await loadCounts();
       await loadQuestions();
     }
@@ -439,6 +508,9 @@ export default function QuestionManager() {
     a.click();
     URL.revokeObjectURL(url);
   }
+
+  const showingStart = questions.length ? page * PAGE_SIZE + 1 : 0;
+  const showingEnd = page * PAGE_SIZE + questions.length;
 
   return (
     <section className="content-band">
@@ -588,7 +660,9 @@ export default function QuestionManager() {
           {TOPICS.map((t) => <option key={t}>{t}</option>)}
         </select>
         <span style={{ marginLeft: 'auto', color: '#607478', fontSize: '0.88rem' }}>
-          {loading ? 'Loading questions…' : `Showing ${(page * PAGE_SIZE + 1).toLocaleString()}–${(page * PAGE_SIZE + questions.length).toLocaleString()} of ${counts.total.toLocaleString()}`}
+          {loading
+            ? (questions.length ? 'Refreshing questions…' : 'Loading questions…')
+            : `Showing ${showingStart.toLocaleString()}–${showingEnd.toLocaleString()} of ${counts.total.toLocaleString()}`}
         </span>
       </div>
 
@@ -740,7 +814,7 @@ export default function QuestionManager() {
               </p>
             </div>
             <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-              <button className="icon-btn" title="Preview" onClick={() => setPreview(preview?.id === q.id ? null : q)}>
+              <button className="icon-btn" title="Preview" onClick={() => togglePreview(q)}>
                 {preview?.id === q.id ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
               <button className="icon-btn" title="Edit" onClick={() => openEdit(q)}>
@@ -762,10 +836,10 @@ export default function QuestionManager() {
             {/* Inline preview */}
             {preview?.id === q.id && (
               <div style={{ gridColumn: '1 / -1', marginTop: 12, padding: 14, background: '#f7faf9', borderRadius: 8, border: '1px solid #e1ebe9' }}>
-                <p style={{ margin: '0 0 10px', fontWeight: 500 }}>{q.prompt}</p>
+                <p style={{ margin: '0 0 10px', fontWeight: 500 }}>{preview.prompt}</p>
                 <div style={{ display: 'grid', gap: 6 }}>
-                  {(q.choices ?? []).map((c) => {
-                    const correct = q.correct_answer?.ids?.includes(c.id);
+                  {(preview.choices ?? []).map((c) => {
+                    const correct = preview.correct_answer?.ids?.includes(c.id);
                     return (
                       <div key={c.id} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '6px 10px', borderRadius: 6, background: correct ? '#e9f6f4' : '#fff', border: `1px solid ${correct ? '#b9e3dc' : '#e1ebe9'}` }}>
                         <span style={{ width: 22, height: 22, borderRadius: '50%', background: correct ? '#29b7a3' : '#edf2f1', color: correct ? '#fff' : '#42585e', display: 'grid', placeItems: 'center', fontSize: '0.78rem', fontWeight: 800, flexShrink: 0 }}>
@@ -777,16 +851,16 @@ export default function QuestionManager() {
                     );
                   })}
                 </div>
-                {q.rationale && (
+                {preview.rationale && (
                   <div style={{ marginTop: 10, padding: 10, background: '#fff6ef', borderRadius: 6, border: '1px solid #f2d6bd', fontSize: '0.84rem', color: '#4a3020' }}>
-                    <strong>Rationale:</strong> {q.rationale}
+                    <strong>Rationale:</strong> {preview.rationale}
                   </div>
                 )}
               </div>
             )}
           </div>
         ))}
-        {loading && (
+        {loading && !questions.length && (
           <div style={{ textAlign: 'center', padding: 36, color: '#607478' }}>
             Loading question page…
           </div>
