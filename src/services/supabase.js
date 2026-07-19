@@ -77,6 +77,7 @@ export const nurseFacultyTables = {
   instructorMessages: 'instructor_messages',
   courseInstructorPermissions: 'course_instructor_permissions',
   courseAnalyticsSnapshots: 'course_analytics_snapshots',
+  impersonationSessions: 'impersonation_sessions',
   classSchedules: 'class_schedules',
   pendingInvites: 'pending_invites',
   auditLogs: 'audit_logs',
@@ -461,6 +462,23 @@ export async function clearUserPermissionOverride(userId, permission) {
   return supabase.rpc('admin_clear_user_permission_override', {
     target_user_id: userId,
     permission,
+  });
+}
+
+// Admin support / impersonation audit
+export async function startImpersonationSession(targetUserId, targetRole, reason = 'Support troubleshooting') {
+  if (!supabase || !targetUserId || !targetRole) return { data: null, error: null };
+  return supabase.rpc('admin_start_impersonation_session', {
+    target_user_id: targetUserId,
+    target_role: targetRole,
+    reason,
+  });
+}
+
+export async function endImpersonationSession(sessionId) {
+  if (!supabase || !sessionId) return { data: null, error: null };
+  return supabase.rpc('admin_end_impersonation_session', {
+    impersonation_session_id: sessionId,
   });
 }
 

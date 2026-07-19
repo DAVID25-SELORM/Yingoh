@@ -9,6 +9,7 @@ import {
   sendPasswordResetEmail,
   setUserPermissionOverride,
   signUpWithEmail,
+  startImpersonationSession,
   supabase,
 } from '../services/supabase';
 import {
@@ -77,12 +78,13 @@ function PermissionPreview({ roles, overrides = {} }) {
   );
 }
 
-export default function UserManagement({ session }) {
+export default function UserManagement({ session, onStartViewAs }) {
   const [users, setUsers] = useState(supabase ? [] : DEMO_USERS);
   const [invites, setInvites] = useState(supabase ? [] : DEMO_INVITES);
   const [search, setSearch] = useState('');
   const [tab, setTab] = useState('users'); // users | invites | add
   const [roleModal, setRoleModal] = useState(null); // user obj
+  const [viewAsModal, setViewAsModal] = useState(null);
   const [previewOpen, setPreviewOpen] = useState(true);
   const [permissionOverrides, setPermissionOverrides] = useState({});
   const [overrideSaving, setOverrideSaving] = useState('');
@@ -287,6 +289,45 @@ export default function UserManagement({ session }) {
     setInvites((prev) => prev.filter((i) => i.id !== id));
   }
 
+  function primaryRole(user) {
+    const roles = user.roles ?? [];
+    return roles.includes('instructor') ? 'instructor'
+      : roles.includes('finance') ? 'finance'
+      : roles.includes('content_reviewer') ? 'content_reviewer'
+      : roles.includes('admin') ? 'admin'
+      : 'student';
+  }
+
+  function availableViewRoles(user) {
+    const roles = new Set(user.roles?.length ? user.roles : ['student']);
+    roles.add(primaryRole(user));
+    return [...roles].filter((role) => role !== 'super_admin');
+  }
+
+  async function confirmViewAs() {
+    if (!viewAsModal || !onStartViewAs) return;
+    const { user, role, reason } = viewAsModal;
+    let auditId = null;
+    if (supabase) {
+      const { data, error: auditError } = await startImpersonationSession(user.id, role, reason || 'Support troubleshooting');
+      if (auditError) {
+        setError(auditError.message);
+        return;
+      }
+      auditId = data;
+    }
+    onStartViewAs({
+      auditId,
+      userId: user.id,
+      userName: user.full_name || user.email,
+      email: user.email,
+      role,
+      reason: reason || 'Support troubleshooting',
+      startedBy: session?.user?.email,
+    });
+    setViewAsModal(null);
+  }
+
   const filteredUsers = users.filter((u) =>
     !search || u.full_name?.toLowerCase().includes(search.toLowerCase()) || u.email?.toLowerCase().includes(search.toLowerCase())
   );
@@ -372,9 +413,20 @@ export default function UserManagement({ session }) {
                     </td>
                     <td style={{ color: '#607478', fontSize: '0.82rem' }}>{new Date(u.created_at).toLocaleDateString()}</td>
                     <td>
-                      <button className="ghost-btn" style={{ fontSize: '0.78rem', padding: '5px 10px' }} onClick={() => openRoleModal(u)}>
-                        <Shield size={13} /> Roles
-                      </button>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        <button className="ghost-btn" style={{ fontSize: '0.78rem', padding: '5px 10px' }} onClick={() => openRoleModal(u)}>
+                          <Shield size={13} /> Roles
+                        </button>
+                        <button
+                          className="ghost-btn"
+                          style={{ fontSize: '0.78rem', padding: '5px 10px' }}
+                          disabled={u.roles?.includes('super_admin')}
+                          title={u.roles?.includes('super_admin') ? 'Super admins cannot be impersonated' : 'View the app as this user'}
+                          onClick={() => setViewAsModal({ user: u, role: primaryRole(u), reason: 'Support troubleshooting' })}
+                        >
+                          <Eye size={13} /> View As
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -634,6 +686,41 @@ export default function UserManagement({ session }) {
             </div>
             <div className="editor-footer" style={{ marginTop: 16 }}>
               <button className="primary-btn" onClick={() => setRoleModal(null)}>Done</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {viewAsModal && (
+        <div className="modal-backdrop">
+          <div className="qm-editor" style={{ maxWidth: 560, width: '100%' }}>
+            <div className="qm-editor-header">
+              <strong>View as {ROLE_LOOKUP[viewAsModal.role]?.label ?? viewAsModal.role}</strong>
+              <button className="icon-btn" onClick={() => setViewAsModal(null)}><X size={16} /></button>
+            </div>
+            <div style={{ display: 'grid', gap: 12 }}>
+              <p style={{ margin: 0, color: '#42585e', lineHeight: 1.55 }}>
+                You are about to view the platform as <strong>{viewAsModal.user.full_name || viewAsModal.user.email}</strong>.
+              </p>
+              <div className="qm-form-row">
+                <label>Role to preview</label>
+                <select value={viewAsModal.role} onChange={(e) => setViewAsModal((prev) => ({ ...prev, role: e.target.value }))}>
+                  {availableViewRoles(viewAsModal.user).map((role) => (
+                    <option key={role} value={role}>{ROLE_LOOKUP[role]?.label ?? role.replace('_', ' ')}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="qm-form-row">
+                <label>Reason</label>
+                <input value={viewAsModal.reason} onChange={(e) => setViewAsModal((prev) => ({ ...prev, reason: e.target.value }))} placeholder="e.g. Exam troubleshooting" />
+              </div>
+              <div className="setup-alert">
+                While viewing as this user, restricted account changes remain blocked and the session is recorded in the audit log.
+              </div>
+              <div className="editor-footer">
+                <button className="ghost-btn" onClick={() => setViewAsModal(null)}>Cancel</button>
+                <button className="primary-btn" onClick={confirmViewAs}><Eye size={15} /> Continue</button>
+              </div>
             </div>
           </div>
         </div>

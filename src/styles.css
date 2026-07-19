@@ -992,6 +992,27 @@ input, select, textarea { font: inherit; }
 .saved-empty { text-align: center; color: #607478; padding: 54px 18px; display: grid; justify-items: center; gap: 8px; }
 .saved-empty svg { color: #b8cac7; }
 
+/* ─── Support preview / impersonation ─────────────── */
+.impersonation-banner {
+  position: sticky; top: 0; z-index: 60;
+  margin: -4px 0 12px; padding: 10px 12px;
+  border: 1px solid #f1d59b; border-radius: 12px;
+  background: #fff7df; color: #72520a;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  box-shadow: 0 8px 24px rgba(114,82,10,.08);
+}
+.impersonation-banner > div { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.impersonation-banner span { font-size: .74rem; font-weight: 900; text-transform: uppercase; letter-spacing: .05em; }
+.impersonation-banner strong { color: #17212f; }
+.impersonation-banner small { color: #72520a; }
+.impersonation-banner .ghost-btn { background: #fff; border-color: #f1d59b; color: #72520a; }
+.portal-switcher {
+  min-height: 38px; max-width: 230px;
+  border: 1px solid #dbe6e4; border-radius: 10px;
+  background: #fff; color: #17313a; padding: 0 10px;
+  font-size: .82rem; font-weight: 700;
+}
+
 /* ─── Forum ──────────────────────────────────────── */
 .forum-thread-row { display: flex; gap: 14px; align-items: center; padding: 14px 16px; background: #fff; border: 1px solid #dbe6e4; border-radius: 12px; cursor: pointer; transition: background 0.15s; }
 .forum-thread-row:hover { background: #f4faf9; }
@@ -1178,6 +1199,8 @@ input, select, textarea { font: inherit; }
   .planner-grid { grid-template-columns: 1fr; }
   .coach-bubble { max-width: 94%; }
   .coach-input-row { grid-template-columns: 1fr; }
+  .impersonation-banner { align-items: stretch; flex-direction: column; }
+  .portal-switcher { max-width: none; width: 100%; }
   .analytics-topic-row { align-items: flex-start; flex-wrap: wrap; }
   .analytics-topic-name { width: 100%; min-width: 0; }
   .analytics-topic-row .progress-track { order: 3; flex-basis: 100% !important; margin: 4px 0 0 !important; }

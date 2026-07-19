@@ -4,11 +4,11 @@ import {
   Activity, BarChart3, BookOpen, Brain, CalendarDays, CheckCircle2,
   ClipboardCheck, CreditCard, FileBadge, GraduationCap, LayoutDashboard,
   LockKeyhole, MessageSquareText, MonitorPlay, ShieldCheck, Sparkles, BookmarkCheck,
-  Stethoscope, Target, Users, Video, ChevronRight, Bell, Menu, X, CreditCard as PayIcon,
+  Stethoscope, Target, Users, Video, ChevronRight, Bell, Menu, X, CreditCard as PayIcon, Eye,
 } from 'lucide-react';
 import {
   checkTableAvailability, getCurrentSession, onAuthStateChange,
-  isConfiguredSuperAdmin, resendEmailConfirmation, sendPasswordResetEmail, signInWithEmail, signOut,
+  endImpersonationSession, isConfiguredSuperAdmin, resendEmailConfirmation, sendPasswordResetEmail, signInWithEmail, signOut,
   signUpWithEmail, supabaseConfig, updatePassword, nurseFacultyTables,
 } from './services/supabase';
 import StudentDashboard from './components/StudentDashboard';
@@ -382,6 +382,17 @@ const NAV = [
 const VALID_VIEW_KEYS = new Set(NAV.map((n) => n.viewKey ?? n.label));
 const DEFAULT_VIEW = 'Dashboard';
 const ACTIVE_VIEW_STORAGE_KEY = 'nursefaculty.activeView';
+const SUPPORT_VIEW_STORAGE_KEY = 'nursefaculty.supportView';
+
+const PORTAL_PREVIEWS = [
+  { key: 'super_admin', label: 'Super Admin', roles: ['super_admin'], landing: 'Super Admin' },
+  { key: 'student', label: 'Student Portal', roles: ['student'], landing: 'Dashboard' },
+  { key: 'instructor', label: 'Instructor Portal', roles: ['instructor'], landing: 'Instructors' },
+  { key: 'finance', label: 'Finance Portal', roles: ['finance'], landing: 'Payments' },
+  { key: 'content_reviewer', label: 'Content Review', roles: ['content_reviewer'], landing: 'Content Review' },
+  { key: 'admin', label: 'Admin Portal', roles: ['admin'], landing: 'AdminQuestions' },
+  { key: 'department_admin', label: 'Department Head', roles: ['department_admin'], landing: 'Instructors' },
+];
 
 function getInitialView() {
   if (typeof window === 'undefined') return DEFAULT_VIEW;
@@ -494,11 +505,57 @@ function App() {
   const [session, setSession] = useState(null);
   const [authReady, setAuthReady] = useState(false);
   const [isPasswordRecovery, setIsPasswordRecovery] = useState(false);
+  const [supportView, setSupportView] = useState(() => {
+    try {
+      const raw = window.localStorage.getItem(SUPPORT_VIEW_STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (_) {
+      return null;
+    }
+  });
   const { roles, hasAdminAccess, planLabel, isFaculty, loading: accessLoading } = useSubscription(session);
   const navigateTo = (view) => {
     setActiveView(view);
     setMobileNavOpen(false);
   };
+
+  function startPortalPreview(previewKey) {
+    if (previewKey === 'normal') {
+      exitSupportView();
+      return;
+    }
+    const portal = PORTAL_PREVIEWS.find((item) => item.key === previewKey);
+    if (!portal) return;
+    const next = {
+      type: 'portal',
+      portalKey: portal.key,
+      portalLabel: portal.label,
+      roles: portal.roles,
+      startedBy: session?.user?.email,
+      startedAt: new Date().toISOString(),
+    };
+    setSupportView(next);
+    navigateTo(portal.landing);
+  }
+
+  async function startUserViewAs(payload) {
+    const next = {
+      type: 'impersonation',
+      portalLabel: `${payload.userName}`,
+      roles: [payload.role],
+      startedAt: new Date().toISOString(),
+      ...payload,
+    };
+    setSupportView(next);
+    const portal = PORTAL_PREVIEWS.find((item) => item.roles.includes(payload.role));
+    navigateTo(portal?.landing ?? 'Dashboard');
+  }
+
+  async function exitSupportView() {
+    if (supportView?.auditId) await endImpersonationSession(supportView.auditId);
+    setSupportView(null);
+    window.localStorage.removeItem(SUPPORT_VIEW_STORAGE_KEY);
+  }
 
   useEffect(() => {
     if (!VALID_VIEW_KEYS.has(activeView)) return;
@@ -506,6 +563,11 @@ function App() {
     const hash = `#/${encodeURIComponent(activeView)}`;
     if (window.location.hash !== hash) window.history.replaceState(null, '', hash);
   }, [activeView]);
+
+  useEffect(() => {
+    if (supportView) window.localStorage.setItem(SUPPORT_VIEW_STORAGE_KEY, JSON.stringify(supportView));
+    else window.localStorage.removeItem(SUPPORT_VIEW_STORAGE_KEY);
+  }, [supportView]);
 
   useEffect(() => {
     if (!mobileNavOpen) return undefined;
@@ -546,25 +608,30 @@ function App() {
   const [navExpanded, setNavExpanded] = useState(false);
   const learnNav = (navExpanded || isActiveInMore) ? [...learnNavCore, ...learnNavMore] : learnNavCore;
   const manageNav = NAV.filter((n) => n.group === 'manage');
-  const isInstructor = roles.includes('instructor');
-  const isFinance = roles.includes('finance');
-  const isReviewer = roles.includes('content_reviewer') || roles.includes('question_bank_manager') || roles.includes('guest_reviewer');
-  const isQuestionManager = roles.includes('question_bank_manager');
-  const isExamOfficer = roles.includes('exam_officer');
-  const isDepartmentAdmin = roles.includes('department_admin');
-  const isSupportOfficer = roles.includes('support_officer');
-  const isRegistrar = roles.includes('academic_registrar');
-  const isLibraryManager = roles.includes('library_manager');
-  const isAnalyticsManager = roles.includes('analytics_manager');
-  const isSuperAdmin = roles.includes('super_admin') || isConfiguredSuperAdmin(session?.user?.email);
+  const effectiveRoles = supportView?.roles?.length ? supportView.roles : roles;
+  const isInstructor = effectiveRoles.includes('instructor');
+  const isFinance = effectiveRoles.includes('finance');
+  const isReviewer = effectiveRoles.includes('content_reviewer') || effectiveRoles.includes('question_bank_manager') || effectiveRoles.includes('guest_reviewer');
+  const isQuestionManager = effectiveRoles.includes('question_bank_manager');
+  const isExamOfficer = effectiveRoles.includes('exam_officer');
+  const isDepartmentAdmin = effectiveRoles.includes('department_admin');
+  const isSupportOfficer = effectiveRoles.includes('support_officer');
+  const isRegistrar = effectiveRoles.includes('academic_registrar');
+  const isLibraryManager = effectiveRoles.includes('library_manager');
+  const isAnalyticsManager = effectiveRoles.includes('analytics_manager');
+  const isSuperAdmin = !supportView && (roles.includes('super_admin') || isConfiguredSuperAdmin(session?.user?.email))
+    || effectiveRoles.includes('super_admin');
+  const effectiveHasAdminAccess = supportView
+    ? effectiveRoles.some((role) => ['admin', 'super_admin'].includes(role))
+    : hasAdminAccess;
   const canAccessView = (view) => {
     if (SUPER_ADMIN_VIEWS.has(view)) return isSuperAdmin;
     if (view === 'Users') return isSuperAdmin || isDepartmentAdmin || isSupportOfficer || isRegistrar;
     if (view === 'Analytics') return true;
-    if (ADMIN_VIEWS.has(view)) return hasAdminAccess || (view === 'AdminQuestions' && (isReviewer || isInstructor || isQuestionManager || isExamOfficer));
-    if (FINANCE_VIEWS.has(view)) return hasAdminAccess || isFinance;
-    if (INSTRUCTOR_VIEWS.has(view)) return hasAdminAccess || isInstructor || isDepartmentAdmin || (view === 'Video Manager' && isLibraryManager) || (view === 'Classroom' && isExamOfficer);
-    if (REVIEWER_VIEWS.has(view)) return hasAdminAccess || isReviewer || isQuestionManager;
+    if (ADMIN_VIEWS.has(view)) return effectiveHasAdminAccess || (view === 'AdminQuestions' && (isReviewer || isInstructor || isQuestionManager || isExamOfficer));
+    if (FINANCE_VIEWS.has(view)) return effectiveHasAdminAccess || isFinance;
+    if (INSTRUCTOR_VIEWS.has(view)) return effectiveHasAdminAccess || isInstructor || isDepartmentAdmin || (view === 'Video Manager' && isLibraryManager) || (view === 'Classroom' && isExamOfficer);
+    if (REVIEWER_VIEWS.has(view)) return effectiveHasAdminAccess || isReviewer || isQuestionManager;
     if (view === 'Resources') return true;
     return true;
   };
@@ -574,7 +641,7 @@ function App() {
   useEffect(() => {
     if (!session || accessLoading) return;
     if (!canAccessView(activeView)) setActiveView('Dashboard');
-  }, [session, accessLoading, activeView, hasAdminAccess, isSuperAdmin, isInstructor, isFinance, isReviewer, isQuestionManager, isExamOfficer, isDepartmentAdmin, isSupportOfficer, isRegistrar, isLibraryManager, isAnalyticsManager]);
+  }, [session, accessLoading, activeView, effectiveHasAdminAccess, isSuperAdmin, isInstructor, isFinance, isReviewer, isQuestionManager, isExamOfficer, isDepartmentAdmin, isSupportOfficer, isRegistrar, isLibraryManager, isAnalyticsManager]);
 
   if (!authReady || (session && accessLoading)) {
     return (
@@ -665,6 +732,17 @@ function App() {
       </aside>
 
       <section className="workspace">
+        {supportView && (
+          <div className="impersonation-banner">
+            <div>
+              <Eye size={16} />
+              <span>{supportView.type === 'impersonation' ? 'Viewing as' : 'Portal preview'}</span>
+              <strong>{supportView.type === 'impersonation' ? supportView.userName : supportView.portalLabel}</strong>
+              <small>Role: {(supportView.roles ?? []).join(', ').replaceAll('_', ' ')} · Started by {supportView.startedBy || session.user.email}</small>
+            </div>
+            <button className="ghost-btn" onClick={exitSupportView}>Exit View</button>
+          </div>
+        )}
         <header className="topbar">
           <div>
             <div className="topbar-heading">
@@ -682,6 +760,20 @@ function App() {
             <h2>{activeView}</h2>
           </div>
           <div className="topbar-actions">
+            {(roles.includes('admin') || roles.includes('super_admin') || isConfiguredSuperAdmin(session?.user?.email)) && (
+              <select
+                className="portal-switcher"
+                value={supportView?.type === 'portal' ? supportView.portalKey : supportView?.type === 'impersonation' ? 'impersonation' : 'normal'}
+                onChange={(event) => startPortalPreview(event.target.value)}
+                title="Current portal preview"
+              >
+                <option value="normal">Current Portal: My Access</option>
+                {supportView?.type === 'impersonation' && <option value="impersonation">Viewing: {supportView.userName}</option>}
+                {PORTAL_PREVIEWS.map((portal) => (
+                  <option key={portal.key} value={portal.key}>{portal.label}</option>
+                ))}
+              </select>
+            )}
             <NotificationsBell session={session} />
             <button className="ghost-btn" onClick={() => setActiveView('Analytics')}>
               <BarChart3 size={18} /> Analytics
@@ -719,16 +811,16 @@ function App() {
           </SubscriptionGate>
         )}
         {activeView === 'Super Admin' && isSuperAdmin && <SuperAdminPanel session={session} />}
-        {activeView === 'Users' && isSuperAdmin && <UserManagement session={session} />}
-        {activeView === 'AdminQuestions' && (hasAdminAccess || isReviewer) && <QuestionManager session={session} />}
+        {activeView === 'Users' && isSuperAdmin && <UserManagement session={session} onStartViewAs={startUserViewAs} />}
+        {activeView === 'AdminQuestions' && (effectiveHasAdminAccess || isReviewer) && <QuestionManager session={session} />}
         {activeView === 'Billing' && <PaymentsView session={session} />}
-        {activeView === 'Payments' && (hasAdminAccess || isFinance) && <PaymentsView session={session} canManage />}
-        {activeView === 'Instructors' && (hasAdminAccess || isInstructor) && <InstructorTools session={session} />}
-        {activeView === 'Content Review' && (hasAdminAccess || isReviewer) && <ContentReviewer session={session} />}
-        {activeView === 'Announcements' && (hasAdminAccess || isInstructor) && <AnnouncementsView session={session} />}
-        {activeView === 'Classroom' && (hasAdminAccess || isInstructor) && <VirtualClassroom session={session} />}
-        {activeView === 'Video Manager' && (hasAdminAccess || isInstructor) && <VideoManager session={session} />}
-        {activeView === 'Audit Logs' && hasAdminAccess && <AuditLogView session={session} />}
+        {activeView === 'Payments' && (effectiveHasAdminAccess || isFinance) && <PaymentsView session={session} canManage />}
+        {activeView === 'Instructors' && (effectiveHasAdminAccess || isInstructor) && <InstructorTools session={session} />}
+        {activeView === 'Content Review' && (effectiveHasAdminAccess || isReviewer) && <ContentReviewer session={session} />}
+        {activeView === 'Announcements' && (effectiveHasAdminAccess || isInstructor) && <AnnouncementsView session={session} />}
+        {activeView === 'Classroom' && (effectiveHasAdminAccess || isInstructor) && <VirtualClassroom session={session} />}
+        {activeView === 'Video Manager' && (effectiveHasAdminAccess || isInstructor) && <VideoManager session={session} />}
+        {activeView === 'Audit Logs' && effectiveHasAdminAccess && <AuditLogView session={session} />}
         {activeView === 'Study Coach' && <StudyCoachView session={session} />}
         {activeView === 'Resources' && (
           <SubscriptionGate session={session} requiredPlan="pro" featureName="all courses, notes, and drug guide" onUpgrade={() => setActiveView('Billing')}>
