@@ -78,6 +78,10 @@ function formatGhs(usdAmount) {
   }).format(Number(usdAmount || 0) * USD_TO_GHS_RATE);
 }
 
+function formatUsd(usdAmount) {
+  return `$${Number(usdAmount || 0).toFixed(2)}`;
+}
+
 function planKey(name) {
   const value = String(name ?? '').toLowerCase();
   if (value.includes('365')) return 'faculty_365';
@@ -127,11 +131,28 @@ export default function PaymentsView({ session, canManage = false }) {
   const [subSearch, setSubSearch] = useState('');
   const [subPlanFilter, setSubPlanFilter] = useState('all');
   const [subStatusFilter, setSubStatusFilter] = useState('all');
-  const [newPromo, setNewPromo] = useState({ code: '', discount_pct: 10, max_uses: '', expires_at: '' });
+  const [newPromo, setNewPromo] = useState({
+    code: '',
+    name: '',
+    description: '',
+    discount_type: 'percentage',
+    discount_value: 10,
+    applies_to_plans: [],
+    valid_from: '',
+    expires_at: '',
+    max_uses: '',
+    max_per_user: 1,
+    eligibility: 'all',
+    minimum_purchase_usd: '',
+  });
   const [showPromoForm, setShowPromoForm] = useState(false);
   const [mmPlan, setMmPlan] = useState('thirty_day');
   const [mmPhone, setMmPhone] = useState('');
   const [mmChannel, setMmChannel] = useState('mtn');
+  const [promoCode, setPromoCode] = useState('');
+  const [appliedPromo, setAppliedPromo] = useState(null);
+  const [promoLoading, setPromoLoading] = useState(false);
+  const [promoError, setPromoError] = useState('');
   const [mmLoading, setMmLoading] = useState(false);
   const [activatingInvoice, setActivatingInvoice] = useState('');
   const [paymentMessage, setPaymentMessage] = useState('');
@@ -194,6 +215,94 @@ export default function PaymentsView({ session, canManage = false }) {
   const coachLimitLabel = Number.isFinite(subscription.entitlements.coachDailyLimit)
     ? `${subscription.entitlements.coachDailyLimit} chats/day`
     : 'Unlimited';
+  const paidPlans = plans.filter((plan) => Number(plan.price_usd) > 0);
+  const mobileMoneyPlan = paidPlans.find((plan) => planKey(plan.name) === mmPlan) ?? paidPlans[0];
+  const mobileMoneyBaseUsd = Number(mobileMoneyPlan?.price_usd ?? 0);
+  const activePromoForMobileMoney = appliedPromo?.plan_key === mmPlan ? appliedPromo : null;
+  const mobileMoneyDiscountUsd = Number(activePromoForMobileMoney?.discount_amount_usd ?? 0);
+  const mobileMoneyFinalUsd = Number(activePromoForMobileMoney?.final_amount_usd ?? mobileMoneyBaseUsd);
+
+  useEffect(() => {
+    if (appliedPromo && appliedPromo.plan_key !== mmPlan && !selectedQuote) {
+      setAppliedPromo(null);
+      setPromoCode('');
+      setPromoError('');
+    }
+  }, [mmPlan, appliedPromo, selectedQuote]);
+
+  function localPromoValidation(code, planKeyValue, amountUsd) {
+    const promo = promos.find((item) => String(item.code).toUpperCase() === String(code).trim().toUpperCase());
+    if (!promo) return { valid: false, reason: 'Promo code does not exist.' };
+    if (!promo.is_active) return { valid: false, reason: 'Promo code is inactive.' };
+    if (promo.expires_at && new Date(promo.expires_at) < new Date()) return { valid: false, reason: 'Promo code has expired.' };
+    if (promo.max_uses && Number(promo.used_count ?? 0) >= Number(promo.max_uses)) return { valid: false, reason: 'Promo code redemption limit has been reached.' };
+    const appliesTo = Array.isArray(promo.applies_to_plans) ? promo.applies_to_plans : [];
+    if (appliesTo.length && !appliesTo.includes(planKeyValue)) return { valid: false, reason: 'Promo code is not valid for this subscription plan.' };
+    const type = promo.discount_type ?? 'percentage';
+    const value = Number(promo.discount_value ?? promo.discount_amount ?? promo.discount_pct ?? 0);
+    const discount = type === 'percentage' ? Math.round((amountUsd * Math.min(value, 100)) * 100) / 100
+      : type === 'fixed_amount' ? Math.min(amountUsd, value)
+      : 0;
+    return {
+      valid: true,
+      promo_id: promo.id,
+      code: promo.code,
+      name: promo.name ?? promo.code,
+      discount_type: type,
+      discount_value: value,
+      original_amount_usd: amountUsd,
+      discount_amount_usd: discount,
+      final_amount_usd: Math.max(amountUsd - discount, 0),
+      message: type === 'free_trial' ? `${promo.trial_days ?? 0} days free trial applied.` : 'Promo code applied successfully.',
+    };
+  }
+
+  async function applyPromo(planKeyValue = mmPlan, amountUsd = mobileMoneyBaseUsd) {
+    const code = promoCode.trim();
+    setPromoError('');
+    if (!code) {
+      setPromoError('Enter a promo code first.');
+      return;
+    }
+    if (!session && supabase) {
+      setPromoError('Sign in before applying a promo code.');
+      return;
+    }
+    setPromoLoading(true);
+    try {
+      let result = null;
+      if (supabase) {
+        const { data, error } = await supabase.rpc('validate_promo_code', {
+          p_code: code,
+          p_plan_key: planKeyValue,
+          p_amount_usd: Number(amountUsd),
+          p_user_id: session?.user?.id ?? null,
+        });
+        if (error) throw error;
+        result = data;
+      } else {
+        result = localPromoValidation(code, planKeyValue, Number(amountUsd));
+      }
+      if (!result?.valid) {
+        setAppliedPromo(null);
+        setPromoError(result?.reason ?? 'Promo code is not valid.');
+        return;
+      }
+      setAppliedPromo({ ...result, plan_key: planKeyValue });
+      setPromoCode(String(result.code ?? code).toUpperCase());
+    } catch (err) {
+      setAppliedPromo(null);
+      setPromoError(err.message ?? 'Could not validate promo code.');
+    } finally {
+      setPromoLoading(false);
+    }
+  }
+
+  function removePromo() {
+    setAppliedPromo(null);
+    setPromoCode('');
+    setPromoError('');
+  }
 
   async function togglePromo(id, current) {
     if (supabase) await supabase.from('promo_codes').update({ is_active: !current }).eq('id', id);
@@ -201,22 +310,47 @@ export default function PaymentsView({ session, canManage = false }) {
   }
 
   async function savePromo() {
+    const numericDiscount = Number(newPromo.discount_value);
     const payload = {
       code: newPromo.code.toUpperCase().trim(),
-      discount_pct: Number(newPromo.discount_pct),
+      name: newPromo.name.trim() || newPromo.code.toUpperCase().trim(),
+      description: newPromo.description || null,
+      discount_type: newPromo.discount_type,
+      discount_value: numericDiscount,
+      discount_amount: numericDiscount,
+      discount_pct: newPromo.discount_type === 'percentage' ? Number(numericDiscount) : 0,
+      applies_to_plans: newPromo.applies_to_plans,
+      valid_from: newPromo.valid_from || null,
       max_uses: newPromo.max_uses ? Number(newPromo.max_uses) : null,
+      max_per_user: newPromo.max_per_user ? Number(newPromo.max_per_user) : 1,
+      eligibility: newPromo.eligibility,
+      minimum_purchase_usd: newPromo.minimum_purchase_usd ? Number(newPromo.minimum_purchase_usd) : null,
       expires_at: newPromo.expires_at || null,
       is_active: true,
       used_count: 0,
+      created_by: session?.user?.id ?? null,
     };
-    if (!payload.code || !payload.discount_pct) return;
+    if (!payload.code || !payload.discount_value) return;
     if (supabase) {
       const { data } = await supabase.from('promo_codes').insert(payload).select().single();
       if (data) setPromos((prev) => [data, ...prev]);
     } else {
       setPromos((prev) => [{ ...payload, id: `p${Date.now()}` }, ...prev]);
     }
-    setNewPromo({ code: '', discount_pct: 10, max_uses: '', expires_at: '' });
+    setNewPromo({
+      code: '',
+      name: '',
+      description: '',
+      discount_type: 'percentage',
+      discount_value: 10,
+      applies_to_plans: [],
+      valid_from: '',
+      expires_at: '',
+      max_uses: '',
+      max_per_user: 1,
+      eligibility: 'all',
+      minimum_purchase_usd: '',
+    });
     setShowPromoForm(false);
   }
 
@@ -233,7 +367,13 @@ export default function PaymentsView({ session, canManage = false }) {
     setMmLoading(true);
     try {
       const { data: result, error } = await supabase.functions.invoke('create-paystack-order', {
-        body: { planId: mmPlan, channel: mmChannel, phone: mmPhone, callbackUrl: window.location.origin },
+        body: {
+          planId: mmPlan,
+          channel: mmChannel,
+          phone: mmPhone,
+          callbackUrl: window.location.origin,
+          promoCode: activePromoForMobileMoney?.code ?? null,
+        },
       });
       if (error) throw new Error(error.message || 'Mobile Money is temporarily unavailable.');
       if (result?.url) {
@@ -275,6 +415,41 @@ export default function PaymentsView({ session, canManage = false }) {
     )));
     setPaymentMessage(`${inv.user_email ?? 'Student'} now has active ${inv.plan_name} access.`);
     setActivatingInvoice('');
+  }
+
+  function renderPromoBox(planKeyValue, amountUsd) {
+    const promoForPlan = appliedPromo?.plan_key === planKeyValue ? appliedPromo : null;
+    return (
+      <div style={{ padding: 14, borderRadius: 12, border: '1px solid #dbe6e4', background: '#f8fbfa', display: 'grid', gap: 10 }}>
+        <label style={{ fontWeight: 800, color: '#17212f', fontSize: '0.88rem' }}>Have a promo code?</label>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input
+            value={promoCode}
+            onChange={(e) => { setPromoCode(e.target.value.toUpperCase()); setPromoError(''); }}
+            placeholder="WELCOME50"
+            style={{ flex: 1, height: 38, borderRadius: 8, border: '1px solid #dbe6e4', padding: '0 12px', fontWeight: 800, letterSpacing: '0.04em' }}
+          />
+          {promoForPlan ? (
+            <button className="ghost-btn" onClick={removePromo}>Remove</button>
+          ) : (
+            <button className="primary-btn" onClick={() => applyPromo(planKeyValue, amountUsd)} disabled={promoLoading || !promoCode.trim()}>
+              {promoLoading ? 'Checking…' : 'Apply'}
+            </button>
+          )}
+        </div>
+        {promoError && <span style={{ color: '#8a2c21', fontSize: '0.82rem', fontWeight: 700 }}>{promoError}</span>}
+        {promoForPlan && (
+          <div style={{ display: 'grid', gap: 6, padding: 10, borderRadius: 10, background: '#e9f6f4', color: '#135f55', fontSize: '0.84rem' }}>
+            <strong>{promoForPlan.code} applied — {promoForPlan.message ?? 'Promo code applied successfully.'}</strong>
+            <div style={{ display: 'grid', gap: 4, color: '#42585e' }}>
+              <span>Original: <strong>{formatUsd(promoForPlan.original_amount_usd)}</strong></span>
+              <span>Discount: <strong>-{formatUsd(promoForPlan.discount_amount_usd)}</strong></span>
+              <span>Total: <strong>{formatUsd(promoForPlan.final_amount_usd)} / {formatGhs(promoForPlan.final_amount_usd)}</strong></span>
+            </div>
+          </div>
+        )}
+      </div>
+    );
   }
 
   return (
@@ -558,10 +733,15 @@ export default function PaymentsView({ session, canManage = false }) {
             <div style={{ padding: 22 }}>
               <div style={{ padding: '18px 20px', borderRadius: 14, background: 'linear-gradient(135deg, #e9f6f4, #f8fbfa)', border: '1px solid #cfe5e1' }}>
                 <span style={{ display: 'block', color: '#607478', fontSize: '0.8rem', marginBottom: 4 }}>Estimated pass amount in Ghana cedis</span>
-                <strong style={{ display: 'block', color: '#102027', fontSize: '2rem', lineHeight: 1.1 }}>{formatGhs(selectedQuote.price_usd)}</strong>
+                <strong style={{ display: 'block', color: '#102027', fontSize: '2rem', lineHeight: 1.1 }}>
+                  {formatGhs(appliedPromo?.plan_key === planKey(selectedQuote.name) ? appliedPromo.final_amount_usd : selectedQuote.price_usd)}
+                </strong>
                 <span style={{ display: 'block', color: '#607478', fontSize: '0.78rem', marginTop: 7 }}>
-                  ${Number(selectedQuote.price_usd).toFixed(2)} USD × {USD_TO_GHS_RATE.toFixed(2)} GHS
+                  {formatUsd(appliedPromo?.plan_key === planKey(selectedQuote.name) ? appliedPromo.final_amount_usd : selectedQuote.price_usd)} USD × {USD_TO_GHS_RATE.toFixed(2)} GHS
                 </span>
+              </div>
+              <div style={{ marginTop: 12 }}>
+                {renderPromoBox(planKey(selectedQuote.name), Number(selectedQuote.price_usd))}
               </div>
               <p style={{ color: '#52666b', fontSize: '0.84rem', lineHeight: 1.55, margin: '14px 0' }}>
                 This is an indicative cedi conversion. The final provider amount may vary slightly with the payment-day exchange rate.
@@ -716,13 +896,30 @@ export default function PaymentsView({ session, canManage = false }) {
             <div>
               <label style={{ fontWeight: 600, fontSize: '0.9rem', display: 'block', marginBottom: 6 }}>Select Plan</label>
               <select value={mmPlan} onChange={(e) => setMmPlan(e.target.value)} style={{ width: '100%', height: 42, borderRadius: 10, border: '1.5px solid #dbe6e4', padding: '0 14px', fontSize: '0.9rem' }}>
-                {plans.filter((plan) => Number(plan.price_usd) > 0).map((plan) => (
+                {paidPlans.map((plan) => (
                   <option key={plan.id} value={planKey(plan.name)}>
                     {plan.name} — {formatGhs(plan.price_usd)} / {plan.duration_days} days
                   </option>
                 ))}
               </select>
             </div>
+            <div style={{ padding: 14, borderRadius: 12, background: '#fff', border: '1px solid #e1ebe9', display: 'grid', gap: 8 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: '0.86rem', color: '#42585e' }}>
+                <span>Original price</span>
+                <strong>{formatUsd(mobileMoneyBaseUsd)} / {formatGhs(mobileMoneyBaseUsd)}</strong>
+              </div>
+              {activePromoForMobileMoney && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: '0.86rem', color: '#135f55' }}>
+                  <span>Promo discount ({activePromoForMobileMoney.code})</span>
+                  <strong>-{formatUsd(mobileMoneyDiscountUsd)}</strong>
+                </div>
+              )}
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, borderTop: '1px solid #e1ebe9', paddingTop: 8 }}>
+                <span style={{ fontWeight: 800, color: '#17212f' }}>Total to pay</span>
+                <strong style={{ color: '#17212f' }}>{formatUsd(mobileMoneyFinalUsd)} / {formatGhs(mobileMoneyFinalUsd)}</strong>
+              </div>
+            </div>
+            {renderPromoBox(mmPlan, mobileMoneyBaseUsd)}
             <div>
               <label style={{ fontWeight: 600, fontSize: '0.9rem', display: 'block', marginBottom: 6 }}>Mobile Network</label>
               <div style={{ display: 'flex', gap: 10 }}>
@@ -850,21 +1047,65 @@ export default function PaymentsView({ session, canManage = false }) {
                   <input value={newPromo.code} onChange={(e) => setNewPromo((p) => ({ ...p, code: e.target.value.toUpperCase() }))} placeholder="e.g. SAVE20" style={{ height: 38, borderRadius: 8, border: '1px solid #dbe6e4', padding: '0 12px' }} />
                 </div>
                 <div className="qm-form-row">
-                  <label>Discount %</label>
-                  <input type="number" min="1" max="100" value={newPromo.discount_pct} onChange={(e) => setNewPromo((p) => ({ ...p, discount_pct: e.target.value }))} style={{ height: 38, borderRadius: 8, border: '1px solid #dbe6e4', padding: '0 12px' }} />
+                  <label>Name</label>
+                  <input value={newPromo.name} onChange={(e) => setNewPromo((p) => ({ ...p, name: e.target.value }))} placeholder="Welcome Offer" style={{ height: 38, borderRadius: 8, border: '1px solid #dbe6e4', padding: '0 12px' }} />
+                </div>
+                <div className="qm-form-row">
+                  <label>Discount Type</label>
+                  <select value={newPromo.discount_type} onChange={(e) => setNewPromo((p) => ({ ...p, discount_type: e.target.value }))} style={{ height: 38, borderRadius: 8, border: '1px solid #dbe6e4', padding: '0 12px' }}>
+                    <option value="percentage">Percentage</option>
+                    <option value="fixed_amount">Fixed USD amount</option>
+                    <option value="free_trial">Free trial</option>
+                    <option value="free_upgrade">Free upgrade</option>
+                  </select>
+                </div>
+                <div className="qm-form-row">
+                  <label>{newPromo.discount_type === 'percentage' ? 'Discount %' : newPromo.discount_type === 'fixed_amount' ? 'Discount USD' : 'Benefit Value'}</label>
+                  <input type="number" min="0" max={newPromo.discount_type === 'percentage' ? 100 : undefined} value={newPromo.discount_value} onChange={(e) => setNewPromo((p) => ({ ...p, discount_value: e.target.value }))} style={{ height: 38, borderRadius: 8, border: '1px solid #dbe6e4', padding: '0 12px' }} />
+                </div>
+                <div className="qm-form-row">
+                  <label>Applies To Plans</label>
+                  <select multiple value={newPromo.applies_to_plans} onChange={(e) => setNewPromo((p) => ({ ...p, applies_to_plans: [...e.target.selectedOptions].map((option) => option.value) }))} style={{ minHeight: 92, borderRadius: 8, border: '1px solid #dbe6e4', padding: 8 }}>
+                    {paidPlans.map((plan) => <option key={plan.id} value={planKey(plan.name)}>{plan.name}</option>)}
+                  </select>
+                  <span style={{ fontSize: '0.75rem', color: '#607478' }}>Leave unselected for all paid plans.</span>
+                </div>
+                <div className="qm-form-row">
+                  <label>Valid From</label>
+                  <input type="date" value={newPromo.valid_from} onChange={(e) => setNewPromo((p) => ({ ...p, valid_from: e.target.value }))} style={{ height: 38, borderRadius: 8, border: '1px solid #dbe6e4', padding: '0 12px' }} />
                 </div>
                 <div className="qm-form-row">
                   <label>Max Uses (blank = unlimited)</label>
                   <input type="number" min="1" value={newPromo.max_uses} onChange={(e) => setNewPromo((p) => ({ ...p, max_uses: e.target.value }))} placeholder="Unlimited" style={{ height: 38, borderRadius: 8, border: '1px solid #dbe6e4', padding: '0 12px' }} />
                 </div>
                 <div className="qm-form-row">
+                  <label>Max Per User</label>
+                  <input type="number" min="1" value={newPromo.max_per_user} onChange={(e) => setNewPromo((p) => ({ ...p, max_per_user: e.target.value }))} style={{ height: 38, borderRadius: 8, border: '1px solid #dbe6e4', padding: '0 12px' }} />
+                </div>
+                <div className="qm-form-row">
                   <label>Expiry Date (blank = never)</label>
                   <input type="date" value={newPromo.expires_at} onChange={(e) => setNewPromo((p) => ({ ...p, expires_at: e.target.value }))} style={{ height: 38, borderRadius: 8, border: '1px solid #dbe6e4', padding: '0 12px' }} />
                 </div>
+                <div className="qm-form-row">
+                  <label>Eligibility</label>
+                  <select value={newPromo.eligibility} onChange={(e) => setNewPromo((p) => ({ ...p, eligibility: e.target.value }))} style={{ height: 38, borderRadius: 8, border: '1px solid #dbe6e4', padding: '0 12px' }}>
+                    <option value="all">All users</option>
+                    <option value="new_users">New subscribers only</option>
+                    <option value="existing_users">Existing subscribers only</option>
+                  </select>
+                </div>
+                <div className="qm-form-row">
+                  <label>Minimum Purchase USD</label>
+                  <input type="number" min="0" value={newPromo.minimum_purchase_usd} onChange={(e) => setNewPromo((p) => ({ ...p, minimum_purchase_usd: e.target.value }))} placeholder="Optional" style={{ height: 38, borderRadius: 8, border: '1px solid #dbe6e4', padding: '0 12px' }} />
+                </div>
+              </div>
+              <div className="qm-form-row" style={{ marginTop: 12 }}>
+                <label>Description</label>
+                <textarea value={newPromo.description} onChange={(e) => setNewPromo((p) => ({ ...p, description: e.target.value }))} rows={2} placeholder="Internal campaign notes, e.g. August nursing cohort welcome offer." />
               </div>
               <div className="editor-footer">
                 <button className="ghost-btn" onClick={() => setShowPromoForm(false)}>Cancel</button>
-                <button className="primary-btn" onClick={savePromo} disabled={!newPromo.code || !newPromo.discount_pct}>Save Promo</button>
+                <button className="primary-btn" onClick={savePromo} disabled={!newPromo.code || !newPromo.discount_value}>Save Promo</button>
               </div>
             </div>
           )}
@@ -873,8 +1114,12 @@ export default function PaymentsView({ session, canManage = false }) {
             <thead>
               <tr>
                 <th>Code</th>
+                <th>Name</th>
                 <th>Discount</th>
+                <th>Plans</th>
                 <th>Usage</th>
+                <th>Applied</th>
+                <th>Revenue</th>
                 <th>Expires</th>
                 <th>Status</th>
                 <th>Toggle</th>
@@ -884,8 +1129,14 @@ export default function PaymentsView({ session, canManage = false }) {
               {promos.map((p) => (
                 <tr key={p.id}>
                   <td><code style={{ background: '#e9f1ef', padding: '2px 8px', borderRadius: 4, fontWeight: 700 }}>{p.code}</code></td>
-                  <td><strong>{p.discount_pct}% off</strong></td>
+                  <td>{p.name ?? p.code}</td>
+                  <td><strong>{(p.discount_type ?? 'percentage') === 'percentage' ? `${p.discount_value ?? p.discount_pct}% off` : (p.discount_type === 'fixed_amount' ? `${formatUsd(p.discount_value ?? p.discount_amount)} off` : p.discount_type?.replace('_', ' '))}</strong></td>
+                  <td style={{ fontSize: '0.82rem', color: '#607478' }}>
+                    {Array.isArray(p.applies_to_plans) && p.applies_to_plans.length ? p.applies_to_plans.join(', ') : 'All paid plans'}
+                  </td>
                   <td>{p.used_count}{p.max_uses ? ` / ${p.max_uses}` : ''}</td>
+                  <td>{Number(p.applied_count ?? 0).toLocaleString()}</td>
+                  <td>{formatUsd(p.revenue_generated_usd ?? 0)}</td>
                   <td style={{ color: '#607478', fontSize: '0.84rem' }}>{p.expires_at ? new Date(p.expires_at).toLocaleDateString() : 'Never'}</td>
                   <td><span className={`status-badge status-${p.is_active ? 'paid' : 'failed'}`}>{p.is_active ? 'Active' : 'Inactive'}</span></td>
                   <td>

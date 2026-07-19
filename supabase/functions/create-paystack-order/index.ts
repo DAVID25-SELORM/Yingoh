@@ -19,6 +19,13 @@ const PLAN_AMOUNTS_GHS: Record<string, number> = {
   faculty_365: Math.round(129 * USD_TO_GHS * 100),
 };
 
+const PLAN_AMOUNTS_USD: Record<string, number> = {
+  thirty_day: 19,
+  ninety_day: 49,
+  master_180: 79,
+  faculty_365: 129,
+};
+
 const PLAN_NAMES: Record<string, string> = {
   thirty_day: '30-Day Pass',
   ninety_day: '90-Day Success Plan',
@@ -30,7 +37,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
-    const { planId, channel, phone, callbackUrl } = await req.json();
+    const { planId, channel, phone, callbackUrl, promoCode } = await req.json();
 
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
@@ -49,20 +56,64 @@ Deno.serve(async (req) => {
       });
     }
 
-    const amountPesewas = PLAN_AMOUNTS_GHS[planId];
-    if (!amountPesewas) {
+    const baseAmountUsd = PLAN_AMOUNTS_USD[planId];
+    if (!baseAmountUsd) {
       return new Response(JSON.stringify({ error: `Unknown plan: ${planId}` }), { status: 400, headers: corsHeaders });
+    }
+    let finalAmountUsd = baseAmountUsd;
+    let promoResult: Record<string, unknown> | null = null;
+
+    if (promoCode) {
+      const { data: validation, error: promoError } = await supabase.rpc('validate_promo_code', {
+        p_code: promoCode,
+        p_plan_key: planId,
+        p_amount_usd: baseAmountUsd,
+        p_user_id: user.id,
+      });
+      if (promoError) throw promoError;
+      if (!validation?.valid) {
+        return new Response(JSON.stringify({ error: validation?.reason ?? 'Promo code is not valid.' }), {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        });
+      }
+      promoResult = validation;
+      finalAmountUsd = Number(validation.final_amount_usd ?? baseAmountUsd);
+    }
+
+    const amountPesewas = Math.max(100, Math.round(finalAmountUsd * USD_TO_GHS * 100));
+    const reference = `nursefaculty-${planId}-${user.id.slice(0, 8)}-${Date.now()}`;
+
+    if (promoResult?.promo_id) {
+      await supabase.from('promo_redemptions').insert({
+        promo_id: promoResult.promo_id,
+        user_id: user.id,
+        plan_key: planId,
+        plan_name: PLAN_NAMES[planId],
+        original_amount_usd: baseAmountUsd,
+        discount_amount_usd: Number(promoResult.discount_amount_usd ?? 0),
+        final_amount_usd: finalAmountUsd,
+        status: 'applied',
+        provider: 'paystack',
+        provider_reference: reference,
+        metadata: { channel, phone_last4: String(phone ?? '').slice(-4) },
+      });
     }
 
     const body: Record<string, unknown> = {
       email: user.email,
       amount: amountPesewas,
       currency: 'GHS',
-      reference: `nursefaculty-${planId}-${user.id.slice(0, 8)}-${Date.now()}`,
+      reference,
       metadata: {
         supabase_user_id: user.id,
         plan_id: planId,
         plan_name: PLAN_NAMES[planId],
+        promo_code: promoResult?.code ?? null,
+        promo_id: promoResult?.promo_id ?? null,
+        original_amount_usd: baseAmountUsd,
+        discount_amount_usd: promoResult?.discount_amount_usd ?? 0,
+        final_amount_usd: finalAmountUsd,
       },
       callback_url: callbackUrl ?? 'https://nursefaculty.org/payment-success',
     };
