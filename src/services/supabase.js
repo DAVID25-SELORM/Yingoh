@@ -417,6 +417,38 @@ export async function consumeStudyCoachQuestion() {
   return result;
 }
 
+// RBAC permissions
+export async function getMyEffectivePermissions() {
+  if (!supabase) return { data: [], error: null };
+  return supabase.rpc('my_effective_permissions');
+}
+
+export async function getUserPermissionOverrides(userId) {
+  if (!supabase || !userId) return { data: [], error: null };
+  return supabase
+    .from('user_permission_overrides')
+    .select('permission_id,effect,reason,updated_at')
+    .eq('user_id', userId);
+}
+
+export async function setUserPermissionOverride(userId, permission, effect, reason = null) {
+  if (!supabase || !userId || !permission || !effect) return { error: new Error('Missing permission override details') };
+  return supabase.rpc('admin_set_user_permission_override', {
+    target_user_id: userId,
+    permission,
+    effect,
+    reason,
+  });
+}
+
+export async function clearUserPermissionOverride(userId, permission) {
+  if (!supabase || !userId || !permission) return { error: new Error('Missing permission override details') };
+  return supabase.rpc('admin_clear_user_permission_override', {
+    target_user_id: userId,
+    permission,
+  });
+}
+
 // Progress rollup
 export async function getUserProgress(userId) {
   if (!supabase || !userId) return { data: null, error: null };

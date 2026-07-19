@@ -3,10 +3,17 @@ import {
   CheckCircle2, Eye, Mail, PlusCircle, RefreshCw, Search,
   Shield, Trash2, User, UserCheck, X,
 } from 'lucide-react';
-import { supabase, signUpWithEmail, sendPasswordResetEmail } from '../services/supabase';
+import {
+  clearUserPermissionOverride,
+  getUserPermissionOverrides,
+  sendPasswordResetEmail,
+  setUserPermissionOverride,
+  signUpWithEmail,
+  supabase,
+} from '../services/supabase';
 import {
   getEffectivePermissions,
-  getPermissionGroupsForRoles,
+  PERMISSION_GROUPS,
   RBAC_ROLES as ALL_ROLES,
   ROLE_COLORS,
   ROLE_LOOKUP,
@@ -34,9 +41,19 @@ function RolePill({ role }) {
   );
 }
 
-function PermissionPreview({ roles }) {
-  const effective = getEffectivePermissions(roles);
-  const groups = getPermissionGroupsForRoles(roles);
+function PermissionPreview({ roles, overrides = {} }) {
+  const rolePermissions = new Set(getEffectivePermissions(roles));
+  Object.entries(overrides).forEach(([permission, effect]) => {
+    if (effect === 'allow') rolePermissions.add(permission);
+    if (effect === 'deny') rolePermissions.delete(permission);
+  });
+  const effective = [...rolePermissions].sort();
+  const groups = PERMISSION_GROUPS
+    .map((group) => ({
+      ...group,
+      granted: group.permissions.filter(([key]) => rolePermissions.has(key)),
+    }))
+    .filter((group) => group.granted.length > 0);
   return (
     <div style={{ marginTop: 12, padding: 14, background: '#f8fbfa', border: '1px solid #dde8e6', borderRadius: 12 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', marginBottom: 10 }}>
@@ -49,7 +66,7 @@ function PermissionPreview({ roles }) {
             <div style={{ fontSize: '0.76rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#2b8a7d', fontWeight: 800, marginBottom: 4 }}>{group.label}</div>
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {group.granted.map(([key, label]) => (
-                <span key={key} style={{ fontSize: '0.74rem', padding: '3px 8px', borderRadius: 999, background: '#fff', border: '1px solid #dbe6e4', color: '#42585e' }}>{label}</span>
+                <span key={key} style={{ fontSize: '0.74rem', padding: '3px 8px', borderRadius: 999, background: overrides[key] === 'allow' ? '#e2f5f2' : '#fff', border: `1px solid ${overrides[key] === 'allow' ? '#9dd8cf' : '#dbe6e4'}`, color: '#42585e' }}>{label}</span>
               ))}
             </div>
           </div>
@@ -67,6 +84,8 @@ export default function UserManagement({ session }) {
   const [tab, setTab] = useState('users'); // users | invites | add
   const [roleModal, setRoleModal] = useState(null); // user obj
   const [previewOpen, setPreviewOpen] = useState(true);
+  const [permissionOverrides, setPermissionOverrides] = useState({});
+  const [overrideSaving, setOverrideSaving] = useState('');
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState('');
   const [error, setError] = useState('');
@@ -189,6 +208,37 @@ export default function UserManagement({ session }) {
     ));
   }
 
+  async function openRoleModal(user) {
+    setRoleModal(user);
+    setPermissionOverrides({});
+    if (!supabase) return;
+    const { data } = await getUserPermissionOverrides(user.id);
+    setPermissionOverrides(Object.fromEntries((data ?? []).map((row) => [row.permission_id, row.effect])));
+  }
+
+  async function setOverride(permission, effect) {
+    if (!roleModal) return;
+    setOverrideSaving(permission);
+    setError('');
+    try {
+      if (supabase) {
+        const result = effect
+          ? await setUserPermissionOverride(roleModal.id, permission, effect)
+          : await clearUserPermissionOverride(roleModal.id, permission);
+        if (result.error) throw result.error;
+      }
+      setPermissionOverrides((prev) => {
+        const next = { ...prev };
+        if (effect) next[permission] = effect;
+        else delete next[permission];
+        return next;
+      });
+    } catch (err) {
+      setError(err.message ?? 'Could not update permission override.');
+    }
+    setOverrideSaving('');
+  }
+
   async function revokeInvite(id) {
     if (!window.confirm('Revoke this invite?')) return;
     if (supabase) await supabase.from('pending_invites').delete().eq('id', id);
@@ -280,7 +330,7 @@ export default function UserManagement({ session }) {
                     </td>
                     <td style={{ color: '#607478', fontSize: '0.82rem' }}>{new Date(u.created_at).toLocaleDateString()}</td>
                     <td>
-                      <button className="ghost-btn" style={{ fontSize: '0.78rem', padding: '5px 10px' }} onClick={() => setRoleModal(u)}>
+                      <button className="ghost-btn" style={{ fontSize: '0.78rem', padding: '5px 10px' }} onClick={() => openRoleModal(u)}>
                         <Shield size={13} /> Roles
                       </button>
                     </td>
@@ -445,7 +495,57 @@ export default function UserManagement({ session }) {
             <button className="ghost-btn" style={{ marginTop: 14 }} onClick={() => setPreviewOpen((value) => !value)}>
               <Eye size={14} /> {previewOpen ? 'Hide' : 'Preview'} Effective Permissions
             </button>
-            {previewOpen && <PermissionPreview roles={roleModal.roles ?? []} />}
+            {previewOpen && <PermissionPreview roles={roleModal.roles ?? []} overrides={permissionOverrides} />}
+            <div style={{ marginTop: 14, padding: 14, borderRadius: 12, background: '#f8fbfa', border: '1px solid #dde8e6' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 10 }}>
+                <strong style={{ fontSize: '0.9rem' }}>Custom Permission Overrides</strong>
+                <span style={{ fontSize: '0.76rem', color: '#607478' }}>Use sparingly</span>
+              </div>
+              <div style={{ display: 'grid', gap: 12, maxHeight: 300, overflow: 'auto' }}>
+                {PERMISSION_GROUPS.map((group) => (
+                  <div key={group.key}>
+                    <div style={{ fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#2b8a7d', fontWeight: 800, marginBottom: 6 }}>{group.label}</div>
+                    <div style={{ display: 'grid', gap: 6 }}>
+                      {group.permissions.map(([permission, label]) => {
+                        const effect = permissionOverrides[permission] ?? '';
+                        const savingThis = overrideSaving === permission;
+                        return (
+                          <div key={permission} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 8, alignItems: 'center', padding: '7px 8px', borderRadius: 8, background: '#fff', border: '1px solid #e1ebe9' }}>
+                            <span style={{ fontSize: '0.8rem', color: '#42585e' }}>{label}</span>
+                            <div style={{ display: 'flex', gap: 4 }}>
+                              {[
+                                ['', 'Inherited'],
+                                ['allow', 'Allow'],
+                                ['deny', 'Deny'],
+                              ].map(([value, text]) => (
+                                <button
+                                  key={value || 'inherit'}
+                                  type="button"
+                                  disabled={savingThis}
+                                  onClick={() => setOverride(permission, value)}
+                                  style={{
+                                    border: '1px solid #dbe6e4',
+                                    borderRadius: 7,
+                                    padding: '4px 7px',
+                                    cursor: 'pointer',
+                                    fontSize: '0.7rem',
+                                    fontWeight: 800,
+                                    background: effect === value ? (value === 'deny' ? '#fff0ee' : value === 'allow' ? '#e2f5f2' : '#edf2f1') : '#fff',
+                                    color: effect === value ? (value === 'deny' ? '#8a2c21' : value === 'allow' ? '#135f55' : '#42585e') : '#8a999c',
+                                  }}
+                                >
+                                  {savingThis && effect !== value ? '...' : text}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
             <div style={{ marginTop: 14, padding: 12, borderRadius: 10, background: '#fff6df', border: '1px solid #f2d6a0', color: '#875f08', fontSize: '0.82rem' }}>
               Least privilege reminder: assign only the smallest role set this person needs. Multiple roles are supported, and the preview above shows the combined access.
             </div>

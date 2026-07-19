@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { isConfiguredSuperAdmin, supabase } from '../services/supabase';
 import { entitlementsFor, PLAN_LEVELS, questionLimitFor } from '../data/subscriptionPlans';
+import { getEffectivePermissions } from '../data/rbac';
 
 const ADMIN_ROLES = new Set(['admin', 'super_admin']);
 
@@ -21,16 +22,19 @@ export function planMeets(plan, requiredPlan = 'pro') {
 export function useSubscription(session) {
   const [sub, setSub] = useState(null);
   const [roles, setRoles] = useState([]);
+  const [permissions, setPermissions] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     setLoading(true);
     setSub(null);
     setRoles([]);
+    setPermissions([]);
     if (!session?.user?.id) { setLoading(false); return; }
     if (isConfiguredSuperAdmin(session.user.email)) {
       setSub({ plan_name: 'Premium', status: 'active' });
       setRoles(['super_admin']);
+      setPermissions(getEffectivePermissions(['super_admin']));
       setLoading(false);
       return;
     }
@@ -46,10 +50,17 @@ export function useSubscription(session) {
         .limit(1)
         .maybeSingle(),
       supabase.from('user_roles').select('roles(name)').eq('user_id', session.user.id),
-    ]).then(([{ data }, { data: roleRows }]) => {
+      supabase.rpc('my_effective_permissions'),
+    ]).then(([{ data }, { data: roleRows }, { data: permissionRows }]) => {
         const periodEnd = data?.current_period_end ? new Date(data.current_period_end) : null;
+        const userRoles = (roleRows ?? []).map((row) => row.roles?.name).filter(Boolean);
         setSub(!periodEnd || periodEnd > new Date() ? data : null);
-        setRoles((roleRows ?? []).map((row) => row.roles?.name).filter(Boolean));
+        setRoles(userRoles);
+        setPermissions(permissionRows?.length
+          ? permissionRows.map((row) => row.permission_id).filter(Boolean)
+          : getEffectivePermissions(userRoles));
+        setLoading(false);
+      }).catch(() => {
         setLoading(false);
       });
   }, [session?.user?.id]);
@@ -78,11 +89,13 @@ export function useSubscription(session) {
     features: entitlements,
     entitlements,
     roles,
+    permissions,
     hasAdminAccess,
     questionLimit,
     periodEnd: sub?.current_period_end ?? null,
     loading,
     canAccess: (requiredPlan) => planMeets(planName, requiredPlan),
+    can: (permission) => permissions.includes(permission),
   };
 }
 
