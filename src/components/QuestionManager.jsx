@@ -26,32 +26,30 @@ const EMPTY_QUESTION = {
 };
 
 const CHOICE_IDS = ['a', 'b', 'c', 'd', 'e', 'f'];
+const PAGE_SIZE = 100;
 
 export default function QuestionManager() {
   const [questions, setQuestions] = useState([]);
   const [counts, setCounts] = useState({ total: 0, published: 0, draft: 0 });
-  const [filtered, setFiltered] = useState([]);
   const [statusFilter, setStatusFilter] = useState('all');
   const [topicFilter, setTopicFilter] = useState('All Topics');
+  const [page, setPage] = useState(0);
+  const [loading, setLoading] = useState(false);
   const [editing, setEditing] = useState(null); // null | question obj
   const [isNew, setIsNew] = useState(false);
   const [saving, setSaving] = useState(false);
   const [preview, setPreview] = useState(null);
 
   useEffect(() => {
-    loadQuestions();
+    loadCounts();
   }, []);
 
   useEffect(() => {
-    let qs = questions;
-    if (statusFilter !== 'all') qs = qs.filter((q) => q.status === statusFilter);
-    if (topicFilter !== 'All Topics') qs = qs.filter((q) => q.topic === topicFilter);
-    setFiltered(qs);
-  }, [questions, statusFilter, topicFilter]);
+    loadQuestions();
+  }, [statusFilter, topicFilter, page]);
 
-  async function loadQuestions() {
+  async function loadCounts() {
     if (!supabase) {
-      setQuestions(DEMO_QUESTIONS);
       setCounts({
         total: DEMO_QUESTIONS.length,
         published: DEMO_QUESTIONS.filter((q) => q.status === 'published').length,
@@ -59,18 +57,40 @@ export default function QuestionManager() {
       });
       return;
     }
-    const [{ data }, totalResult, publishedResult, draftResult] = await Promise.all([
-      supabase.from('questions').select('*').order('created_at', { ascending: false }).range(0, 999),
+    const [totalResult, publishedResult, draftResult] = await Promise.all([
       supabase.from('questions').select('id', { count: 'exact', head: true }),
       supabase.from('questions').select('id', { count: 'exact', head: true }).eq('status', 'published'),
       supabase.from('questions').select('id', { count: 'exact', head: true }).eq('status', 'draft'),
     ]);
-    setQuestions(data ?? []);
     setCounts({
       total: totalResult.count ?? 0,
       published: publishedResult.count ?? 0,
       draft: draftResult.count ?? 0,
     });
+  }
+
+  async function loadQuestions() {
+    setLoading(true);
+    if (!supabase) {
+      let rows = DEMO_QUESTIONS;
+      if (statusFilter !== 'all') rows = rows.filter((q) => q.status === statusFilter);
+      if (topicFilter !== 'All Topics') rows = rows.filter((q) => q.topic === topicFilter);
+      setQuestions(rows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE));
+      setLoading(false);
+      return;
+    }
+    const from = page * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+    let query = supabase
+      .from('questions')
+      .select('id,topic,question_type,prompt,choices,correct_answer,rationale,strategy,status,minimum_plan,ngn_data,created_at')
+      .order('created_at', { ascending: false })
+      .range(from, to);
+    if (statusFilter !== 'all') query = query.eq('status', statusFilter);
+    if (topicFilter !== 'All Topics') query = query.eq('topic', topicFilter);
+    const { data, error } = await query;
+    if (!error) setQuestions(data ?? []);
+    setLoading(false);
   }
 
   function openNew() {
@@ -142,6 +162,7 @@ export default function QuestionManager() {
         const { data } = await supabase.from('questions').update(payload).eq('id', editing.id).select().single();
         if (data) setQuestions((prev) => prev.map((q) => q.id === data.id ? data : q));
       }
+      await loadCounts();
       await loadQuestions();
     } else {
       const updated = { ...payload, id: editing.id ?? `demo-${Date.now()}` };
@@ -157,6 +178,7 @@ export default function QuestionManager() {
     const newStatus = q.status === 'published' ? 'draft' : 'published';
     if (supabase) {
       await supabase.from('questions').update({ status: newStatus }).eq('id', q.id);
+      await loadCounts();
       await loadQuestions();
       return;
     }
@@ -167,6 +189,7 @@ export default function QuestionManager() {
     if (!window.confirm('Delete this question? This cannot be undone.')) return;
     if (supabase) {
       await supabase.from('questions').delete().eq('id', q.id);
+      await loadCounts();
       await loadQuestions();
       return;
     }
@@ -317,7 +340,10 @@ export default function QuestionManager() {
         added++;
       }
     }
-    if (supabase && added > 0) await loadQuestions();
+    if (supabase && added > 0) {
+      await loadCounts();
+      await loadQuestions();
+    }
     setCsvDone({ added, skipped });
     setCsvImporting(false);
     setCsvPreview([]);
@@ -552,17 +578,17 @@ export default function QuestionManager() {
         <Filter size={15} color="#607478" />
         <div className="segmented-control" style={{ width: 'auto', display: 'flex', gap: 4, padding: 3, background: '#e9f1ef', borderRadius: 8 }}>
           {['all', 'published', 'draft'].map((s) => (
-            <button key={s} style={{ minHeight: 30, padding: '0 12px', fontSize: '0.82rem', fontWeight: 700, borderRadius: 6, background: statusFilter === s ? '#fff' : 'transparent', color: statusFilter === s ? '#17313a' : '#51676c', border: 0, cursor: 'pointer' }} onClick={() => setStatusFilter(s)}>
+            <button key={s} style={{ minHeight: 30, padding: '0 12px', fontSize: '0.82rem', fontWeight: 700, borderRadius: 6, background: statusFilter === s ? '#fff' : 'transparent', color: statusFilter === s ? '#17313a' : '#51676c', border: 0, cursor: 'pointer' }} onClick={() => { setPage(0); setStatusFilter(s); }}>
               {s.charAt(0).toUpperCase() + s.slice(1)}
             </button>
           ))}
         </div>
-        <select value={topicFilter} onChange={(e) => setTopicFilter(e.target.value)} style={{ height: 36, borderRadius: 8, border: '1px solid #dbe6e4', padding: '0 10px', background: '#fff' }}>
+        <select value={topicFilter} onChange={(e) => { setPage(0); setTopicFilter(e.target.value); }} style={{ height: 36, borderRadius: 8, border: '1px solid #dbe6e4', padding: '0 10px', background: '#fff' }}>
           <option>All Topics</option>
           {TOPICS.map((t) => <option key={t}>{t}</option>)}
         </select>
         <span style={{ marginLeft: 'auto', color: '#607478', fontSize: '0.88rem' }}>
-          Showing {filtered.length.toLocaleString()} of {counts.total.toLocaleString()}
+          {loading ? 'Loading questions…' : `Showing ${(page * PAGE_SIZE + 1).toLocaleString()}–${(page * PAGE_SIZE + questions.length).toLocaleString()} of ${counts.total.toLocaleString()}`}
         </span>
       </div>
 
@@ -701,7 +727,7 @@ export default function QuestionManager() {
 
       {/* Question list */}
       <div style={{ display: 'grid', gap: 10 }}>
-        {filtered.map((q) => (
+        {questions.map((q) => (
           <div key={q.id} className="qm-question-row">
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
@@ -760,12 +786,22 @@ export default function QuestionManager() {
             )}
           </div>
         ))}
-        {!filtered.length && (
+        {loading && (
+          <div style={{ textAlign: 'center', padding: 36, color: '#607478' }}>
+            Loading question page…
+          </div>
+        )}
+        {!loading && !questions.length && (
           <div style={{ textAlign: 'center', padding: 48, color: '#607478' }}>
             <p>No questions match your filters.</p>
             <button className="primary-btn" onClick={openNew}><FilePlus size={16} /> Add your first question</button>
           </div>
         )}
+      </div>
+      <div className="qb-nav" style={{ marginTop: 14 }}>
+        <button className="ghost-btn" disabled={page === 0 || loading} onClick={() => setPage((value) => Math.max(0, value - 1))}>Previous</button>
+        <span style={{ color: '#607478', fontSize: '0.86rem' }}>Page {page + 1}</span>
+        <button className="ghost-btn" disabled={loading || questions.length < PAGE_SIZE} onClick={() => setPage((value) => value + 1)}>Next</button>
       </div>
     </section>
   );

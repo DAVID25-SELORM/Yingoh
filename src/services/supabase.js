@@ -605,7 +605,11 @@ export async function checkTableAvailability(tableNames) {
   if (!supabase) {
     return tableNames.map((name) => ({ name, status: 'not_configured', detail: 'Supabase key missing' }));
   }
+  const skipDirectHealthCheck = new Set(['course_instructor_permissions']);
   const checks = await Promise.all(tableNames.map(async (name) => {
+    if (skipDirectHealthCheck.has(name)) {
+      return { name, status: 'protected', detail: 'Sensitive RLS table; checked through feature workflows' };
+    }
     const { error } = await supabase.from(name).select('*', { count: 'exact', head: true }).limit(1);
     if (!error) return { name, status: 'ready', detail: 'Table reachable' };
     const missingCodes = new Set(['42P01', 'PGRST116', 'PGRST205']);
