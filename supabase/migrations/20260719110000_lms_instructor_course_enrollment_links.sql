@@ -142,7 +142,7 @@ drop policy if exists "enrollment_links_staff_write" on public.course_enrollment
 create policy "enrollment_links_staff_write" on public.course_enrollment_links
   for all to authenticated
   using (public.is_course_staff(course_id) or public.has_role(array['admin', 'super_admin']))
-  with check (public.is_course_staff(course_id) or public.has_role(array['admin', 'super_admin')));
+  with check (public.is_course_staff(course_id) or public.has_role(array['admin', 'super_admin']));
 
 grant select, insert, update, delete on public.instructor_profiles to authenticated;
 grant select, insert, update, delete on public.courses to authenticated;
