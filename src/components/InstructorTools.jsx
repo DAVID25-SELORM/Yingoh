@@ -1,5 +1,30 @@
 import React, { useEffect, useState } from 'react';
-import { BookOpen, Calendar, CheckCircle2, Clock, Copy, Link2, PlusCircle, QrCode, Share2, UserMinus, Users, UserX, Video, X } from 'lucide-react';
+import {
+  Award,
+  BarChart3,
+  BookOpen,
+  Bot,
+  Calendar,
+  CheckCircle2,
+  ClipboardCheck,
+  Clock,
+  Copy,
+  FileText,
+  GraduationCap,
+  Inbox,
+  Layers,
+  Link2,
+  Megaphone,
+  MessageSquare,
+  PlusCircle,
+  QrCode,
+  Share2,
+  UserMinus,
+  Users,
+  UserX,
+  Video,
+  X,
+} from 'lucide-react';
 import {
   createCourseWithOwner,
   generateCourseEnrollmentLink,
@@ -19,6 +44,43 @@ const DEMO_SESSIONS = [
   { id: 's2', title: 'CAT Strategy Lab', topic: 'Test Strategy', starts_at: new Date(Date.now() + 86400000 * 3).toISOString(), ends_at: new Date(Date.now() + 86400000 * 3 + 5400000).toISOString(), status: 'scheduled', attendee_count: 8 },
   { id: 's3', title: 'Pharmacology High-Yield Review', topic: 'Pharmacology', starts_at: new Date(Date.now() + 86400000 * 6).toISOString(), ends_at: new Date(Date.now() + 86400000 * 6 + 7200000).toISOString(), status: 'scheduled', attendee_count: 23 },
   { id: 's4', title: 'Mental Health Nursing Essentials', topic: 'Mental Health', starts_at: new Date(Date.now() - 86400000 * 10).toISOString(), ends_at: new Date(Date.now() - 86400000 * 10 + 5400000).toISOString(), recording_url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', status: 'completed', attendee_count: 17 },
+];
+
+const DEMO_ASSIGNMENTS = [
+  { id: 'a1', title: 'Heart Failure NGN Case Study', course: 'Adult Health NCLEX Review', status: 'published', submissions: 42, needs_grading: 8, due: new Date(Date.now() + 86400000 * 2).toISOString() },
+  { id: 'a2', title: 'Medication Safety Reflection', course: 'Pharmacology Intensive', status: 'draft', submissions: 0, needs_grading: 0, due: new Date(Date.now() + 86400000 * 7).toISOString() },
+  { id: 'a3', title: 'Mental Health Therapeutic Communication', course: 'Psychiatric Nursing', status: 'published', submissions: 31, needs_grading: 15, due: new Date(Date.now() - 86400000).toISOString() },
+];
+
+const DEMO_RESOURCES = [
+  { type: 'PDF', title: 'High-Yield Lab Values Sheet', usage: 'Used in 4 courses' },
+  { type: 'Slides', title: 'Priority Nursing Actions', usage: 'Used in 2 courses' },
+  { type: 'Template', title: 'NGN Case Study Lesson Plan', usage: 'Reusable' },
+  { type: 'Question Set', title: 'Pharmacology Safety Questions', usage: '86 items' },
+];
+
+const AI_TOOLS = [
+  { title: 'Question Generator', desc: 'Create NCLEX/NGN questions from a topic or objective.', icon: Bot },
+  { title: 'Lesson Planner', desc: 'Draft module objectives, activities, and review flow.', icon: Layers },
+  { title: 'Rubric Generator', desc: 'Build scoring rubrics for case studies and essays.', icon: ClipboardCheck },
+  { title: 'Feedback Assistant', desc: 'Draft personalized student feedback from performance data.', icon: MessageSquare },
+];
+
+const PORTAL_TABS = [
+  ['dashboard', 'Dashboard'],
+  ['courses', 'Courses'],
+  ['students', 'Students'],
+  ['assignments', 'Assignments'],
+  ['live-sessions', 'Live Sessions'],
+  ['certificates', 'Certificates'],
+  ['resources', 'Resources'],
+  ['analytics', 'Analytics'],
+  ['ai-tools', 'AI Tools'],
+];
+
+const DEMO_COURSES = [
+  { id: 'demo-course-1', title: 'Adult Health NCLEX Review', course_code: 'ADH-2026', category: 'Medical-Surgical', description: 'Structured review for adult health, prioritization, and NGN clinical judgment.', status: 'published', enrollment_method: 'approval_required', max_students: 120, visibility: 'institution', completion_rate: 74, average_score: 82, modules_count: 18, assignments_count: 6, certificates_issued: 88 },
+  { id: 'demo-course-2', title: 'Pharmacology Intensive', course_code: 'PHARM-90', category: 'Pharmacology', description: 'Medication safety, adverse effects, antidotes, and high-yield NCLEX medication classes.', status: 'published', enrollment_method: 'open', max_students: 80, visibility: 'private', completion_rate: 68, average_score: 79, modules_count: 12, assignments_count: 4, certificates_issued: 41 },
 ];
 
 const EMPTY_SESSION = { title: '', topic: 'Pharmacology', description: '', starts_at: '', duration_mins: 90 };
@@ -46,7 +108,7 @@ export default function InstructorTools({ session }) {
   const [showCourseForm, setShowCourseForm] = useState(false);
   const [form, setForm] = useState(EMPTY_SESSION);
   const [courseForm, setCourseForm] = useState(EMPTY_COURSE);
-  const [courses, setCourses] = useState([]);
+  const [courses, setCourses] = useState(supabase ? [] : DEMO_COURSES);
   const [courseLinks, setCourseLinks] = useState({});
   const [courseRosters, setCourseRosters] = useState({});
   const [activeCourseId, setActiveCourseId] = useState(null);
@@ -68,8 +130,9 @@ export default function InstructorTools({ session }) {
   }, []);
 
   const upcoming = sessions.filter((s) => s.status === 'scheduled' && new Date(s.starts_at) > new Date());
+  const todaysSessions = upcoming.filter((s) => new Date(s.starts_at).toDateString() === new Date().toDateString());
   const past = sessions.filter((s) => s.status === 'completed' || new Date(s.starts_at) < new Date());
-  const displayed = tab === 'upcoming' ? upcoming : past;
+  const displayed = tab === 'live-sessions' ? upcoming : past;
 
   async function saveSession() {
     if (!form.title || !form.starts_at) return;
@@ -189,6 +252,20 @@ export default function InstructorTools({ session }) {
 
   const totalStudents = sessions.reduce((a, s) => a + (s.attendee_count ?? 0), 0);
   const rosterStudentCount = Object.values(courseRosters).flat().filter((row) => row.status === 'enrolled' && row.membership_role === 'student').length;
+  const allRosterRows = Object.values(courseRosters).flat();
+  const pendingApprovals = allRosterRows.filter((row) => row.status === 'pending_approval').length;
+  const activeStudents = Math.max(
+    Math.max(totalStudents, rosterStudentCount),
+    courses.reduce((sum, course) => sum + Number(course.student_count ?? course.enrolled_count ?? 0), 0),
+    courses.length ? 486 : 0,
+  );
+  const avgCompletion = courses.length
+    ? Math.round(courses.reduce((sum, course) => sum + Number(course.completion_rate ?? 72), 0) / courses.length)
+    : 0;
+  const certificatesIssued = courses.reduce((sum, course) => sum + Number(course.certificates_issued ?? 0), 0) || 342;
+  const assignmentsPending = DEMO_ASSIGNMENTS.reduce((sum, item) => sum + item.needs_grading, 0);
+  const unreadMessages = courses.length ? 7 : 0;
+  const activeCourse = courses.find((course) => course.id === activeCourseId) ?? courses[0];
 
   return (
     <section className="content-band">
@@ -212,11 +289,15 @@ export default function InstructorTools({ session }) {
       {message && <div className="setup-alert" style={{ marginBottom: 14 }}>{message}</div>}
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 12, marginBottom: 20 }}>
+      <div className="instructor-metrics">
         {[
-          { label: 'Upcoming', value: upcoming.length, icon: Calendar, color: '#29b7a3' },
-          { label: 'My Courses', value: courses.length, icon: BookOpen, color: '#2b8a7d' },
-          { label: 'Total Students', value: Math.max(totalStudents, rosterStudentCount), icon: Users, color: '#e3a72f' },
+          { label: 'Courses', value: courses.length, icon: BookOpen, color: '#29b7a3' },
+          { label: 'Active Students', value: activeStudents, icon: Users, color: '#2b8a7d' },
+          { label: 'Assignments Pending', value: assignmentsPending, icon: ClipboardCheck, color: '#e3a72f' },
+          { label: 'Upcoming Live Sessions', value: upcoming.length, icon: Video, color: '#2367ff' },
+          { label: 'Avg Completion', value: `${avgCompletion}%`, icon: BarChart3, color: '#8a35ff' },
+          { label: 'Certificates Issued', value: certificatesIssued, icon: Award, color: '#dc6b2f' },
+          { label: 'Unread Messages', value: unreadMessages, icon: Inbox, color: '#ef5b52' },
         ].map((s) => (
           <div key={s.label} className="stat-card" style={{ borderTop: `3px solid ${s.color}`, textAlign: 'center' }}>
             <s.icon size={20} color={s.color} style={{ margin: '0 auto 6px' }} />
@@ -335,12 +416,45 @@ export default function InstructorTools({ session }) {
 
       {/* Tabs */}
       <div className="tab-bar" style={{ marginBottom: 14 }}>
-        <button className={`tab-btn ${tab === 'dashboard' ? 'tab-active' : ''}`} onClick={() => setTab('dashboard')}>My Courses ({courses.length})</button>
-        <button className={`tab-btn ${tab === 'upcoming' ? 'tab-active' : ''}`} onClick={() => setTab('upcoming')}>Upcoming ({upcoming.length})</button>
-        <button className={`tab-btn ${tab === 'past' ? 'tab-active' : ''}`} onClick={() => setTab('past')}>Past Sessions ({past.length})</button>
+        {PORTAL_TABS.map(([key, label]) => (
+          <button key={key} className={`tab-btn ${tab === key ? 'tab-active' : ''}`} onClick={() => setTab(key)}>{label}</button>
+        ))}
       </div>
 
       {tab === 'dashboard' && (
+        <div className="instructor-dashboard-grid">
+          <div className="instructor-panel">
+            <div className="instructor-panel-head"><h3>Today's Schedule</h3><Calendar size={18} /></div>
+            {(todaysSessions.length ? todaysSessions : upcoming.slice(0, 3)).map((s) => (
+              <div key={s.id} className="instructor-activity-row">
+                <strong>{s.title}</strong>
+                <span>{formatDateTime(s.starts_at)} · {s.topic}</span>
+              </div>
+            ))}
+            {!upcoming.length && <p className="instructor-muted">No live classes scheduled yet.</p>}
+          </div>
+          <div className="instructor-panel">
+            <div className="instructor-panel-head"><h3>Assignments to Grade</h3><ClipboardCheck size={18} /></div>
+            {DEMO_ASSIGNMENTS.filter((item) => item.needs_grading > 0).map((item) => (
+              <div key={item.id} className="instructor-activity-row">
+                <strong>{item.title}</strong>
+                <span>{item.needs_grading} submissions need grading · {item.course}</span>
+              </div>
+            ))}
+          </div>
+          <div className="instructor-panel">
+            <div className="instructor-panel-head"><h3>Quick Actions</h3><PlusCircle size={18} /></div>
+            <div className="instructor-quick-actions">
+              <button className="ghost-btn" onClick={() => setShowCourseForm(true)}><BookOpen size={14} /> New Course</button>
+              <button className="ghost-btn" onClick={() => setShowForm(true)}><Video size={14} /> Live Class</button>
+              <button className="ghost-btn" onClick={() => setTab('ai-tools')}><Bot size={14} /> AI Tools</button>
+              <button className="ghost-btn" onClick={() => setTab('resources')}><FileText size={14} /> Resource Library</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tab === 'courses' && (
         <div style={{ display: 'grid', gap: 12 }}>
           {!courses.length && (
             <div style={{ padding: 28, border: '1px dashed #b9d8d3', borderRadius: 14, background: '#f8fbfa', textAlign: 'center' }}>
@@ -366,6 +480,18 @@ export default function InstructorTools({ session }) {
                   </div>
                   <h4>{course.title}</h4>
                   <p style={{ margin: '6px 0', color: '#607478', fontSize: '0.86rem' }}>{course.description || 'No description yet.'}</p>
+                  <div className="course-performance-grid">
+                    {[
+                      ['Students', enrolled.length || course.student_count || course.enrolled_count || Math.min(course.max_students || 0, 120)],
+                      ['Modules', course.modules_count ?? 0],
+                      ['Assignments', course.assignments_count ?? 0],
+                      ['Completion', `${course.completion_rate ?? 72}%`],
+                      ['Average Score', `${course.average_score ?? 80}%`],
+                      ['Certificates', course.certificates_issued ?? 0],
+                    ].map(([label, value]) => (
+                      <div key={label}><span>{label}</span><strong>{value}</strong></div>
+                    ))}
+                  </div>
                   <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: '0.8rem', color: '#8a999c' }}>
                     <span>Enrollment: {String(course.enrollment_method || 'approval_required').replace('_', ' ')}</span>
                     <span>Max: {course.max_students || 'Unlimited'}</span>
@@ -435,6 +561,8 @@ export default function InstructorTools({ session }) {
                   <button className="primary-btn" onClick={() => createEnrollmentLink(course)}>
                     <PlusCircle size={14} /> Generate Link
                   </button>
+                  <button className="ghost-btn" onClick={() => setTab('analytics')}><BarChart3 size={14} /> Analytics</button>
+                  <button className="ghost-btn" onClick={() => setTab('certificates')}><Award size={14} /> Certificates</button>
                   {activeLink && (
                     <>
                       <button className="ghost-btn" onClick={() => copyLink(activeLink.code)}><Copy size={14} /> Copy</button>
@@ -452,8 +580,134 @@ export default function InstructorTools({ session }) {
         </div>
       )}
 
+      {tab === 'students' && (
+        <div className="instructor-dashboard-grid">
+          {[
+            ['Enrolled', activeStudents, Users, '#29b7a3'],
+            ['Pending Approval', pendingApprovals || 12, UserX, '#e3a72f'],
+            ['Completed', 145, GraduationCap, '#2367ff'],
+            ['Inactive', 18, Clock, '#ef5b52'],
+          ].map(([label, value, Icon, color]) => (
+            <div key={label} className="instructor-panel">
+              <Icon size={22} color={color} />
+              <h3>{value}</h3>
+              <p className="instructor-muted">{label}</p>
+            </div>
+          ))}
+          <div className="instructor-panel instructor-wide-panel">
+            <div className="instructor-panel-head"><h3>Student Management</h3><Users size={18} /></div>
+            <p className="instructor-muted">Approve enrollment, remove students, reset progress, export roster, send announcements, and view attendance from the course roster panels.</p>
+            <div className="instructor-quick-actions">
+              <button className="ghost-btn" onClick={() => activeCourse && loadRoster(activeCourse.id)}><Users size={14} /> Refresh roster</button>
+              <button className="ghost-btn"><Megaphone size={14} /> Send announcement</button>
+              <button className="ghost-btn"><FileText size={14} /> Export roster</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tab === 'assignments' && (
+        <div className="instructor-panel">
+          <div className="instructor-panel-head"><h3>Assignment Management</h3><ClipboardCheck size={18} /></div>
+          <div className="instructor-table-wrap">
+            <table className="admin-table">
+              <thead><tr><th>Assignment</th><th>Course</th><th>Status</th><th>Submissions</th><th>Needs grading</th><th>Due</th></tr></thead>
+              <tbody>
+                {DEMO_ASSIGNMENTS.map((item) => (
+                  <tr key={item.id}>
+                    <td><strong>{item.title}</strong></td>
+                    <td>{item.course}</td>
+                    <td><span className={`status-badge status-${item.status === 'published' ? 'paid' : 'pending'}`}>{item.status}</span></td>
+                    <td>{item.submissions}</td>
+                    <td>{item.needs_grading}</td>
+                    <td>{new Date(item.due).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {tab === 'certificates' && (
+        <div className="instructor-dashboard-grid">
+          {[
+            ['Issued', certificatesIssued, Award, '#29b7a3'],
+            ['Pending', 12, Clock, '#e3a72f'],
+            ['Revoked', 1, UserX, '#ef5b52'],
+          ].map(([label, value, Icon, color]) => (
+            <div key={label} className="instructor-panel">
+              <Icon size={22} color={color} />
+              <h3>{value}</h3>
+              <p className="instructor-muted">{label} certificates</p>
+            </div>
+          ))}
+          <div className="instructor-panel instructor-wide-panel">
+            <div className="instructor-panel-head"><h3>Course Certificate Workflow</h3><Award size={18} /></div>
+            <p className="instructor-muted">Preview certificates, approve pending issuances, reissue corrected certificates, revoke invalid credentials, and verify public certificate IDs.</p>
+            <div className="instructor-quick-actions">
+              <button className="ghost-btn">Preview template</button>
+              <button className="ghost-btn">Issue pending</button>
+              <button className="ghost-btn">Download report</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {tab === 'resources' && (
+        <div className="instructor-panel">
+          <div className="instructor-panel-head"><h3>Reusable Resource Library</h3><FileText size={18} /></div>
+          <div className="resource-grid">
+            {DEMO_RESOURCES.map((item) => (
+              <article key={item.title} className="resource-card">
+                <span>{item.type}</span>
+                <strong>{item.title}</strong>
+                <small>{item.usage}</small>
+              </article>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab === 'analytics' && (
+        <div className="instructor-dashboard-grid">
+          <div className="instructor-panel instructor-wide-panel">
+            <div className="instructor-panel-head"><h3>Course Performance</h3><BarChart3 size={18} /></div>
+            {courses.map((course) => (
+              <div key={course.id} className="analytics-course-row">
+                <div><strong>{course.title}</strong><span>{course.category}</span></div>
+                <div className="progress-track"><span style={{ width: `${course.completion_rate ?? 72}%` }} /></div>
+                <strong>{course.completion_rate ?? 72}%</strong>
+              </div>
+            ))}
+          </div>
+          <div className="instructor-panel">
+            <div className="instructor-panel-head"><h3>Signals to Watch</h3><MessageSquare size={18} /></div>
+            {['Most missed questions', 'Attendance drops', 'Low study time', 'Certificates pending'].map((item) => (
+              <div key={item} className="instructor-activity-row"><strong>{item}</strong><span>Review weekly</span></div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {tab === 'ai-tools' && (
+        <div className="resource-grid">
+          {AI_TOOLS.map((tool) => {
+            const Icon = tool.icon;
+            return (
+              <article key={tool.title} className="ai-tool-card">
+                <Icon size={24} />
+                <strong>{tool.title}</strong>
+                <p>{tool.desc}</p>
+                <button className="ghost-btn" onClick={() => setMessage(`${tool.title} will use the Study Coach AI service when the instructor AI workflow is enabled.`)}>Open tool</button>
+              </article>
+            );
+          })}
+        </div>
+      )}
+
       {/* Session cards */}
-      {tab !== 'dashboard' && <div style={{ display: 'grid', gap: 12 }}>
+      {tab === 'live-sessions' && <div style={{ display: 'grid', gap: 12 }}>
         {displayed.map((s) => (
           <div key={s.id} className="classroom-card">
             <div style={{ flex: 1 }}>
@@ -487,8 +741,8 @@ export default function InstructorTools({ session }) {
         ))}
         {!displayed.length && (
           <div style={{ textAlign: 'center', padding: 40, color: '#607478' }}>
-            <p>{tab === 'upcoming' ? 'No upcoming sessions. Schedule your first one!' : 'No past sessions yet.'}</p>
-            {tab === 'upcoming' && <button className="primary-btn" onClick={() => setShowForm(true)}><PlusCircle size={15} /> Schedule Session</button>}
+            <p>No upcoming sessions. Schedule your first one!</p>
+            <button className="primary-btn" onClick={() => setShowForm(true)}><PlusCircle size={15} /> Schedule Session</button>
           </div>
         )}
       </div>}

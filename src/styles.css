@@ -996,6 +996,36 @@ input, select, textarea { font: inherit; }
 .forum-thread-row { display: flex; gap: 14px; align-items: center; padding: 14px 16px; background: #fff; border: 1px solid #dbe6e4; border-radius: 12px; cursor: pointer; transition: background 0.15s; }
 .forum-thread-row:hover { background: #f4faf9; }
 
+/* ─── Instructor Portal ───────────────────────────── */
+.instructor-metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.instructor-dashboard-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-bottom: 16px; }
+.instructor-panel { background: #fff; border: 1.5px solid #dbe6e4; border-radius: 14px; padding: 16px; display: grid; gap: 10px; }
+.instructor-wide-panel { grid-column: span 2; }
+.instructor-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.instructor-panel-head h3, .instructor-panel h3 { margin: 0; color: #17212f; }
+.instructor-panel-head svg { color: #2b8a7d; }
+.instructor-muted { color: #607478; font-size: .86rem; line-height: 1.5; margin: 0; }
+.instructor-activity-row { border: 1px solid #eef4f3; border-radius: 10px; padding: 10px 12px; display: grid; gap: 3px; background: #f8fbfa; }
+.instructor-activity-row strong { color: #17212f; font-size: .88rem; }
+.instructor-activity-row span { color: #607478; font-size: .78rem; }
+.instructor-quick-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.course-performance-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(105px, 1fr)); gap: 8px; margin: 12px 0; }
+.course-performance-grid div { border: 1px solid #e5eeec; background: #f8fbfa; border-radius: 10px; padding: 9px 10px; display: grid; gap: 2px; }
+.course-performance-grid span { color: #8a999c; font-size: .7rem; font-weight: 900; text-transform: uppercase; }
+.course-performance-grid strong { color: #17212f; font-size: .9rem; }
+.instructor-table-wrap { overflow-x: auto; }
+.resource-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+.resource-card, .ai-tool-card { background: #fff; border: 1.5px solid #dbe6e4; border-radius: 14px; padding: 16px; display: grid; gap: 8px; }
+.resource-card span { color: #2b8a7d; font-size: .7rem; font-weight: 900; letter-spacing: .05em; text-transform: uppercase; }
+.resource-card strong, .ai-tool-card strong { color: #17212f; }
+.resource-card small, .ai-tool-card p { color: #607478; font-size: .84rem; line-height: 1.45; margin: 0; }
+.ai-tool-card svg { color: #29b7a3; }
+.analytics-course-row { display: grid; grid-template-columns: minmax(160px, .9fr) minmax(160px, 1fr) auto; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid #eef4f3; }
+.analytics-course-row:last-child { border-bottom: 0; }
+.analytics-course-row div:first-child { display: grid; gap: 2px; }
+.analytics-course-row span { color: #607478; font-size: .78rem; }
+.analytics-course-row strong { color: #17212f; }
+
 /* ─── Certificates ───────────────────────────────── */
 .cert-card { border: 1.5px solid #dbe6e4; border-radius: 14px; padding: 20px; display: grid; gap: 4px; }
 .credential-center .section-title p { margin: 4px 0 0; color: #607478; font-size: .9rem; }
@@ -1107,6 +1137,8 @@ input, select, textarea { font: inherit; }
   .coach-layout { grid-template-columns: 1fr; }
   .correction-grid { grid-template-columns: 1fr; }
   .credential-section-grid { grid-template-columns: 1fr; }
+  .instructor-dashboard-grid { grid-template-columns: 1fr; }
+  .instructor-wide-panel { grid-column: auto; }
 }
 
 @media (max-width: 720px) {
@@ -1129,6 +1161,7 @@ input, select, textarea { font: inherit; }
   .metrics-row, .reports-row, .module-grid, .admin-grid, .integration-panel,
   .account-layout, .rating-buttons, .result-topic-row { grid-template-columns: 1fr; }
   .correction-metrics, .missed-review-row { grid-template-columns: 1fr; }
+  .analytics-course-row { grid-template-columns: 1fr; align-items: start; }
   .credential-stats, .credential-card-grid { grid-template-columns: 1fr; }
   .credential-panel-head { align-items: stretch; flex-direction: column; }
   .credential-actions { grid-template-columns: 1fr; }
