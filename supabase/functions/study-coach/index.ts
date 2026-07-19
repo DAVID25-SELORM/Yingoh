@@ -75,7 +75,7 @@ function responsePayload(reply: string, warning = '') {
 }
 
 function parseOpenAIError(status: number, text: string, data: any): ProviderFailure {
-  const message = data?.error?.message ?? text || 'Unknown provider error';
+  const message = data?.error?.message ?? (text || 'Unknown provider error');
   return {
     provider: 'openai',
     status,
