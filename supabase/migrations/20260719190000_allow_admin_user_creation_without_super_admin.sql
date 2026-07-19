@@ -1,5 +1,10 @@
 -- Let platform admins manage ordinary users while keeping Super Admin protected.
 
+drop function if exists public.admin_assign_role(uuid, text);
+drop function if exists public.admin_remove_role(uuid, text);
+drop function if exists public.admin_invite_user(text, text, text);
+drop function if exists public.admin_get_all_users();
+
 create or replace function public.admin_get_all_users()
 returns table(
   id uuid,
