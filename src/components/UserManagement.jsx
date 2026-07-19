@@ -91,7 +91,21 @@ export default function UserManagement({ session }) {
   const [error, setError] = useState('');
 
   // Add user form
-  const [form, setForm] = useState({ email: '', full_name: '', password: '', role: 'student', invite_only: true });
+  const EMPTY_FORM = {
+    email: '',
+    full_name: '',
+    password: '',
+    role: 'student',
+    invite_only: true,
+    department: '',
+    institution: '',
+    professional_title: '',
+    nursing_specialty: '',
+    staff_id: '',
+    account_status: 'invitation_pending',
+    send_onboarding_email: true,
+  };
+  const [form, setForm] = useState(EMPTY_FORM);
 
   useEffect(() => {
     loadUsers();
@@ -132,10 +146,23 @@ export default function UserManagement({ session }) {
           p_full_name: form.full_name,
           p_role_name: form.role,
         });
+        if (form.role === 'instructor') {
+          await supabase
+            .from('pending_invites')
+            .update({
+              invite_type: 'platform_role',
+              department: form.department || null,
+              institution: form.institution || null,
+              professional_title: form.professional_title || null,
+              staff_id: form.staff_id || null,
+              status: 'pending',
+            })
+            .eq('email', form.email);
+        }
         await sendPasswordResetEmail(form.email);
         setInvites((prev) => [{
           id: `i${Date.now()}`, email: form.email, full_name: form.full_name,
-          role_name: form.role, accepted_at: null,
+          role_name: form.role, accepted_at: null, department: form.department, institution: form.institution,
           expires_at: new Date(Date.now() + 86400000 * 7).toISOString(),
           created_at: new Date().toISOString(),
         }, ...prev]);
@@ -162,13 +189,28 @@ export default function UserManagement({ session }) {
       if (supabase) {
         setTimeout(async () => {
           const { data: profile } = await supabase.from('profiles').select('id').eq('email', form.email).single();
-          if (profile) await supabase.rpc('admin_assign_role', { target_user_id: profile.id, role_name: form.role });
+          if (profile) {
+            await supabase.rpc('admin_assign_role', { target_user_id: profile.id, role_name: form.role });
+            if (form.role === 'instructor') {
+              await supabase.from('instructor_profiles').upsert({
+                user_id: profile.id,
+                department: form.department || null,
+                nursing_specialty: form.nursing_specialty || null,
+                professional_title: form.professional_title || null,
+                institution: form.institution || null,
+                staff_id: form.staff_id || null,
+                account_status: 'active',
+                onboarding_email_sent: Boolean(form.send_onboarding_email),
+                updated_at: new Date().toISOString(),
+              });
+            }
+          }
         }, 1500);
       }
       setMsg(`Account created for ${form.email}. They may need to verify their email.`);
       await loadUsers();
     }
-    setForm({ email: '', full_name: '', password: '', role: 'student', invite_only: true });
+    setForm(EMPTY_FORM);
     setSaving(false);
     setTab('users');
   }
@@ -422,6 +464,47 @@ export default function UserManagement({ session }) {
               )}
             </div>
 
+            {form.role === 'instructor' && (
+              <div style={{ margin: '16px 0', padding: 16, borderRadius: 12, border: '1px solid #dbe6e4', background: '#f8fbfa' }}>
+                <strong style={{ display: 'block', marginBottom: 10 }}>Instructor details</strong>
+                <div className="qm-form-grid">
+                  <div className="qm-form-row">
+                    <label>Institution</label>
+                    <input value={form.institution} onChange={(e) => setForm((p) => ({ ...p, institution: e.target.value }))} placeholder="e.g. NurseFaculty / University name" />
+                  </div>
+                  <div className="qm-form-row">
+                    <label>Department</label>
+                    <input value={form.department} onChange={(e) => setForm((p) => ({ ...p, department: e.target.value }))} placeholder="e.g. Adult Health Nursing" />
+                  </div>
+                  <div className="qm-form-row">
+                    <label>Nursing Specialty</label>
+                    <input value={form.nursing_specialty} onChange={(e) => setForm((p) => ({ ...p, nursing_specialty: e.target.value }))} placeholder="e.g. Medical-Surgical, Pediatrics" />
+                  </div>
+                  <div className="qm-form-row">
+                    <label>Professional Title</label>
+                    <input value={form.professional_title} onChange={(e) => setForm((p) => ({ ...p, professional_title: e.target.value }))} placeholder="e.g. Lecturer, Clinical Instructor" />
+                  </div>
+                  <div className="qm-form-row">
+                    <label>Staff ID</label>
+                    <input value={form.staff_id} onChange={(e) => setForm((p) => ({ ...p, staff_id: e.target.value }))} placeholder="Optional staff number" />
+                  </div>
+                  <div className="qm-form-row">
+                    <label>Account Status</label>
+                    <select value={form.account_status} onChange={(e) => setForm((p) => ({ ...p, account_status: e.target.value }))}>
+                      <option value="invitation_pending">Invitation Pending</option>
+                      <option value="active">Active</option>
+                      <option value="suspended">Suspended</option>
+                      <option value="deactivated">Deactivated</option>
+                    </select>
+                  </div>
+                </div>
+                <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 10, fontSize: '0.84rem', color: '#42585e' }}>
+                  <input type="checkbox" checked={form.send_onboarding_email} onChange={(e) => setForm((p) => ({ ...p, send_onboarding_email: e.target.checked }))} />
+                  Send onboarding email and redirect instructor to create first classroom after activation.
+                </label>
+              </div>
+            )}
+
             {/* Role description */}
             <div style={{ padding: '10px 14px', background: '#f7faf9', borderRadius: 8, border: '1px solid #e1ebe9', marginBottom: 14, fontSize: '0.85rem', color: '#42585e' }}>
               <strong>{ALL_ROLES.find((r) => r.name === form.role)?.label}: </strong>
@@ -445,7 +528,7 @@ export default function UserManagement({ session }) {
             )}
 
             <div className="editor-footer">
-              <button type="button" className="ghost-btn" onClick={() => { setForm({ email: '', full_name: '', password: '', role: 'student', invite_only: true }); setMsg(''); }}>Reset</button>
+              <button type="button" className="ghost-btn" onClick={() => { setForm(EMPTY_FORM); setMsg(''); }}>Reset</button>
               <button type="submit" className="primary-btn" disabled={saving || !form.email || !form.full_name}>
                 {saving ? 'Working…' : form.invite_only ? <><Mail size={15} /> Send Invite</> : <><UserCheck size={15} /> Create Account</>}
               </button>

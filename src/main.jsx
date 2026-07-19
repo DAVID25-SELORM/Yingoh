@@ -26,6 +26,7 @@ import ContentReviewer from './components/ContentReviewer';
 import AnnouncementsView from './components/AnnouncementsView';
 import VirtualClassroom from './components/VirtualClassroom';
 import UserManagement from './components/UserManagement';
+import CourseJoinView from './components/CourseJoinView';
 import CustomQuizBuilder from './components/CustomQuizBuilder';
 import VideoLearning from './components/VideoLearning';
 import CommunityForum from './components/CommunityForum';
@@ -390,6 +391,11 @@ function getInitialView() {
   return VALID_VIEW_KEYS.has(saved) ? saved : DEFAULT_VIEW;
 }
 
+function isCourseJoinRoute() {
+  if (typeof window === 'undefined') return false;
+  return /^\/join\/[^/]+/i.test(window.location.pathname) || /^#\/join\/[^/]+/i.test(window.location.hash);
+}
+
 const SUPER_ADMIN_VIEWS = new Set(['Super Admin']);
 const ADMIN_VIEWS = new Set(['AdminQuestions', 'Audit Logs']);
 const FINANCE_VIEWS = new Set(['Payments']);
@@ -578,6 +584,10 @@ function App() {
         <span>Preparing your study space…</span>
       </main>
     );
+  }
+
+  if (isCourseJoinRoute()) {
+    return <CourseJoinView session={session} onJoined={() => setActiveView('Classroom')} />;
   }
 
   if (!session) return <PublicLanding isPasswordRecovery={isPasswordRecovery} />;

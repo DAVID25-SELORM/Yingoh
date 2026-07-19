@@ -449,6 +449,65 @@ export async function clearUserPermissionOverride(userId, permission) {
   });
 }
 
+// LMS courses and enrollment links
+export async function getMyCourses(userId) {
+  if (!supabase || !userId) return { data: [], error: null };
+  return supabase
+    .from('course_memberships')
+    .select('membership_role,status,course_id,courses(*)')
+    .eq('user_id', userId)
+    .order('joined_at', { ascending: false });
+}
+
+export async function createCourseWithOwner(payload) {
+  if (!supabase) return { data: null, error: new Error('Supabase not configured') };
+  return supabase.rpc('create_course_with_owner', {
+    p_title: payload.title,
+    p_course_code: payload.course_code,
+    p_description: payload.description,
+    p_category: payload.category,
+    p_academic_level: payload.academic_level,
+    p_starts_at: payload.starts_at || null,
+    p_ends_at: payload.ends_at || null,
+    p_enrollment_method: payload.enrollment_method,
+    p_max_students: payload.max_students ? Number(payload.max_students) : null,
+    p_visibility: payload.visibility,
+  });
+}
+
+export async function getCourseEnrollmentLinks(courseId) {
+  if (!supabase || !courseId) return { data: [], error: null };
+  return supabase
+    .from('course_enrollment_links')
+    .select('*')
+    .eq('course_id', courseId)
+    .order('created_at', { ascending: false });
+}
+
+export async function generateCourseEnrollmentLink(courseId, options = {}) {
+  if (!supabase || !courseId) return { data: null, error: new Error('Supabase not configured') };
+  return supabase.rpc('generate_course_enrollment_link', {
+    p_course_id: courseId,
+    p_expires_at: options.expires_at || null,
+    p_max_students: options.max_students ? Number(options.max_students) : null,
+    p_enrollment_method: options.enrollment_method || 'approval_required',
+    p_require_approval: options.require_approval ?? true,
+  });
+}
+
+export async function getCourseByEnrollmentCode(code) {
+  if (!supabase || !code) return { data: null, error: null };
+  return supabase.rpc('get_course_by_enrollment_code', { p_code: code }).maybeSingle();
+}
+
+export async function joinCourseByEnrollmentCode(code, studentId = null) {
+  if (!supabase || !code) return { data: null, error: new Error('Supabase not configured') };
+  return supabase.rpc('join_course_by_enrollment_code', {
+    p_code: code,
+    p_student_id: studentId || null,
+  });
+}
+
 // Progress rollup
 export async function getUserProgress(userId) {
   if (!supabase || !userId) return { data: null, error: null };
