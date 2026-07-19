@@ -78,7 +78,7 @@ function PermissionPreview({ roles, overrides = {} }) {
   );
 }
 
-export default function UserManagement({ session, onStartViewAs }) {
+export default function UserManagement({ session, onStartViewAs, canManageSuperAdmins = false }) {
   const [users, setUsers] = useState(supabase ? [] : DEMO_USERS);
   const [invites, setInvites] = useState(supabase ? [] : DEMO_INVITES);
   const [search, setSearch] = useState('');
@@ -108,6 +108,10 @@ export default function UserManagement({ session, onStartViewAs }) {
     send_onboarding_email: true,
   };
   const [form, setForm] = useState(EMPTY_FORM);
+  const manageableRoles = canManageSuperAdmins
+    ? ALL_ROLES
+    : ALL_ROLES.filter((role) => role.name !== 'super_admin');
+  const selectedRoleMeta = ALL_ROLES.find((role) => role.name === form.role);
 
   useEffect(() => {
     loadUsers();
@@ -137,88 +141,104 @@ export default function UserManagement({ session, onStartViewAs }) {
 
   async function handleAddUser(e) {
     e.preventDefault();
+    if (form.role === 'super_admin' && !canManageSuperAdmins) {
+      setError('Only a Super Admin can create or invite another Super Admin.');
+      return;
+    }
     setSaving(true);
     setMsg('');
+    setError('');
 
-    if (form.invite_only) {
-      // Create pending invite + send password reset
-      if (supabase) {
-        await supabase.rpc('admin_invite_user', {
-          p_email: form.email,
-          p_full_name: form.full_name,
-          p_role_name: form.role,
-        });
-        if (form.role === 'instructor') {
-          await supabase
-            .from('pending_invites')
-            .update({
-              invite_type: 'platform_role',
-              department: form.department || null,
-              institution: form.institution || null,
-              professional_title: form.professional_title || null,
-              staff_id: form.staff_id || null,
-              status: 'pending',
-            })
-            .eq('email', form.email);
-        }
-        await sendPasswordResetEmail(form.email);
-        setInvites((prev) => [{
-          id: `i${Date.now()}`, email: form.email, full_name: form.full_name,
-          role_name: form.role, accepted_at: null, department: form.department, institution: form.institution,
-          expires_at: new Date(Date.now() + 86400000 * 7).toISOString(),
-          created_at: new Date().toISOString(),
-        }, ...prev]);
-        setMsg(`Invite sent to ${form.email}. They will receive a sign-in link.`);
-      } else {
-        setInvites((prev) => [{
-          id: `i${Date.now()}`, email: form.email, full_name: form.full_name,
-          role_name: form.role, accepted_at: null,
-          expires_at: new Date(Date.now() + 86400000 * 7).toISOString(),
-          created_at: new Date().toISOString(),
-        }, ...prev]);
-        setMsg(`[Demo] Invite recorded for ${form.email} as ${form.role}.`);
-      }
-    } else {
-      // Direct create with password
-      if (!form.password || form.password.length < 6) {
-        setMsg('Password must be at least 6 characters.');
-        setSaving(false);
-        return;
-      }
-      const { error } = await signUpWithEmail({ email: form.email, password: form.password, fullName: form.full_name });
-      if (error) { setMsg(error.message); setSaving(false); return; }
-      // Assign role after short delay for trigger to fire
-      if (supabase) {
-        setTimeout(async () => {
-          const { data: profile } = await supabase.from('profiles').select('id').eq('email', form.email).single();
-          if (profile) {
-            await supabase.rpc('admin_assign_role', { target_user_id: profile.id, role_name: form.role });
-            if (form.role === 'instructor') {
-              await supabase.from('instructor_profiles').upsert({
-                user_id: profile.id,
+    try {
+      if (form.invite_only) {
+        // Create pending invite + send password reset
+        if (supabase) {
+          const { error: inviteError } = await supabase.rpc('admin_invite_user', {
+            p_email: form.email,
+            p_full_name: form.full_name,
+            p_role_name: form.role,
+          });
+          if (inviteError) throw inviteError;
+          if (form.role === 'instructor') {
+            const { error: profileError } = await supabase
+              .from('pending_invites')
+              .update({
+                invite_type: 'platform_role',
                 department: form.department || null,
-                nursing_specialty: form.nursing_specialty || null,
-                professional_title: form.professional_title || null,
                 institution: form.institution || null,
+                professional_title: form.professional_title || null,
                 staff_id: form.staff_id || null,
-                account_status: 'active',
-                onboarding_email_sent: Boolean(form.send_onboarding_email),
-                updated_at: new Date().toISOString(),
-              });
-            }
+                status: 'pending',
+              })
+              .eq('email', form.email);
+            if (profileError) throw profileError;
           }
-        }, 1500);
+          const { error: resetError } = await sendPasswordResetEmail(form.email);
+          if (resetError) throw resetError;
+          setInvites((prev) => [{
+            id: `i${Date.now()}`, email: form.email, full_name: form.full_name,
+            role_name: form.role, accepted_at: null, department: form.department, institution: form.institution,
+            expires_at: new Date(Date.now() + 86400000 * 7).toISOString(),
+            created_at: new Date().toISOString(),
+          }, ...prev]);
+          setMsg(`Invite sent to ${form.email}. They will receive a sign-in link.`);
+        } else {
+          setInvites((prev) => [{
+            id: `i${Date.now()}`, email: form.email, full_name: form.full_name,
+            role_name: form.role, accepted_at: null,
+            expires_at: new Date(Date.now() + 86400000 * 7).toISOString(),
+            created_at: new Date().toISOString(),
+          }, ...prev]);
+          setMsg(`[Demo] Invite recorded for ${form.email} as ${form.role}.`);
+        }
+      } else {
+        // Direct create with password
+        if (!form.password || form.password.length < 6) {
+          setMsg('Password must be at least 6 characters.');
+          return;
+        }
+        const { error } = await signUpWithEmail({ email: form.email, password: form.password, fullName: form.full_name });
+        if (error) throw error;
+        // Assign role after short delay for trigger to fire
+        if (supabase) {
+          setTimeout(async () => {
+            const { data: profile } = await supabase.from('profiles').select('id').eq('email', form.email).single();
+            if (profile) {
+              await supabase.rpc('admin_assign_role', { target_user_id: profile.id, role_name: form.role });
+              if (form.role === 'instructor') {
+                await supabase.from('instructor_profiles').upsert({
+                  user_id: profile.id,
+                  department: form.department || null,
+                  nursing_specialty: form.nursing_specialty || null,
+                  professional_title: form.professional_title || null,
+                  institution: form.institution || null,
+                  staff_id: form.staff_id || null,
+                  account_status: 'active',
+                  onboarding_email_sent: Boolean(form.send_onboarding_email),
+                  updated_at: new Date().toISOString(),
+                });
+              }
+            }
+          }, 1500);
+        }
+        setMsg(`Account created for ${form.email}. They may need to verify their email.`);
+        await loadUsers();
       }
-      setMsg(`Account created for ${form.email}. They may need to verify their email.`);
-      await loadUsers();
+      setForm(EMPTY_FORM);
+      setTab('users');
+    } catch (err) {
+      setError(err.message ?? 'Could not add user.');
+    } finally {
+      setSaving(false);
     }
-    setForm(EMPTY_FORM);
-    setSaving(false);
-    setTab('users');
   }
 
   async function assignRole(userId, roleName) {
     setError('');
+    if (roleName === 'super_admin' && !canManageSuperAdmins) {
+      setError('Only a Super Admin can assign the Super Admin role.');
+      return;
+    }
     if (supabase) {
       const { error: assignError } = await supabase.rpc('admin_assign_role', { target_user_id: userId, role_name: roleName });
       if (assignError) {
@@ -239,6 +259,10 @@ export default function UserManagement({ session, onStartViewAs }) {
 
   async function removeRole(userId, roleName) {
     setError('');
+    if (roleName === 'super_admin' && !canManageSuperAdmins) {
+      setError('Only a Super Admin can remove the Super Admin role.');
+      return;
+    }
     if (supabase) {
       const { error: removeError } = await supabase.rpc('admin_remove_role', { target_user_id: userId, role_name: roleName });
       if (removeError) {
@@ -414,7 +438,13 @@ export default function UserManagement({ session, onStartViewAs }) {
                     <td style={{ color: '#607478', fontSize: '0.82rem' }}>{new Date(u.created_at).toLocaleDateString()}</td>
                     <td>
                       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                        <button className="ghost-btn" style={{ fontSize: '0.78rem', padding: '5px 10px' }} onClick={() => openRoleModal(u)}>
+                        <button
+                          className="ghost-btn"
+                          style={{ fontSize: '0.78rem', padding: '5px 10px' }}
+                          disabled={!canManageSuperAdmins && u.roles?.includes('super_admin')}
+                          title={!canManageSuperAdmins && u.roles?.includes('super_admin') ? 'Only a Super Admin can manage a Super Admin account' : 'Manage roles'}
+                          onClick={() => openRoleModal(u)}
+                        >
                           <Shield size={13} /> Roles
                         </button>
                         <button
@@ -505,7 +535,7 @@ export default function UserManagement({ session, onStartViewAs }) {
               <div className="qm-form-row">
                 <label>Role</label>
                 <select value={form.role} onChange={(e) => setForm((p) => ({ ...p, role: e.target.value }))}>
-                  {ALL_ROLES.map((r) => <option key={r.name} value={r.name}>{r.label}</option>)}
+                  {manageableRoles.map((r) => <option key={r.name} value={r.name}>{r.label}</option>)}
                 </select>
               </div>
               {!form.invite_only && (
@@ -559,10 +589,10 @@ export default function UserManagement({ session, onStartViewAs }) {
 
             {/* Role description */}
             <div style={{ padding: '10px 14px', background: '#f7faf9', borderRadius: 8, border: '1px solid #e1ebe9', marginBottom: 14, fontSize: '0.85rem', color: '#42585e' }}>
-              <strong>{ALL_ROLES.find((r) => r.name === form.role)?.label}: </strong>
-              {ALL_ROLES.find((r) => r.name === form.role)?.desc}
+              <strong>{selectedRoleMeta?.label}: </strong>
+              {selectedRoleMeta?.desc}
               <div style={{ marginTop: 6, color: '#607478' }}>
-                Responsibility: {ALL_ROLES.find((r) => r.name === form.role)?.responsibility}
+                Responsibility: {selectedRoleMeta?.responsibility}
               </div>
               <PermissionPreview roles={[form.role]} />
             </div>
@@ -601,7 +631,7 @@ export default function UserManagement({ session, onStartViewAs }) {
               <button className="icon-btn" onClick={() => setRoleModal(null)}><X size={18} /></button>
             </div>
             <div style={{ display: 'grid', gap: 10 }}>
-              {ALL_ROLES.map((role) => {
+              {manageableRoles.map((role) => {
                 const hasRole = roleModal.roles?.includes(role.name);
                 return (
                   <div key={role.name} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '10px 14px', borderRadius: 10, border: `1.5px solid ${hasRole ? role.color : '#dbe6e4'}`, background: hasRole ? role.color + '12' : '#fff' }}>

@@ -626,7 +626,7 @@ function App() {
     : hasAdminAccess;
   const canAccessView = (view) => {
     if (SUPER_ADMIN_VIEWS.has(view)) return isSuperAdmin;
-    if (view === 'Users') return isSuperAdmin || isDepartmentAdmin || isSupportOfficer || isRegistrar;
+    if (view === 'Users') return isSuperAdmin || effectiveHasAdminAccess;
     if (view === 'Analytics') return true;
     if (ADMIN_VIEWS.has(view)) return effectiveHasAdminAccess || (view === 'AdminQuestions' && (isReviewer || isInstructor || isQuestionManager || isExamOfficer));
     if (FINANCE_VIEWS.has(view)) return effectiveHasAdminAccess || isFinance;
@@ -811,7 +811,13 @@ function App() {
           </SubscriptionGate>
         )}
         {activeView === 'Super Admin' && isSuperAdmin && <SuperAdminPanel session={session} />}
-        {activeView === 'Users' && isSuperAdmin && <UserManagement session={session} onStartViewAs={startUserViewAs} />}
+        {activeView === 'Users' && (isSuperAdmin || effectiveHasAdminAccess) && (
+          <UserManagement
+            session={session}
+            onStartViewAs={startUserViewAs}
+            canManageSuperAdmins={isSuperAdmin}
+          />
+        )}
         {activeView === 'AdminQuestions' && (effectiveHasAdminAccess || isReviewer) && <QuestionManager session={session} />}
         {activeView === 'Billing' && <PaymentsView session={session} />}
         {activeView === 'Payments' && (effectiveHasAdminAccess || isFinance) && <PaymentsView session={session} canManage />}
