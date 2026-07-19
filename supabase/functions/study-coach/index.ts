@@ -44,6 +44,19 @@ ${message}
 ${detail ? `\nTechnical note for admin: ${detail}` : ''}`;
 }
 
+async function readJsonResponse(res: Response) {
+  const text = await res.text();
+  try {
+    return { text, data: text ? JSON.parse(text) : null };
+  } catch (_) {
+    return { text, data: null };
+  }
+}
+
+function responsePayload(reply: string, warning = '') {
+  return { reply, answer: reply, warning };
+}
+
 async function callOpenAI({
   model,
   messages,
@@ -77,9 +90,10 @@ async function callOpenAI({
       }),
     });
 
-    const data = await res.json();
+    const { text, data } = await readJsonResponse(res);
     if (!res.ok) {
-      throw new Error(`OpenAI API error ${res.status}: ${data?.error?.message ?? JSON.stringify(data)}`);
+      console.error('OpenAI Responses API error', { status: res.status, body: text });
+      throw new Error(`OpenAI API error ${res.status}: ${data?.error?.message ?? text || 'Unknown provider error'}`);
     }
 
     const outputText = data.output_text
@@ -89,7 +103,11 @@ async function callOpenAI({
         .join('\n')
       ?? '';
 
-    return outputText.trim() || 'No response from the Study Coach.';
+    if (!outputText.trim()) {
+      console.error('OpenAI Responses API missing output_text', { body: text });
+    }
+
+    return outputText.trim() || fallbackReply('your Study Coach request', 'OpenAI returned an empty response.');
   }
 
   const res = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -106,12 +124,18 @@ async function callOpenAI({
     }),
   });
 
-  const data = await res.json();
+  const { text, data } = await readJsonResponse(res);
   if (!res.ok) {
-    throw new Error(`OpenAI API error ${res.status}: ${data?.error?.message ?? JSON.stringify(data)}`);
+    console.error('OpenAI Chat Completions API error', { status: res.status, body: text });
+    throw new Error(`OpenAI API error ${res.status}: ${data?.error?.message ?? text || 'Unknown provider error'}`);
   }
 
-  return data.choices?.[0]?.message?.content?.trim() ?? 'No response from the Study Coach.';
+  const outputText = data?.choices?.[0]?.message?.content?.trim();
+  if (!outputText) {
+    console.error('OpenAI Chat Completions API missing message content', { body: text });
+  }
+
+  return outputText || fallbackReply('your Study Coach request', 'OpenAI returned an empty response.');
 }
 
 Deno.serve(async (req) => {
@@ -128,10 +152,9 @@ Deno.serve(async (req) => {
     }
 
     if (!OPENAI_KEY) {
-      return new Response(JSON.stringify({
-        reply: fallbackReply(message, 'OPENAI_API_KEY is not configured.'),
-        warning: 'OPENAI_API_KEY not configured',
-      }), {
+      const reply = fallbackReply(message, 'OPENAI_API_KEY is not configured.');
+      console.error('OPENAI_API_KEY is not configured');
+      return new Response(JSON.stringify(responsePayload(reply, 'OPENAI_API_KEY not configured')), {
         status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
@@ -158,20 +181,31 @@ Deno.serve(async (req) => {
     } catch (openaiErr) {
       const detail = openaiErr instanceof Error ? openaiErr.message : String(openaiErr);
       warning = detail;
+      console.error('Study Coach primary model failed', { model: normalizeModel(OPENAI_MODEL), detail });
 
       try {
         reply = await callOpenAI({ model: FALLBACK_MODEL, messages, mode });
-      } catch (_) {
+      } catch (fallbackErr) {
+        console.error('Study Coach fallback model failed', {
+          model: normalizeModel(FALLBACK_MODEL),
+          detail: fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr),
+        });
         reply = fallbackReply(message, detail);
       }
     }
 
-    return new Response(JSON.stringify({ reply, warning }), {
+    return new Response(JSON.stringify(responsePayload(reply, warning)), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err);
-    return new Response(JSON.stringify({ reply: fallbackReply('your Study Coach request', detail), warning: detail }), {
+    console.error('study-coach unhandled error', {
+      name: err instanceof Error ? err.name : 'UnknownError',
+      message: detail,
+      stack: err instanceof Error ? err.stack : undefined,
+    });
+    const reply = fallbackReply('your Study Coach request', detail);
+    return new Response(JSON.stringify(responsePayload(reply, detail)), {
       status: 200,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });

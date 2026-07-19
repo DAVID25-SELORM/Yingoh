@@ -22,6 +22,16 @@ Distractors are often true nursing actions, but they are delayed, assessment-onl
 Clinical Tip:
 On NCLEX, "first" usually means stabilize the patient before teaching, documenting, or calling the provider unless the patient is already stable.`;
 
+const FRIENDLY_COACH_ERROR = `Study Coach is temporarily unavailable, but keep going.
+
+Quick NCLEX thinking frame:
+1. Identify the immediate safety risk.
+2. Prioritize ABCs, circulation, neuro change, infection control, and unstable vital signs.
+3. Choose assessment first only when you need missing data to act safely.
+4. Teaching, documentation, and routine comfort usually come after stabilization.
+
+Please try again shortly.`;
+
 function makeTitle(text) {
   return text.replace(/\s+/g, ' ').trim().slice(0, 70) || 'Study Coach Conversation';
 }
@@ -118,7 +128,7 @@ export default function StudyCoachView({ session }) {
           },
         });
         if (fnError) throw fnError;
-        reply = data?.reply ?? 'No response from the Study Coach.';
+        reply = data?.reply ?? data?.answer ?? FRIENDLY_COACH_ERROR;
       } else {
         await new Promise((resolve) => setTimeout(resolve, 700));
       }
@@ -129,8 +139,9 @@ export default function StudyCoachView({ session }) {
       await persist(withReply, prompt);
     } catch (err) {
       const message = err.message ?? 'Study Coach could not respond.';
-      setError(message);
-      const withError = [...next, { id: `e-${Date.now()}`, role: 'assistant', content: `Error: ${message}`, created_at: new Date().toISOString(), is_error: true }];
+      console.error('Study Coach invocation failed', err);
+      setError('Study Coach is temporarily unavailable. Please try again shortly.');
+      const withError = [...next, { id: `e-${Date.now()}`, role: 'assistant', content: FRIENDLY_COACH_ERROR, created_at: new Date().toISOString(), is_error: true }];
       setMessages(withError);
       await persist(withError, prompt);
     } finally {

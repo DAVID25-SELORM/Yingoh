@@ -46,6 +46,13 @@ NCLEX distractors are often true statements, but the correct answer is the safes
 Next move:
 Review the rationale, name the cue that changed the answer, then practice one similar question before moving on.`;
 
+const FRIENDLY_COACH_ERROR = `Study Coach is temporarily unavailable, but here is a safe NCLEX review frame:
+
+- Re-read the stem and identify the patient safety threat.
+- Apply ABCs, unstable vs. stable, acute vs. chronic, and nursing process.
+- If two answers are true, choose the one that addresses the most urgent risk for this patient.
+- Review the rationale, then write the cue you missed in your notebook.`;
+
 const PASSING_TARGET = 72;
 
 function isSATACorrect(selected, correct) {
@@ -339,13 +346,15 @@ export default function QuestionBankView({ session }) {
           },
         });
         if (error) throw error;
-        reply = data?.reply ?? 'Study Coach did not return a response.';
+        reply = data?.reply ?? data?.answer ?? FRIENDLY_COACH_ERROR;
       } else {
         await new Promise((resolve) => setTimeout(resolve, 550));
       }
       setCoachReply(reply);
     } catch (err) {
-      setCoachError(err.message ?? 'Study Coach could not respond.');
+      console.error('Embedded Study Coach invocation failed', err);
+      setCoachReply(FRIENDLY_COACH_ERROR);
+      setCoachError('Study Coach is temporarily unavailable. Please try again shortly.');
     } finally {
       setCoachLoading(false);
     }
