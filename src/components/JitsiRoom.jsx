@@ -15,6 +15,7 @@ export function JitsiRoom({ session, onClose, onLeave }) {
 
   const configuredUrl = session.meeting_url || '';
   const configuredJitsiRoom = configuredUrl.match(/^https:\/\/meet\.jit\.si\/([^?#]+)/i)?.[1];
+  const isJitsiMeeting = !configuredUrl || Boolean(configuredJitsiRoom);
   const roomName = session.jitsi_room ?? configuredJitsiRoom ?? slugifyRoom(session.title);
   const jitsiUrl = configuredUrl || `https://meet.jit.si/${roomName}`;
 
@@ -26,7 +27,12 @@ export function JitsiRoom({ session, onClose, onLeave }) {
   }
 
   useEffect(() => {
+    if (!isJitsiMeeting) return undefined;
+    let cancelled = false;
+    let readyTimer;
+
     function mount() {
+      if (cancelled) return;
       if (!window.JitsiMeetExternalAPI || !containerRef.current) {
         setStatus('error');
         return;
@@ -56,7 +62,7 @@ export function JitsiRoom({ session, onClose, onLeave }) {
         apiRef.current.addEventListener('videoConferenceLeft', closeRoom);
         apiRef.current.addEventListener('errorOccurred', () => setStatus('error'));
         // Fallback: mark ready after 8s if event doesn't fire
-        setTimeout(() => setStatus((s) => s === 'loading' ? 'ready' : s), 8000);
+        readyTimer = window.setTimeout(() => setStatus((s) => s === 'loading' ? 'ready' : s), 8000);
       } catch {
         setStatus('error');
       }
@@ -73,8 +79,18 @@ export function JitsiRoom({ session, onClose, onLeave }) {
       mount();
     }
 
-    return () => { apiRef.current?.dispose(); };
-  }, [roomName, audioOnly]);
+    return () => {
+      cancelled = true;
+      if (readyTimer) window.clearTimeout(readyTimer);
+      apiRef.current?.dispose();
+    };
+  }, [roomName, audioOnly, isJitsiMeeting]);
+
+  useEffect(() => () => {
+    if (leaveHandledRef.current) return;
+    leaveHandledRef.current = true;
+    onLeave?.();
+  }, []);
 
   return (
     <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(15,28,32,0.97)', display: 'flex', flexDirection: 'column' }}>
@@ -84,14 +100,14 @@ export function JitsiRoom({ session, onClose, onLeave }) {
         <span style={{ fontWeight: 700, fontSize: '0.96rem', flex: 1 }}>{session.title}</span>
 
         {/* Audio-only toggle */}
-        <button
+        {isJitsiMeeting && <button
           onClick={() => { apiRef.current?.dispose(); apiRef.current = null; setStatus('loading'); setAudioOnly((v) => !v); }}
           style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 12px', borderRadius: 8, border: '1.5px solid rgba(255,255,255,0.2)', background: audioOnly ? '#29b7a3' : 'transparent', color: '#fff', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
           title="Toggle audio-only mode"
         >
           {audioOnly ? <MicOff size={14} /> : <Mic size={14} />}
           {audioOnly ? 'Audio Only' : 'Video + Audio'}
-        </button>
+        </button>}
 
         {/* Fallback: open in new tab */}
         <a href={jitsiUrl} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', borderRadius: 8, border: '1.5px solid rgba(255,255,255,0.2)', color: '#fff', textDecoration: 'none', fontSize: '0.8rem', fontWeight: 600, whiteSpace: 'nowrap' }}>
@@ -103,8 +119,21 @@ export function JitsiRoom({ session, onClose, onLeave }) {
         </button>
       </div>
 
+      {!isJitsiMeeting && (
+        <div style={{ flex: 1, display: 'grid', placeItems: 'center', background: '#17313a' }}>
+          <div style={{ textAlign: 'center', color: '#fff', padding: 24, maxWidth: 420 }}>
+            <ExternalLink size={40} color="#29b7a3" style={{ margin: '0 auto 16px' }} />
+            <h3 style={{ margin: '0 0 8px' }}>Join the external meeting</h3>
+            <p style={{ margin: '0 0 20px', opacity: 0.7, lineHeight: 1.5 }}>This session uses {String(session.meeting_provider || 'an external provider').replaceAll('_', ' ')} and opens in a separate tab.</p>
+            <a href={jitsiUrl} target="_blank" rel="noreferrer" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '11px 22px', background: '#29b7a3', color: '#fff', borderRadius: 10, fontWeight: 700, textDecoration: 'none' }}>
+              <ExternalLink size={15} /> Open Meeting
+            </a>
+          </div>
+        </div>
+      )}
+
       {/* Loading overlay */}
-      {status === 'loading' && (
+      {isJitsiMeeting && status === 'loading' && (
         <div style={{ position: 'absolute', inset: 0, top: 45, display: 'grid', placeItems: 'center', background: '#17313a', zIndex: 1 }}>
           <div style={{ textAlign: 'center', color: '#fff' }}>
             <div style={{ width: 44, height: 44, border: '4px solid rgba(255,255,255,0.15)', borderTopColor: '#29b7a3', borderRadius: '50%', animation: 'spin 0.9s linear infinite', margin: '0 auto 16px' }} />
@@ -115,7 +144,7 @@ export function JitsiRoom({ session, onClose, onLeave }) {
       )}
 
       {/* Error state */}
-      {status === 'error' && (
+      {isJitsiMeeting && status === 'error' && (
         <div style={{ position: 'absolute', inset: 0, top: 45, display: 'grid', placeItems: 'center', background: '#17313a', zIndex: 1 }}>
           <div style={{ textAlign: 'center', color: '#fff', padding: 24, maxWidth: 360 }}>
             <VideoOff size={40} color="#e85d4f" style={{ margin: '0 auto 16px' }} />
@@ -131,7 +160,7 @@ export function JitsiRoom({ session, onClose, onLeave }) {
       )}
 
       {/* Jitsi container */}
-      <div ref={containerRef} style={{ flex: 1, width: '100%' }} />
+      {isJitsiMeeting && <div ref={containerRef} style={{ flex: 1, width: '100%' }} />}
 
       <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>

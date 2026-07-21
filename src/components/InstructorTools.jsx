@@ -129,7 +129,11 @@ export default function InstructorTools({ session }) {
       setSessions(data.map((item) => ({ ...item, attendee_count: bySession[item.id] ?? 0 })));
     });
     getMyCourses(session?.user?.id).then(({ data }) => {
-      const owned = (data ?? []).map((row) => ({ ...row.courses, membership_role: row.membership_role, membership_status: row.status })).filter((course) => course?.id);
+      const staffRoles = new Set(['course_owner', 'co_instructor', 'teaching_assistant']);
+      const owned = (data ?? [])
+        .filter((row) => row.status === 'enrolled' && staffRoles.has(row.membership_role))
+        .map((row) => ({ ...row.courses, membership_role: row.membership_role, membership_status: row.status }))
+        .filter((course) => course?.id);
       setCourses(owned);
       setActiveCourseId(owned[0]?.id ?? null);
     });
