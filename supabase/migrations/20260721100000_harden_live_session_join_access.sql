@@ -1,6 +1,36 @@
 -- Follow-up is intentionally idempotent: it corrects environments that may
 -- already have applied 20260721090000 before its access review completed.
 
+create or replace function public.current_subscription_level()
+returns integer
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select case
+    when public.has_role(array['admin', 'super_admin']) then 4
+    else coalesce((
+      select case
+        when lower(s.plan_name) similar to '%(365|faculty)%' then 4
+        when lower(s.plan_name) similar to '%(180|master|premium)%' then 3
+        when lower(s.plan_name) similar to '%(90|success|pro)%' then 2
+        when lower(s.plan_name) similar to '%(30-day|30 day|starter|basic)%' then 1
+        else 0
+      end
+      from public.subscriptions s
+      where s.user_id = auth.uid()
+        and s.status = 'active'
+        and (s.current_period_end is null or s.current_period_end > now())
+      order by s.created_at desc
+      limit 1
+    ), 0)
+  end;
+$$;
+
+revoke all on function public.current_subscription_level() from public, anon;
+grant execute on function public.current_subscription_level() to authenticated;
+
 drop policy if exists "schedules_read" on public.class_schedules;
 create policy "schedules_read" on public.class_schedules
   for select to authenticated
