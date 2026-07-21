@@ -204,7 +204,7 @@ export default function QuestionBankView({ session }) {
         includeUnpublished: hasAdminAccess,
       });
       const fallbackLimit = Number.isFinite(questionLimit) ? questionLimit : DEMO_QUESTIONS.length;
-      const sourceQuestions = data?.length ? data : DEMO_QUESTIONS.slice(0, fallbackLimit);
+      const sourceQuestions = supabase ? (data ?? []) : DEMO_QUESTIONS.slice(0, fallbackLimit);
       const qs = sourceQuestions.filter(isPracticeReadyQuestion);
       setQuestions(qs);
       if (userId) {

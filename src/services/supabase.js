@@ -4,7 +4,6 @@ const defaultSupabaseUrl = 'https://mcbfqgyosdklnzbagobp.supabase.co';
 const productionAppUrl = 'https://nursefaculty.org';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL?.trim() || defaultSupabaseUrl;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY?.trim() || '';
-const superAdminEmail = (import.meta.env.VITE_SUPER_ADMIN_EMAIL?.trim() || 'cryxtalcfc@gmail.com').toLowerCase();
 const isLocalDevelopment = typeof window !== 'undefined'
   && ['localhost', '127.0.0.1'].includes(window.location.hostname);
 const authRedirectUrl = isLocalDevelopment
@@ -16,13 +15,8 @@ export const supabaseConfig = {
   hasUrl: Boolean(supabaseUrl),
   hasAnonKey: Boolean(supabaseAnonKey),
   isConfigured: Boolean(supabaseUrl && supabaseAnonKey),
-  superAdminEmail,
   authRedirectUrl,
 };
-
-export function isConfiguredSuperAdmin(email) {
-  return Boolean(email && email.toLowerCase() === superAdminEmail);
-}
 
 export const supabase = supabaseConfig.isConfigured
   ? createClient(supabaseUrl, supabaseAnonKey, {

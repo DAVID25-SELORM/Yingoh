@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { CheckCircle2, ChevronRight, Clock, LockKeyhole, Target, Timer, Trophy, XCircle } from 'lucide-react';
-import { calculatePassProbability, completeExamSession, createExamSession, getExamUsage, getQuestionDifficultyStats, getQuestions, submitExamAnswer } from '../services/supabase';
+import { calculatePassProbability, completeExamSession, createExamSession, getExamUsage, getQuestionDifficultyStats, getQuestions, submitExamAnswer, supabase } from '../services/supabase';
 import { DEMO_QUESTIONS } from '../data/demoQuestions';
 import { UpgradeCTA } from './SubscriptionGate';
 import { useSubscription } from '../hooks/useSubscription';
@@ -182,7 +182,7 @@ export default function ExamModeView({ session, onNavigate }) {
     if (subscription.loading) return;
     const fallbackLimit = Number.isFinite(subscription.questionLimit) ? subscription.questionLimit : DEMO_QUESTIONS.length;
     getQuestions({ limit: subscription.questionLimit }).then(({ data }) => {
-      const sourceQuestions = data?.length ? data : DEMO_QUESTIONS.slice(0, fallbackLimit);
+      const sourceQuestions = supabase ? (data ?? []) : DEMO_QUESTIONS.slice(0, fallbackLimit);
       setAllQuestions(sourceQuestions.filter(isChoiceBasedQuestion));
       setCatQuestions(sourceQuestions.filter(isPracticeReadyQuestion));
     });

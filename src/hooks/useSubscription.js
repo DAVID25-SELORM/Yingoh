@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { isConfiguredSuperAdmin, supabase } from '../services/supabase';
+import { supabase } from '../services/supabase';
 import { entitlementsFor, PLAN_LEVELS, questionLimitFor } from '../data/subscriptionPlans';
 import { getEffectivePermissions } from '../data/rbac';
 
@@ -31,13 +31,6 @@ export function useSubscription(session) {
     setRoles([]);
     setPermissions([]);
     if (!session?.user?.id) { setLoading(false); return; }
-    if (isConfiguredSuperAdmin(session.user.email)) {
-      setSub({ plan_name: 'Premium', status: 'active' });
-      setRoles(['super_admin']);
-      setPermissions(getEffectivePermissions(['super_admin']));
-      setLoading(false);
-      return;
-    }
     if (!supabase) { setLoading(false); return; }
 
     Promise.all([

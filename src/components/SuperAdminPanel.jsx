@@ -395,7 +395,7 @@ export default function SuperAdminPanel({ session }) {
               {[
                 { label: 'Supabase URL', value: import.meta.env.VITE_SUPABASE_URL || 'https://mcbfqgyosdklnzbagobp.supabase.co', ok: true },
                 { label: 'Supabase Anon Key', value: import.meta.env.VITE_SUPABASE_ANON_KEY ? '••••••••••••••••' : 'Not set', ok: Boolean(import.meta.env.VITE_SUPABASE_ANON_KEY) },
-                { label: 'Super Admin Email', value: import.meta.env.VITE_SUPER_ADMIN_EMAIL || 'cryxtalcfc@gmail.com', ok: true },
+                { label: 'Admin Authorization', value: 'Supabase RBAC', ok: true },
                 { label: 'Current Session', value: session?.user?.email || 'No session', ok: Boolean(session) },
               ].map(({ label, value, ok }) => (
                 <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 14px', background: '#f8fbfa', borderRadius: 8, border: '1px solid #dde8e6' }}>

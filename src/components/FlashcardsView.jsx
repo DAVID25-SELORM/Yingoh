@@ -2,7 +2,7 @@
 import { Bookmark, BookmarkCheck, Brain, ChevronLeft, ChevronRight, RefreshCw, RotateCcw } from 'lucide-react';
 import {
   getFlashcardDecks, getFlashcardsForDeck, getUserFlashcardProgress,
-  saveItem, sm2, upsertFlashcardProgress,
+  saveItem, sm2, supabase, upsertFlashcardProgress,
 } from '../services/supabase';
 import { useSubscription } from '../hooks/useSubscription';
 
@@ -74,7 +74,7 @@ export default function FlashcardsView({ session }) {
 
   useEffect(() => {
     getFlashcardDecks().then(({ data }) => {
-      setDecks(data?.length ? data : DEMO_DECKS);
+      setDecks(supabase ? (data ?? []) : DEMO_DECKS);
     });
   }, []);
 
@@ -88,7 +88,7 @@ export default function FlashcardsView({ session }) {
     const { data: cardData } = await getFlashcardsForDeck(deck.id);
     const demoAccessibleIds = Object.values(DEMO_CARDS).flat().slice(0, subscription.entitlements.flashcardLimit).map((item) => item.id);
     const fallbackCards = (DEMO_CARDS[deck.id] ?? []).filter((item) => demoAccessibleIds.includes(item.id));
-    const deckCards = cardData?.length ? cardData : fallbackCards;
+    const deckCards = supabase ? (cardData ?? []) : fallbackCards;
     setCards(deckCards);
 
     if (userId) {

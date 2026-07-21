@@ -3,7 +3,7 @@ import {
   BookmarkCheck, Brain, CheckCircle2, ChevronLeft, ChevronRight,
   Filter, Play, RotateCcw, Settings2, XCircle,
 } from 'lucide-react';
-import { getQuestions, submitAttempt } from '../services/supabase';
+import { getQuestions, submitAttempt, supabase } from '../services/supabase';
 import { DEMO_QUESTIONS } from '../data/demoQuestions';
 import { useSubscription } from '../hooks/useSubscription';
 import { isChoiceBasedQuestion } from '../utils/questionReadiness';
@@ -41,7 +41,7 @@ export default function CustomQuizBuilder({ session }) {
     if (subscription.loading) return;
     const fallbackLimit = Number.isFinite(subscription.questionLimit) ? subscription.questionLimit : DEMO_QUESTIONS.length;
     getQuestions({ limit: subscription.questionLimit }).then(({ data }) => {
-      const sourceQuestions = data?.length ? data : DEMO_QUESTIONS.slice(0, fallbackLimit);
+      const sourceQuestions = supabase ? (data ?? []) : DEMO_QUESTIONS.slice(0, fallbackLimit);
       setAllQuestions(sourceQuestions.filter(isChoiceBasedQuestion));
     });
   }, [subscription.loading, subscription.questionLimit]);

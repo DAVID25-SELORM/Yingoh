@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import {
   checkTableAvailability, getCurrentSession, onAuthStateChange,
-  endImpersonationSession, isConfiguredSuperAdmin, resendEmailConfirmation, sendPasswordResetEmail, signInWithEmail, signOut,
+  endImpersonationSession, resendEmailConfirmation, sendPasswordResetEmail, signInWithEmail, signOut,
   signUpWithEmail, supabaseConfig, updatePassword, nurseFacultyTables,
 } from './services/supabase';
 import StudentDashboard from './components/StudentDashboard';
@@ -155,8 +155,8 @@ function AdminConsole() {
       </div>
       <div className="surface">
         <span className="eyebrow">Super Admin</span>
-        <h3>{supabaseConfig.superAdminEmail}</h3>
-        <p>This email is configured as the bootstrap owner for admin access in Supabase and the deployed app environment.</p>
+        <h3>Database-managed access</h3>
+        <p>Super administrator access is assigned through verified Supabase roles and enforced by database policies.</p>
       </div>
       <div className="integration-panel">
         <div>
@@ -200,7 +200,6 @@ function AccountAccess({ session, isPasswordRecovery }) {
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const userEmail = session?.user?.email;
-  const isSuperAdmin = isConfiguredSuperAdmin(userEmail);
   const isEmailVerified = Boolean(
     !userEmail || session?.user?.email_confirmed_at || session?.user?.confirmed_at,
   );
@@ -294,7 +293,6 @@ function AccountAccess({ session, isPasswordRecovery }) {
               <div className="session-card">
                 <span>Signed in as</span>
                 <strong>{userEmail}</strong>
-                {isSuperAdmin && <small>Administrator account</small>}
                 {!isEmailVerified && (
                   <div className="setup-alert" style={{ margin: '4px 0', color: '#8a5b12' }}>
                     Please verify your email before using protected learning features.
@@ -619,7 +617,7 @@ function App() {
   const isRegistrar = effectiveRoles.includes('academic_registrar');
   const isLibraryManager = effectiveRoles.includes('library_manager');
   const isAnalyticsManager = effectiveRoles.includes('analytics_manager');
-  const isSuperAdmin = !supportView && (roles.includes('super_admin') || isConfiguredSuperAdmin(session?.user?.email))
+  const isSuperAdmin = !supportView && roles.includes('super_admin')
     || effectiveRoles.includes('super_admin');
   const effectiveHasAdminAccess = supportView
     ? effectiveRoles.some((role) => ['admin', 'super_admin'].includes(role))
@@ -763,7 +761,7 @@ function App() {
             <h2>{activeView}</h2>
           </div>
           <div className="topbar-actions">
-            {(roles.includes('admin') || roles.includes('super_admin') || isConfiguredSuperAdmin(session?.user?.email)) && (
+            {(roles.includes('admin') || roles.includes('super_admin')) && (
               <select
                 className="portal-switcher"
                 value={supportView?.type === 'portal' ? supportView.portalKey : supportView?.type === 'impersonation' ? 'impersonation' : 'normal'}
