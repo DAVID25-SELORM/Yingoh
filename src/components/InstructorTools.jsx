@@ -31,6 +31,7 @@ import {
   getCourseEnrollmentLinks,
   getMyCourses,
   getCourseRoster,
+  joinLiveSession,
   setCourseEnrollmentLinkActive,
   supabase,
   updateCourseMembershipStatus,
@@ -150,7 +151,6 @@ export default function InstructorTools({ session }) {
       starts_at: starts,
       ends_at: ends,
       status: 'scheduled',
-      meeting_url: `https://meet.jit.si/nursefaculty-${crypto.randomUUID()}`,
     };
 
     if (supabase) {
@@ -168,6 +168,20 @@ export default function InstructorTools({ session }) {
     setShowForm(false);
     setForm(EMPTY_SESSION);
     setTab('live-sessions');
+  }
+
+  async function startSession(selectedSession) {
+    setMessage('');
+    if (!supabase || String(selectedSession.id).startsWith('s')) {
+      setActiveSession(selectedSession);
+      return;
+    }
+    const { data, error } = await joinLiveSession(selectedSession.id);
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+    setActiveSession({ ...selectedSession, ...data });
   }
 
   async function saveCourse() {
@@ -740,8 +754,8 @@ export default function InstructorTools({ session }) {
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-              {s.status === 'scheduled' && (
-                <button onClick={() => setActiveSession(s)} className="primary-btn" style={{ whiteSpace: 'nowrap' }}>
+              {['scheduled', 'live'].includes(s.status) && new Date(s.starts_at) - new Date() < 30 * 60000 && (
+                <button onClick={() => startSession(s)} className="primary-btn" style={{ whiteSpace: 'nowrap' }}>
                   <Video size={14} /> Start Session
                 </button>
               )}

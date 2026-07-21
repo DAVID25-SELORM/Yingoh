@@ -1,5 +1,5 @@
--- Course-aware live-session discovery and a single audited join path for
--- students, instructors, and administrators.
+-- Follow-up is intentionally idempotent: it corrects environments that may
+-- already have applied 20260721090000 before its access review completed.
 
 drop policy if exists "schedules_read" on public.class_schedules;
 create policy "schedules_read" on public.class_schedules
@@ -11,8 +11,7 @@ create policy "schedules_read" on public.class_schedules
     or (
       course_id is not null
       and exists (
-        select 1
-        from public.course_memberships cm
+        select 1 from public.course_memberships cm
         where cm.course_id = class_schedules.course_id
           and cm.user_id = auth.uid()
           and cm.status = 'enrolled'
@@ -28,11 +27,7 @@ create policy "schedules_read" on public.class_schedules
   );
 
 create or replace function public.join_live_session(p_session_id uuid)
-returns table (
-  id uuid,
-  meeting_url text,
-  joined_at timestamptz
-)
+returns table (id uuid, meeting_url text, joined_at timestamptz)
 language plpgsql
 security definer
 set search_path = public

@@ -40,7 +40,7 @@ export default function VirtualClassroom() {
 
   useEffect(() => {
     if (!supabase) return;
-    supabase.from('class_schedules').select('*').order('starts_at', { ascending: false }).then(({ data }) => {
+    supabase.from('class_schedules').select('id,instructor_id,course_id,title,description,topic,starts_at,ends_at,recording_url,status,meeting_provider').order('starts_at', { ascending: false }).then(({ data }) => {
       if (data?.length) setSessions(data);
     });
   }, []);
