@@ -31,7 +31,9 @@ import {
   getCourseEnrollmentLinks,
   getMyCourses,
   getCourseRoster,
+  getLiveSessionAttendeeCounts,
   joinLiveSession,
+  leaveLiveSession,
   setCourseEnrollmentLinkActive,
   supabase,
   updateCourseMembershipStatus,
@@ -120,8 +122,11 @@ export default function InstructorTools({ session }) {
 
   useEffect(() => {
     if (!supabase) return;
-    supabase.from('class_schedules').select('*').order('starts_at', { ascending: false }).then(({ data }) => {
-      if (data?.length) setSessions(data);
+    supabase.from('class_schedules').select('*').order('starts_at', { ascending: false }).then(async ({ data }) => {
+      if (!data?.length) return;
+      const { data: counts } = await getLiveSessionAttendeeCounts(data.map((item) => item.id));
+      const bySession = Object.fromEntries((counts ?? []).map((item) => [item.session_id, Number(item.attendee_count)]));
+      setSessions(data.map((item) => ({ ...item, attendee_count: bySession[item.id] ?? 0 })));
     });
     getMyCourses(session?.user?.id).then(({ data }) => {
       const owned = (data ?? []).map((row) => ({ ...row.courses, membership_role: row.membership_role, membership_status: row.status })).filter((course) => course?.id);
@@ -292,7 +297,7 @@ export default function InstructorTools({ session }) {
 
   return (
     <section className="content-band">
-      {activeSession && <JitsiRoom session={activeSession} onClose={() => setActiveSession(null)} />}
+      {activeSession && <JitsiRoom session={activeSession} onLeave={() => leaveLiveSession(activeSession.id)} onClose={() => setActiveSession(null)} />}
 
       <div className="section-title">
         <div>

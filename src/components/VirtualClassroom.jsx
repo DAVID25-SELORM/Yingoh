@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Calendar, Clock, ExternalLink, Film, Mic, Users, Video } from 'lucide-react';
-import { joinLiveSession, supabase } from '../services/supabase';
+import { getLiveSessionAttendeeCounts, joinLiveSession, leaveLiveSession, supabase } from '../services/supabase';
 import { JitsiRoom } from './JitsiRoom';
 
 const DEMO_SESSIONS = [
@@ -40,8 +40,11 @@ export default function VirtualClassroom() {
 
   useEffect(() => {
     if (!supabase) return;
-    supabase.from('class_schedules').select('id,instructor_id,course_id,title,description,topic,starts_at,ends_at,recording_url,status,meeting_provider').order('starts_at', { ascending: false }).then(({ data }) => {
-      if (data?.length) setSessions(data);
+    supabase.from('class_schedules').select('id,instructor_id,course_id,title,description,topic,starts_at,ends_at,recording_url,status,meeting_provider').order('starts_at', { ascending: false }).then(async ({ data }) => {
+      if (!data?.length) return;
+      const { data: counts } = await getLiveSessionAttendeeCounts(data.map((item) => item.id));
+      const bySession = Object.fromEntries((counts ?? []).map((item) => [item.session_id, Number(item.attendee_count)]));
+      setSessions(data.map((item) => ({ ...item, attendee_count: bySession[item.id] ?? 0 })));
     });
   }, []);
 
@@ -68,7 +71,7 @@ export default function VirtualClassroom() {
 
   return (
     <section className="content-band">
-      {activeSession && <JitsiRoom session={activeSession} onClose={() => setActiveSession(null)} />}
+      {activeSession && <JitsiRoom session={activeSession} onLeave={() => leaveLiveSession(activeSession.id)} onClose={() => setActiveSession(null)} />}
 
       <div className="section-title"><h2>Virtual Classroom</h2></div>
       {joinError && <div className="form-message" style={{ color: '#8a2c21', marginBottom: 12 }}>{joinError}</div>}

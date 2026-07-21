@@ -6,9 +6,10 @@ export function slugifyRoom(title) {
 }
 
 // Full-screen Jitsi Meet modal — shared by VirtualClassroom and InstructorTools
-export function JitsiRoom({ session, onClose }) {
+export function JitsiRoom({ session, onClose, onLeave }) {
   const containerRef = useRef(null);
   const apiRef = useRef(null);
+  const leaveHandledRef = useRef(false);
   const [status, setStatus] = useState('loading'); // loading | ready | error
   const [audioOnly, setAudioOnly] = useState(false);
 
@@ -16,6 +17,13 @@ export function JitsiRoom({ session, onClose }) {
   const configuredJitsiRoom = configuredUrl.match(/^https:\/\/meet\.jit\.si\/([^?#]+)/i)?.[1];
   const roomName = session.jitsi_room ?? configuredJitsiRoom ?? slugifyRoom(session.title);
   const jitsiUrl = configuredUrl || `https://meet.jit.si/${roomName}`;
+
+  function closeRoom() {
+    if (leaveHandledRef.current) return;
+    leaveHandledRef.current = true;
+    onLeave?.();
+    onClose();
+  }
 
   useEffect(() => {
     function mount() {
@@ -45,7 +53,7 @@ export function JitsiRoom({ session, onClose }) {
           },
         });
         apiRef.current.addEventListener('videoConferenceJoined', () => setStatus('ready'));
-        apiRef.current.addEventListener('readyToClose', onClose);
+        apiRef.current.addEventListener('videoConferenceLeft', closeRoom);
         apiRef.current.addEventListener('errorOccurred', () => setStatus('error'));
         // Fallback: mark ready after 8s if event doesn't fire
         setTimeout(() => setStatus((s) => s === 'loading' ? 'ready' : s), 8000);
@@ -90,7 +98,7 @@ export function JitsiRoom({ session, onClose }) {
           <ExternalLink size={13} /> Open in Tab
         </a>
 
-        <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: 4, opacity: 0.75, display: 'flex' }}>
+        <button onClick={closeRoom} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', padding: 4, opacity: 0.75, display: 'flex' }}>
           <X size={20} />
         </button>
       </div>

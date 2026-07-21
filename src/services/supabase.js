@@ -568,6 +568,16 @@ export async function joinLiveSession(sessionId) {
   return supabase.rpc('join_live_session', { p_session_id: sessionId }).maybeSingle();
 }
 
+export async function leaveLiveSession(sessionId) {
+  if (!supabase || !sessionId) return { data: null, error: null };
+  return supabase.rpc('leave_live_session', { p_session_id: sessionId });
+}
+
+export async function getLiveSessionAttendeeCounts(sessionIds) {
+  if (!supabase || !sessionIds?.length) return { data: [], error: null };
+  return supabase.rpc('get_live_session_attendee_counts', { p_session_ids: sessionIds });
+}
+
 // Progress rollup
 export async function getUserProgress(userId) {
   if (!supabase || !userId) return { data: null, error: null };
