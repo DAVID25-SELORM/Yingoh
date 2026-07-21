@@ -563,6 +563,11 @@ export async function setCourseEnrollmentLinkActive(linkId, isActive) {
   });
 }
 
+export async function joinLiveSession(sessionId) {
+  if (!supabase || !sessionId) return { data: null, error: new Error('Live session is unavailable') };
+  return supabase.rpc('join_live_session', { p_session_id: sessionId }).maybeSingle();
+}
+
 // Progress rollup
 export async function getUserProgress(userId) {
   if (!supabase || !userId) return { data: null, error: null };

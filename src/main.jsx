@@ -654,7 +654,10 @@ function App() {
   }
 
   if (isCourseJoinRoute()) {
-    return <CourseJoinView session={session} onJoined={() => setActiveView('Classroom')} />;
+    return <CourseJoinView session={session} onJoined={() => {
+      window.history.replaceState(null, '', '/#/Live%20Classes');
+      setActiveView('Live Classes');
+    }} />;
   }
 
   if (!session) return <PublicLanding isPasswordRecovery={isPasswordRecovery} />;
@@ -824,7 +827,7 @@ function App() {
         {activeView === 'Instructors' && (effectiveHasAdminAccess || isInstructor) && <InstructorTools session={session} />}
         {activeView === 'Content Review' && (effectiveHasAdminAccess || isReviewer) && <ContentReviewer session={session} />}
         {activeView === 'Announcements' && (effectiveHasAdminAccess || isInstructor) && <AnnouncementsView session={session} />}
-        {activeView === 'Classroom' && (effectiveHasAdminAccess || isInstructor) && <VirtualClassroom session={session} />}
+        {activeView === 'Classroom' && (effectiveHasAdminAccess || isInstructor || isDepartmentAdmin || isExamOfficer) && <VirtualClassroom session={session} />}
         {activeView === 'Video Manager' && (effectiveHasAdminAccess || isInstructor) && <VideoManager session={session} />}
         {activeView === 'Audit Logs' && effectiveHasAdminAccess && <AuditLogView session={session} />}
         {activeView === 'Study Coach' && <StudyCoachView session={session} />}

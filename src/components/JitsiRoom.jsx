@@ -12,8 +12,10 @@ export function JitsiRoom({ session, onClose }) {
   const [status, setStatus] = useState('loading'); // loading | ready | error
   const [audioOnly, setAudioOnly] = useState(false);
 
-  const roomName = session.jitsi_room ?? slugifyRoom(session.title);
-  const jitsiUrl = `https://meet.jit.si/${roomName}`;
+  const configuredUrl = session.meeting_url || '';
+  const configuredJitsiRoom = configuredUrl.match(/^https:\/\/meet\.jit\.si\/([^?#]+)/i)?.[1];
+  const roomName = session.jitsi_room ?? configuredJitsiRoom ?? slugifyRoom(session.title);
+  const jitsiUrl = configuredUrl || `https://meet.jit.si/${roomName}`;
 
   useEffect(() => {
     function mount() {

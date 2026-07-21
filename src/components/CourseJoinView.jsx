@@ -73,7 +73,7 @@ export default function CourseJoinView({ session, onJoined }) {
       setMessage(data === 'enrolled'
         ? 'You are enrolled. Welcome to the classroom.'
         : 'Your request was submitted. The instructor will approve or reject your enrollment.');
-      onJoined?.();
+      if (data === 'enrolled') onJoined?.();
     }
     setJoining(false);
   }

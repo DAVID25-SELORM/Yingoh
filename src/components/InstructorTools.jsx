@@ -83,7 +83,7 @@ const DEMO_COURSES = [
   { id: 'demo-course-2', title: 'Pharmacology Intensive', course_code: 'PHARM-90', category: 'Pharmacology', description: 'Medication safety, adverse effects, antidotes, and high-yield NCLEX medication classes.', status: 'published', enrollment_method: 'open', max_students: 80, visibility: 'private', completion_rate: 68, average_score: 79, modules_count: 12, assignments_count: 4, certificates_issued: 41 },
 ];
 
-const EMPTY_SESSION = { title: '', topic: 'Pharmacology', description: '', starts_at: '', duration_mins: 90 };
+const EMPTY_SESSION = { title: '', topic: 'Pharmacology', description: '', starts_at: '', duration_mins: 90, course_id: '' };
 const EMPTY_COURSE = {
   title: '',
   course_code: '',
@@ -129,7 +129,9 @@ export default function InstructorTools({ session }) {
     });
   }, []);
 
-  const upcoming = sessions.filter((s) => s.status === 'scheduled' && new Date(s.starts_at) > new Date());
+  const upcoming = sessions
+    .filter((s) => ['scheduled', 'live'].includes(s.status) && new Date(s.ends_at || s.starts_at) > new Date())
+    .sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
   const todaysSessions = upcoming.filter((s) => new Date(s.starts_at).toDateString() === new Date().toDateString());
   const past = sessions.filter((s) => s.status === 'completed' || new Date(s.starts_at) < new Date());
   const displayed = tab === 'live-sessions' ? upcoming : past;
@@ -141,16 +143,23 @@ export default function InstructorTools({ session }) {
     const ends = new Date(new Date(form.starts_at).getTime() + form.duration_mins * 60000).toISOString();
     const payload = {
       instructor_id: session?.user?.id,
+      course_id: form.course_id || null,
       title: form.title,
       topic: form.topic,
       description: form.description,
       starts_at: starts,
       ends_at: ends,
       status: 'scheduled',
+      meeting_url: `https://meet.jit.si/nursefaculty-${crypto.randomUUID()}`,
     };
 
     if (supabase) {
-      const { data } = await supabase.from('class_schedules').insert(payload).select().single();
+      const { data, error } = await supabase.from('class_schedules').insert(payload).select().single();
+      if (error) {
+        setMessage(error.message);
+        setSaving(false);
+        return;
+      }
       if (data) setSessions((prev) => [data, ...prev]);
     } else {
       setSessions((prev) => [{ ...payload, id: `s${Date.now()}`, attendee_count: 0 }, ...prev]);
@@ -158,7 +167,7 @@ export default function InstructorTools({ session }) {
     setSaving(false);
     setShowForm(false);
     setForm(EMPTY_SESSION);
-    setTab('upcoming');
+    setTab('live-sessions');
   }
 
   async function saveCourse() {
@@ -395,6 +404,14 @@ export default function InstructorTools({ session }) {
             <div className="qm-form-row">
               <label>Duration (minutes)</label>
               <input type="number" min="30" step="15" value={form.duration_mins} onChange={(e) => setForm((p) => ({ ...p, duration_mins: Number(e.target.value) }))} style={{ height: 38, borderRadius: 8, border: '1px solid #dbe6e4', padding: '0 12px' }} />
+            </div>
+            <div className="qm-form-row" style={{ gridColumn: '1 / -1' }}>
+              <label>Who can attend?</label>
+              <select value={form.course_id} onChange={(e) => setForm((p) => ({ ...p, course_id: e.target.value }))} style={{ height: 38, borderRadius: 8, border: '1px solid #dbe6e4', padding: '0 10px' }}>
+                <option value="">All eligible students (platform masterclass)</option>
+                {courses.map((course) => <option key={course.id} value={course.id}>{course.title}</option>)}
+              </select>
+              <small style={{ color: '#607478' }}>Course sessions appear for enrolled students; admins and course staff can also join.</small>
             </div>
             <div className="qm-form-row" style={{ gridColumn: '1 / -1' }}>
               <label>Start Date &amp; Time</label>

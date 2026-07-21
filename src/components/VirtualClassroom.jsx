@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Calendar, Clock, ExternalLink, Film, Mic, Users, Video } from 'lucide-react';
-import { supabase } from '../services/supabase';
+import { joinLiveSession, supabase } from '../services/supabase';
 import { JitsiRoom } from './JitsiRoom';
 
 const DEMO_SESSIONS = [
@@ -36,6 +36,7 @@ export default function VirtualClassroom() {
   const [sessions, setSessions] = useState(supabase ? [] : DEMO_SESSIONS);
   const [tab, setTab] = useState('live');
   const [activeSession, setActiveSession] = useState(null);
+  const [joinError, setJoinError] = useState('');
 
   useEffect(() => {
     if (!supabase) return;
@@ -44,7 +45,23 @@ export default function VirtualClassroom() {
     });
   }, []);
 
-  const upcoming = sessions.filter((s) => s.status === 'scheduled' && new Date(s.starts_at) > new Date());
+  async function joinSession(selectedSession) {
+    setJoinError('');
+    if (!supabase || String(selectedSession.id).startsWith('s')) {
+      setActiveSession(selectedSession);
+      return;
+    }
+    const { data, error } = await joinLiveSession(selectedSession.id);
+    if (error) {
+      setJoinError(error.message);
+      return;
+    }
+    setActiveSession({ ...selectedSession, ...data });
+  }
+
+  const upcoming = sessions
+    .filter((s) => ['scheduled', 'live'].includes(s.status) && new Date(s.ends_at || s.starts_at) > new Date())
+    .sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
   const recordings = sessions.filter((s) => s.status === 'completed' && s.recording_url);
   const nextSession = upcoming[0];
   const isLive = nextSession && (new Date(nextSession.starts_at) - new Date()) < 30 * 60000;
@@ -54,6 +71,7 @@ export default function VirtualClassroom() {
       {activeSession && <JitsiRoom session={activeSession} onClose={() => setActiveSession(null)} />}
 
       <div className="section-title"><h2>Virtual Classroom</h2></div>
+      {joinError && <div className="form-message" style={{ color: '#8a2c21', marginBottom: 12 }}>{joinError}</div>}
 
       {nextSession && (
         <div style={{ background: 'linear-gradient(135deg, #17313a 0%, #2b8a7d 100%)', borderRadius: 16, padding: '24px 28px', marginBottom: 22, color: '#fff', display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -70,9 +88,11 @@ export default function VirtualClassroom() {
             </div>
           </div>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <button onClick={() => setActiveSession(nextSession)} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 24px', background: '#fff', color: '#17313a', borderRadius: 10, fontWeight: 800, fontSize: '0.92rem', border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(0,0,0,0.15)', whiteSpace: 'nowrap' }}>
-              <Video size={16} /> {isLive ? 'Join Now' : 'Join Session'}
-            </button>
+            {isLive && (
+              <button onClick={() => joinSession(nextSession)} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 24px', background: '#fff', color: '#17313a', borderRadius: 10, fontWeight: 800, fontSize: '0.92rem', border: 'none', cursor: 'pointer', boxShadow: '0 4px 14px rgba(0,0,0,0.15)', whiteSpace: 'nowrap' }}>
+                <Video size={16} /> Join Now
+              </button>
+            )}
             {!isLive && (
               <button onClick={() => addToCalendar(nextSession)} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 20px', background: 'rgba(255,255,255,0.15)', color: '#fff', borderRadius: 10, fontWeight: 700, fontSize: '0.88rem', border: '1.5px solid rgba(255,255,255,0.3)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
                 <Calendar size={15} /> Add to Calendar
@@ -110,7 +130,7 @@ export default function VirtualClassroom() {
                 </div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexShrink: 0 }}>
                   {inThirty ? (
-                    <button onClick={() => setActiveSession(s)} className="primary-btn" style={{ whiteSpace: 'nowrap' }}>
+                    <button onClick={() => joinSession(s)} className="primary-btn" style={{ whiteSpace: 'nowrap' }}>
                       <Mic size={14} /> Join Now
                     </button>
                   ) : (
