@@ -5,6 +5,8 @@ import {
 } from 'lucide-react';
 import dashboardImage from '../assets/nclex-dashboard.webp';
 import { calculatePassProbability, getRecentAttempts, getStudyPlan, getUserProgress } from '../services/supabase';
+import { UpgradeCTA } from './SubscriptionGate';
+import { useSubscription } from '../hooks/useSubscription';
 
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
@@ -91,6 +93,7 @@ function WeeklyActivity({ data }) {
 }
 
 export default function StudentDashboard({ session, onNavigate }) {
+  const subscription = useSubscription(session);
   const [passProbability, setPassProbability] = useState(0);
   const [streak, setStreak] = useState(0);
   const [doneToday, setDoneToday] = useState(0);
@@ -295,6 +298,27 @@ export default function StudentDashboard({ session, onNavigate }) {
           </section>
         </div>
       </div>
+
+      {/* Question of the Day */}
+      {subscription.isBasic ? (
+        <section className="surface qotd-card">
+          <div className="qotd-card-icon"><CalendarDays size={22} /></div>
+          <div className="qotd-card-body">
+            <strong>Question of the Day</strong>
+            <p>A fresh NCLEX question every day — answer it, see instantly whether you're right, then get a full rationale.</p>
+          </div>
+          <button className="primary-btn" onClick={() => onNavigate('Question of the Day')}>
+            Answer Today's Question <ChevronRight size={16} />
+          </button>
+        </section>
+      ) : (
+        <UpgradeCTA
+          session={session}
+          requiredPlan="basic"
+          onUpgrade={() => onNavigate('Billing')}
+          style={{ marginBottom: 0 }}
+        />
+      )}
 
       {/* Quick actions */}
       <section className="surface">

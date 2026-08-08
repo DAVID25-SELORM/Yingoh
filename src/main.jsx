@@ -14,6 +14,7 @@ import {
 import StudentDashboard from './components/StudentDashboard';
 import QuestionBankView from './components/QuestionBankView';
 import ExamModeView from './components/ExamModeView';
+import QuestionOfTheDayView from './components/QuestionOfTheDayView';
 import FlashcardsView from './components/FlashcardsView';
 import StudyPlannerView from './components/StudyPlannerView';
 import NotebookView from './components/NotebookView';
@@ -349,6 +350,7 @@ const NAV = [
   { label: 'Dashboard', icon: LayoutDashboard, group: 'learn' },
   { label: 'Questions', icon: ClipboardCheck, group: 'learn' },
   { label: 'Exam', icon: Target, group: 'learn' },
+  { label: 'Question of the Day', icon: CalendarDays, group: 'learn', more: true },
   { label: 'Flashcards', icon: Brain, group: 'learn' },
   { label: 'Study Coach', icon: Brain, group: 'learn' },
   { label: 'Analytics', icon: BarChart3, group: 'learn' },
@@ -602,7 +604,7 @@ function App() {
 
   const learnNavCore = NAV.filter((n) => n.group === 'learn' && !n.more);
   const learnNavMore = NAV.filter((n) => n.group === 'learn' && n.more);
-  const isActiveInMore = learnNavMore.some((n) => n.label === activeView);
+  const isActiveInMore = learnNavMore.some((n) => (n.viewKey ?? n.label) === activeView);
   const [navExpanded, setNavExpanded] = useState(false);
   const learnNav = (navExpanded || isActiveInMore) ? [...learnNavCore, ...learnNavMore] : learnNavCore;
   const manageNav = NAV.filter((n) => n.group === 'manage');
@@ -680,15 +682,18 @@ function App() {
 
         <nav>
           <div className="nav-group-label">STUDY</div>
-          {learnNav.map(({ label, icon: Icon }) => (
-            <button
-              key={label}
-              className={activeView === label ? 'nav-active' : ''}
-              onClick={() => navigateTo(label)}
-            >
-              <Icon size={18} />{label}
-            </button>
-          ))}
+          {learnNav.map(({ label, icon: Icon, viewKey }) => {
+            const key = viewKey ?? label;
+            return (
+              <button
+                key={key}
+                className={activeView === key ? 'nav-active' : ''}
+                onClick={() => navigateTo(key)}
+              >
+                <Icon size={18} />{label}
+              </button>
+            );
+          })}
           <button
             onClick={() => setNavExpanded((v) => !v)}
             style={{ display: 'flex', alignItems: 'center', gap: 8, width: '100%', background: 'none', border: 'none', padding: '6px 12px', fontSize: '0.78rem', color: '#8a999c', cursor: 'pointer', borderRadius: 6, marginTop: 2 }}
@@ -788,6 +793,7 @@ function App() {
         {activeView === 'Dashboard' && <StudentDashboard session={session} onNavigate={setActiveView} />}
         {activeView === 'Questions' && <QuestionBankView session={session} />}
         {activeView === 'Exam' && <ExamModeView session={session} onNavigate={setActiveView} />}
+        {activeView === 'Question of the Day' && <QuestionOfTheDayView session={session} />}
         {activeView === 'Flashcards' && <FlashcardsView session={session} />}
         {activeView === 'Planner' && <StudyPlannerView session={session} />}
         {activeView === 'Notebook' && <NotebookView session={session} />}

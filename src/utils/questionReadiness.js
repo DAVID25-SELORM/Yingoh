@@ -2,6 +2,10 @@ function hasText(value) {
   return typeof value === 'string' && value.trim().length > 0;
 }
 
+function hasDetailedRationale(value) {
+  return typeof value === 'string' && value.trim().length >= 80;
+}
+
 export function hasUsableChoices(question, minimum = 2) {
   return Array.isArray(question?.choices)
     && question.choices.filter((choice) => hasText(choice?.id) && hasText(choice?.text)).length >= minimum;
@@ -9,7 +13,7 @@ export function hasUsableChoices(question, minimum = 2) {
 
 export function isPracticeReadyQuestion(question) {
   const type = question?.question_type;
-  if (!hasText(question?.prompt)) return false;
+  if (!hasText(question?.prompt) || !hasDetailedRationale(question?.rationale)) return false;
   if (type === 'mcq') {
     return hasUsableChoices(question, 2)
       && Array.isArray(question?.correct_answer?.ids)

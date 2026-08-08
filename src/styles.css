@@ -1497,3 +1497,23 @@ input, select, textarea { font: inherit; }
   .cat-sim-next-btn { width: 100%; }
   .cat-sim-calculator-popover { left: 12px; right: 12px; width: auto; bottom: 140px; }
 }
+
+/* ─── Question of the Day ───────────────────────────────── */
+.qotd-card {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+}
+.qotd-card-icon {
+  width: 44px; height: 44px; border-radius: 12px; flex-shrink: 0;
+  background: #e9f6f4; color: #135f55; display: grid; place-items: center;
+}
+.qotd-card-body { flex: 1; min-width: 200px; }
+.qotd-card-body strong { display: block; font-size: 1rem; margin-bottom: 4px; }
+.qotd-card-body p { margin: 0; color: #607478; font-size: 0.88rem; line-height: 1.5; }
+
+.qotd-date { color: #607478; font-size: 0.86rem; margin: -8px 0 16px; }
+.qotd-tomorrow { margin-top: 16px; color: #607478; font-size: 0.88rem; text-align: center; }
+
+@media (max-width: 560px) {
+  .qotd-card { flex-direction: column; align-items: flex-start; }
+  .qotd-card .primary-btn { width: 100%; justify-content: center; }
+}
