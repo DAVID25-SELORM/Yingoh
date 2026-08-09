@@ -110,9 +110,11 @@ begin
          or nullif(trim(explanation->>'explanation'), '') is null
       then
         errors := array_append(errors, 'Missing explanation for option ' || upper(choice_id));
-      elsif case lower(coalesce(explanation->>'is_correct', ''))
-              when 'true' then true when 'false' then false else null
-            end is distinct from (choice_id = any(correct_ids)) then
+      elsif (case lower(coalesce(explanation->>'is_correct', ''))
+               when 'true' then true
+               when 'false' then false
+               else null
+             end) is distinct from (choice_id = any(correct_ids)) then
         errors := array_append(errors, 'Correctness mismatch for option ' || upper(choice_id));
       end if;
     end loop;
@@ -297,9 +299,11 @@ as $$
         case when q.question_type in ('mcq','sata') and exists (
           select 1 from jsonb_array_elements(q.choices) c
           where q.option_explanations ? lower(c->>'id')
-            and case lower(coalesce(q.option_explanations->lower(c->>'id')->>'is_correct', ''))
-                  when 'true' then true when 'false' then false else null
-                end is distinct from ((q.correct_answer->'ids') ? lower(c->>'id'))
+            and (case lower(coalesce(q.option_explanations->lower(c->>'id')->>'is_correct', ''))
+                   when 'true' then true
+                   when 'false' then false
+                   else null
+                 end) is distinct from ((q.correct_answer->'ids') ? lower(c->>'id'))
         ) then 'answer_mismatch' end,
         case when q.clinical_review_status <> 'approved' or q.reviewed_by is null or q.reviewed_at is null
              then 'requires_review' end,
@@ -352,9 +356,11 @@ as $$
         where q.question_type in ('mcq','sata')
           and (
             nullif(trim(q.option_explanations->lower(c->>'id')->>'explanation'), '') is null
-            or case lower(coalesce(q.option_explanations->lower(c->>'id')->>'is_correct', ''))
-                 when 'true' then true when 'false' then false else null
-               end is distinct from ((q.correct_answer->'ids') ? lower(c->>'id'))
+            or (case lower(coalesce(q.option_explanations->lower(c->>'id')->>'is_correct', ''))
+                  when 'true' then true
+                  when 'false' then false
+                  else null
+                end) is distinct from ((q.correct_answer->'ids') ? lower(c->>'id'))
           )
       ))::bigint,
     count(*) filter (where q.question_type in ('mcq','sata') and exists (
@@ -366,9 +372,11 @@ as $$
     count(*) filter (where q.question_type in ('mcq','sata') and exists (
       select 1 from jsonb_array_elements(q.choices) c
       where q.option_explanations ? lower(c->>'id')
-        and case lower(coalesce(q.option_explanations->lower(c->>'id')->>'is_correct', ''))
-              when 'true' then true when 'false' then false else null
-            end is distinct from ((q.correct_answer->'ids') ? lower(c->>'id'))
+        and (case lower(coalesce(q.option_explanations->lower(c->>'id')->>'is_correct', ''))
+               when 'true' then true
+               when 'false' then false
+               else null
+             end) is distinct from ((q.correct_answer->'ids') ? lower(c->>'id'))
     ))::bigint,
     count(*) filter (where q.clinical_review_status <> 'approved' or q.reviewed_by is null or q.reviewed_at is null)::bigint,
     count(*) filter (where q.reviewed_at is not null and q.reviewed_at < now() - make_interval(days => greatest(p_stale_days, 1)))::bigint
