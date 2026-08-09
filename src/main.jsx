@@ -42,6 +42,7 @@ import AuditLogView from './components/AuditLogView';
 import { SubscriptionGate } from './components/SubscriptionGate';
 import SavedItemsView from './components/SavedItemsView';
 import { useSubscription } from './hooks/useSubscription';
+import LegalDocumentView, { LEGAL_VERSION } from './components/LegalDocumentView';
 import './styles.css';
 
 if (typeof window !== 'undefined' && window.location.hostname === 'yingoh.vercel.app') {
@@ -200,6 +201,7 @@ function AccountAccess({ session, isPasswordRecovery }) {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [message, setMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [legalAccepted, setLegalAccepted] = useState(false);
   const userEmail = session?.user?.email;
   const isEmailVerified = Boolean(
     !userEmail || session?.user?.email_confirmed_at || session?.user?.confirmed_at,
@@ -234,7 +236,10 @@ function AccountAccess({ session, isPasswordRecovery }) {
       }
     } else {
       const action = mode === 'signup'
-        ? signUpWithEmail({ email, password, fullName })
+        ? signUpWithEmail({
+            email, password, fullName, legalAccepted,
+            termsVersion: LEGAL_VERSION, refundPolicyVersion: LEGAL_VERSION,
+          })
         : signInWithEmail(email, password);
       const { error } = await action;
       if (error) setMessage(error.message);
@@ -324,9 +329,17 @@ function AccountAccess({ session, isPasswordRecovery }) {
                 </button>
               )}
               {mode !== 'reset' && (
+              <>
+              {mode === 'signup' && (
+                <label className="legal-consent">
+                  <input type="checkbox" checked={legalAccepted} onChange={(event) => setLegalAccepted(event.target.checked)} required />
+                  <span>I agree to the <a href="/?legal=terms" target="_blank" rel="noreferrer">Terms &amp; Conditions</a> and acknowledge the <a href="/?legal=refund" target="_blank" rel="noreferrer">Refund Policy</a>.</span>
+                </label>
+              )}
               <button className="primary-btn" type="submit" disabled={!supabaseConfig.isConfigured || isSubmitting}>
                 {isSubmitting ? 'Working…' : mode === 'signup' ? 'Create account' : 'Sign in'}
               </button>
+              </>
               )}
               <button className="link-btn" type="button" onClick={() => setMode(mode === 'reset' ? 'signin' : 'reset')}>
                 {mode === 'reset' ? 'Back to sign in' : 'Forgot password?'}
@@ -494,6 +507,12 @@ function PublicLanding({ isPasswordRecovery }) {
             Built by {developerSignature.name} · <a href={`mailto:${developerSignature.email}`}>{developerSignature.email}</a>
           </span>
         </div>
+        <nav className="public-legal-links" aria-label="Legal policies">
+          <a href="/?legal=terms">Terms &amp; Conditions</a>
+          <a href="/?legal=refund">Refund Policy</a>
+          <a href="/?legal=privacy">Privacy Policy</a>
+          <a href="/?legal=cookie">Cookie Policy</a>
+        </nav>
       </footer>
     </main>
   );
@@ -653,6 +672,11 @@ function App() {
     );
   }
 
+  const legalType = new URLSearchParams(window.location.search).get('legal');
+  if (['terms', 'refund', 'privacy', 'cookie'].includes(legalType)) {
+    return <LegalDocumentView type={legalType} />;
+  }
+
   if (isCourseJoinRoute()) {
     return <CourseJoinView session={session} onJoined={() => {
       window.history.replaceState(null, '', '/#/Live%20Classes');
@@ -790,6 +814,23 @@ function App() {
           </div>
         </header>
 
+        <div
+          className={supportView ? 'support-view-readonly' : undefined}
+          onClickCapture={(event) => {
+            if (!supportView) return;
+            const interactive = event.target.closest('button, input, select, textarea, form');
+            if (interactive) {
+              event.preventDefault();
+              event.stopPropagation();
+            }
+          }}
+          onSubmitCapture={(event) => {
+            if (supportView) {
+              event.preventDefault();
+              event.stopPropagation();
+            }
+          }}
+        >
         {activeView === 'Dashboard' && <StudentDashboard session={session} onNavigate={setActiveView} />}
         {activeView === 'Questions' && <QuestionBankView session={session} />}
         {activeView === 'Exam' && <ExamModeView session={session} onNavigate={setActiveView} />}
@@ -850,6 +891,7 @@ function App() {
             <ProfessionalAddons session={session} />
           </SubscriptionGate>
         )}
+        </div>
         <footer className="app-signature" aria-label="Developer signature">
           <span>Built by {developerSignature.name}</span>
           <a href={`mailto:${developerSignature.email}`}>{developerSignature.email}</a>

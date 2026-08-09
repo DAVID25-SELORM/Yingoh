@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Brain, BookOpen, Bookmark, BookmarkCheck, CalendarDays, ClipboardList, Loader2, RotateCcw, Send, Sparkles } from 'lucide-react';
-import { consumeStudyCoachQuestion, getStudyCoachConversations, saveStudyCoachConversation, saveItem, supabase } from '../services/supabase';
+import { getStudyCoachConversations, saveStudyCoachConversation, saveItem, supabase } from '../services/supabase';
 import { useSubscription } from '../hooks/useSubscription';
 
 const TABS = [
@@ -116,8 +116,6 @@ export default function StudyCoachView({ session }) {
     try {
       let reply = DEMO_REPLY;
       if (supabase) {
-        const { error: quotaError } = await consumeStudyCoachQuestion();
-        if (quotaError) throw new Error(quotaError.message || 'Your Study Coach allowance has been used for today.');
         const apiHistory = next.slice(-10).map((m) => ({ role: m.role, content: m.content }));
         const { data, error: fnError } = await supabase.functions.invoke('study-coach', {
           body: {

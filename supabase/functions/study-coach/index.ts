@@ -1,261 +1,150 @@
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
 const OPENAI_KEY = Deno.env.get('OPENAI_API_KEY') ?? '';
-const OPENAI_MODEL = Deno.env.get('OPENAI_MODEL') ?? 'gpt-5-mini';
-const FALLBACK_MODEL = Deno.env.get('OPENAI_FALLBACK_MODEL') ?? 'gpt-4o-mini';
+const OPENAI_MODEL = Deno.env.get('OPENAI_MODEL') ?? 'gpt-5.6-luna';
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL') ?? '';
+const SUPABASE_ANON_KEY = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+const ALLOWED_ORIGINS = (Deno.env.get('ALLOWED_ORIGINS') ?? 'https://nursefaculty.org')
+  .split(',').map((value) => value.trim()).filter(Boolean);
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
-
+const MODES = new Set(['tutor', 'explainer', 'quiz', 'planner']);
 const SYSTEM_PROMPTS: Record<string, string> = {
-  tutor: `You are the NurseFaculty Study Coach, an expert NCLEX nursing coach. Help nursing students prepare for the Next Generation NCLEX (NGN). Every answer should be guided, exam-oriented, and clinically safe. Use this structure when relevant: Concept, Correct Answer, Why Wrong Options Are Wrong, Clinical Tip. If the student did not provide answer options, explain the concept, ask one clarifying question if needed, and give a short clinical tip. Emphasize nursing priorities, ABCs, safety, infection control, pharmacology precautions, ADPIE, and the clinical judgment model. Use plain text.`,
-
-  explainer: `You are an expert NCLEX rationale explainer. When given a question and answer choices, identify the likely correct answer if possible, explain why it is correct, explain why each wrong option is wrong, explain the underlying concept, and end with one short clinical tip. Keep it clear, safe, and NCLEX-focused. Use plain text.`,
-
-  quiz: `You are an NCLEX question generator. Create realistic Next Generation NCLEX (NGN) style questions based on the requested topic. Format: write a brief clinical scenario, then the question, then 4-6 answer options labeled A-F, then state the correct answer(s) with a full rationale. For SATA questions, list all correct answers. Keep the difficulty at or above NCLEX passing standard. Output plain text only.`,
-
-  planner: `You are an expert NCLEX study planner. Create detailed, realistic study schedules for nursing students preparing for the NCLEX. Ask about or use the provided exam date, current weak topics, and available study hours per day. Output a week-by-week plan with daily focus topics, recommended resources, and built-in review days. Be specific and actionable. Use plain text.`,
+  tutor: 'You are the NurseFaculty Study Coach, an expert NCLEX nursing coach. Give clinically safe educational guidance. When relevant use: Concept, Correct Answer, Why Wrong Options Are Wrong, Clinical Tip. Emphasize ABCs, safety, infection control, ADPIE, and clinical judgment. State that educational guidance does not replace clinical protocols or professional judgment.',
+  explainer: 'You are an NCLEX rationale explainer. Identify the correct answer when the supplied information permits it, explain why it is correct, explain each distractor, teach the underlying concept, and finish with a clinical tip. Do not invent missing choices.',
+  quiz: 'You generate original NCLEX-style practice questions for education. Include a short scenario, question, 4-6 choices, the correct answer, and a detailed rationale. Do not reproduce proprietary examination items.',
+  planner: 'You are an NCLEX study planner. Create a realistic week-by-week plan using the learner exam date, weak topics, and available study time. Include review and recovery days.',
 };
 
-type ProviderFailure = {
-  status: number;
-  code?: string;
-  message: string;
-  provider: 'openai';
-};
-
-class ProviderError extends Error {
-  failure: ProviderFailure;
-
-  constructor(failure: ProviderFailure) {
-    super(failure.message);
-    this.name = 'ProviderError';
-    this.failure = failure;
-  }
-}
-
-function isGpt5Model(model: string) {
-  return model.toLowerCase().startsWith('gpt-5');
-}
-
-function normalizeModel(model: string) {
-  const requested = String(model || '').trim();
-  // Older project configs used "gpt-5-mini". Current OpenAI guidance uses
-  // the GPT-5.6 family names; luna is the low-latency / lower-cost lane.
-  if (requested === 'gpt-5-mini') return 'gpt-5.6-luna';
-  return requested || FALLBACK_MODEL;
-}
-
-function fallbackReply(message: string, detail = '') {
-  return `Concept:
-I can still help you study, but the live OpenAI Study Coach is temporarily unavailable.
-
-What to do now:
-Use ABCs, safety, Maslow, nursing process, and expected vs. unexpected findings. If this is a priority question, choose the action that prevents the most immediate harm.
-
-Clinical Tip:
-On NCLEX, urgent physiologic safety comes before teaching, documentation, routine comfort, or delayed provider notification.
-
-Your question:
-${message}
-${detail ? `\nTechnical note for admin: ${detail}` : ''}`;
-}
-
-async function readJsonResponse(res: Response) {
-  const text = await res.text();
-  try {
-    return { text, data: text ? JSON.parse(text) : null };
-  } catch (_) {
-    return { text, data: null };
-  }
-}
-
-function responsePayload(reply: string, warning = '') {
-  return { reply, answer: reply, warning };
-}
-
-function parseOpenAIError(status: number, text: string, data: any): ProviderFailure {
-  const message = data?.error?.message ?? (text || 'Unknown provider error');
+function corsHeaders(req: Request) {
+  const origin = req.headers.get('origin') ?? '';
+  const allowed = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
   return {
-    provider: 'openai',
-    status,
-    code: data?.error?.code ?? data?.error?.type,
-    message,
+    'Access-Control-Allow-Origin': allowed,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Vary': 'Origin',
   };
 }
 
-function friendlyProviderDetail(failure: ProviderFailure) {
-  if (failure.status === 429 || failure.code === 'insufficient_quota') {
-    return 'OpenAI API quota or billing is unavailable. Check API credits/billing for the project that owns OPENAI_API_KEY.';
-  }
-  if (failure.status === 401) {
-    return 'OpenAI API key was rejected. Check the OPENAI_API_KEY secret in Supabase.';
-  }
-  if (failure.status === 404 || failure.code === 'model_not_found') {
-    return 'Configured OpenAI model is unavailable for this API key. Check OPENAI_MODEL or use gpt-4o-mini.';
-  }
-  return `OpenAI provider returned HTTP ${failure.status}.`;
+function json(req: Request, status: number, payload: Record<string, unknown>) {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: { ...corsHeaders(req), 'Content-Type': 'application/json' },
+  });
 }
 
-async function callOpenAI({
-  model,
-  messages,
-  mode,
-}: {
-  model: string;
-  messages: Array<{ role: string; content: string }>;
-  mode: string;
-}) {
-  const selectedModel = normalizeModel(model);
+function clientMessage(status: number) {
+  if (status === 429) return 'Study Coach has reached its temporary usage limit. Please try again later.';
+  if (status === 401 || status === 403) return 'Study Coach authorization failed. Please contact support.';
+  return 'Study Coach is temporarily unavailable. Please try again shortly.';
+}
 
-  if (isGpt5Model(selectedModel)) {
-    const [system, ...conversation] = messages;
-    const input = conversation.map((item) => ({
-      role: item.role === 'assistant' ? 'assistant' : 'user',
-      content: item.content,
-    }));
+function providerStatus(status: number) {
+  if (status === 429) return 429;
+  if (status === 401 || status === 403) return 503;
+  if (status >= 400 && status < 500) return 502;
+  return 503;
+}
 
-    const res = await fetch('https://api.openai.com/v1/responses', {
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders(req) });
+  if (req.method !== 'POST') return json(req, 405, { error: 'Method not allowed' });
+
+  const origin = req.headers.get('origin');
+  if (origin && !ALLOWED_ORIGINS.includes(origin)) return json(req, 403, { error: 'Origin not allowed' });
+
+  const authorization = req.headers.get('authorization') ?? '';
+  if (!authorization.toLowerCase().startsWith('bearer ')) {
+    return json(req, 401, { error: 'Please sign in to use Study Coach.' });
+  }
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    console.error('Study Coach Supabase environment is incomplete');
+    return json(req, 503, { error: 'Study Coach is temporarily unavailable.' });
+  }
+
+  const userClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: { headers: { Authorization: authorization } },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+  const { data: authData, error: authError } = await userClient.auth.getUser();
+  if (authError || !authData.user) return json(req, 401, { error: 'Your session has expired. Please sign in again.' });
+
+  let body: Record<string, unknown>;
+  try {
+    body = await req.json();
+  } catch {
+    return json(req, 400, { error: 'Invalid request body.' });
+  }
+
+  const mode = typeof body.mode === 'string' ? body.mode : 'tutor';
+  const message = typeof body.message === 'string' ? body.message.trim() : '';
+  const context = typeof body.context === 'string' ? body.context.trim() : '';
+  const history = Array.isArray(body.history) ? body.history : [];
+  if (!MODES.has(mode)) return json(req, 400, { error: 'Invalid Study Coach mode.' });
+  if (!message || message.length > 8000) return json(req, 400, { error: 'Enter a message between 1 and 8,000 characters.' });
+  if (context.length > 4000 || history.length > 10) return json(req, 400, { error: 'Study Coach context is too large.' });
+
+  const normalizedHistory = history.flatMap((item) => {
+    if (!item || typeof item !== 'object') return [];
+    const role = (item as Record<string, unknown>).role;
+    const content = (item as Record<string, unknown>).content;
+    if (!['user', 'assistant'].includes(String(role)) || typeof content !== 'string' || content.length > 8000) return [];
+    return [{ role: String(role), content }];
+  });
+
+  const { error: quotaError } = await userClient.rpc('consume_study_coach_question');
+  if (quotaError) {
+    const limitReached = /limit reached/i.test(quotaError.message ?? '');
+    console.warn('Study Coach quota rejected', { userId: authData.user.id, code: quotaError.code });
+    return json(req, limitReached ? 429 : 403, {
+      error: limitReached ? 'Your daily Study Coach allowance has been used.' : 'Your plan does not permit this request.',
+    });
+  }
+
+  if (!OPENAI_KEY) {
+    console.error('Study Coach OPENAI_API_KEY is not configured');
+    return json(req, 503, { error: 'Study Coach is temporarily unavailable.' });
+  }
+
+  const instructions = context ? `${SYSTEM_PROMPTS[mode]}\n\nLearner context:\n${context}` : SYSTEM_PROMPTS[mode];
+  const input = [...normalizedHistory, { role: 'user', content: message }];
+
+  try {
+    const providerResponse = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${OPENAI_KEY}`,
-      },
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${OPENAI_KEY}` },
       body: JSON.stringify({
-        model: selectedModel,
-        instructions: system?.content ?? SYSTEM_PROMPTS.tutor,
+        model: OPENAI_MODEL,
+        instructions,
         input,
         max_output_tokens: 1800,
         reasoning: { effort: 'low' },
       }),
     });
-
-    const { text, data } = await readJsonResponse(res);
-    if (!res.ok) {
-      const failure = parseOpenAIError(res.status, text, data);
-      console.error('OpenAI Responses API error', failure);
-      throw new ProviderError(failure);
-    }
-
-    const outputText = data?.output_text
-      ?? data?.output?.flatMap((item: { content?: Array<{ text?: string }> }) => item.content ?? [])
-        .map((content: { text?: string }) => content.text)
-        .filter(Boolean)
-        .join('\n')
-      ?? '';
-
-    if (!outputText.trim()) {
-      console.error('OpenAI Responses API missing output_text', { body: text });
-    }
-
-    return outputText.trim() || fallbackReply('your Study Coach request', 'OpenAI returned an empty response.');
-  }
-
-  const res = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${OPENAI_KEY}`,
-    },
-    body: JSON.stringify({
-      model: selectedModel,
-      messages,
-      max_tokens: 1800,
-      temperature: mode === 'quiz' ? 0.7 : 0.35,
-    }),
-  });
-
-  const { text, data } = await readJsonResponse(res);
-  if (!res.ok) {
-    const failure = parseOpenAIError(res.status, text, data);
-    console.error('OpenAI Chat Completions API error', failure);
-    throw new ProviderError(failure);
-  }
-
-  const outputText = data?.choices?.[0]?.message?.content?.trim();
-  if (!outputText) {
-    console.error('OpenAI Chat Completions API missing message content', { body: text });
-  }
-
-  return outputText || fallbackReply('your Study Coach request', 'OpenAI returned an empty response.');
-}
-
-Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
-
-  try {
-    const { mode = 'tutor', message, history = [], context } = await req.json();
-
-    if (!message?.trim()) {
-      return new Response(JSON.stringify({ error: 'message is required' }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    const providerBody = await providerResponse.json().catch(() => null);
+    if (!providerResponse.ok) {
+      console.error('OpenAI Responses API failure', {
+        status: providerResponse.status,
+        code: providerBody?.error?.code ?? providerBody?.error?.type,
+        requestId: providerResponse.headers.get('x-request-id'),
       });
+      const status = providerStatus(providerResponse.status);
+      return json(req, status, { error: clientMessage(providerResponse.status) });
     }
 
-    if (!OPENAI_KEY) {
-      const reply = fallbackReply(message, 'OPENAI_API_KEY is not configured.');
-      console.error('OPENAI_API_KEY is not configured');
-      return new Response(JSON.stringify(responsePayload(reply, 'OPENAI_API_KEY not configured')), {
-        status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
+    const reply = String(providerBody?.output_text ?? providerBody?.output
+      ?.flatMap((item: { content?: Array<{ text?: string }> }) => item.content ?? [])
+      .map((item: { text?: string }) => item.text ?? '').filter(Boolean).join('\n') ?? '').trim();
+    if (!reply) {
+      console.error('OpenAI Responses API returned no text', { requestId: providerResponse.headers.get('x-request-id') });
+      return json(req, 502, { error: 'Study Coach returned an incomplete response. Please try again.' });
     }
-
-    const systemPrompt = SYSTEM_PROMPTS[mode] ?? SYSTEM_PROMPTS.tutor;
-    const fullSystem = context
-      ? `${systemPrompt}\n\nContext provided by student: ${context}`
-      : systemPrompt;
-
-    const messages = [
-      { role: 'system', content: fullSystem },
-      ...history
-        .slice(-10)
-        .filter((item: { role?: string; content?: string }) => ['user', 'assistant'].includes(item?.role ?? '') && typeof item?.content === 'string')
-        .map((item: { role: string; content: string }) => ({ role: item.role, content: item.content })),
-      { role: 'user', content: message },
-    ];
-
-    let reply = '';
-    let warning = '';
-    try {
-      reply = await callOpenAI({ model: OPENAI_MODEL, messages, mode });
-    } catch (openaiErr) {
-      const detail = openaiErr instanceof ProviderError
-        ? friendlyProviderDetail(openaiErr.failure)
-        : openaiErr instanceof Error ? openaiErr.message : String(openaiErr);
-      warning = detail;
-      console.error('Study Coach primary model failed', { model: normalizeModel(OPENAI_MODEL), detail });
-
-      try {
-        reply = await callOpenAI({ model: FALLBACK_MODEL, messages, mode });
-      } catch (fallbackErr) {
-        const fallbackDetail = fallbackErr instanceof ProviderError
-          ? friendlyProviderDetail(fallbackErr.failure)
-          : fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr);
-        console.error('Study Coach fallback model failed', {
-          model: normalizeModel(FALLBACK_MODEL),
-          detail: fallbackDetail,
-        });
-        warning = fallbackDetail || detail;
-        reply = fallbackReply(message, warning);
-      }
-    }
-
-    return new Response(JSON.stringify(responsePayload(reply, warning)), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    return json(req, 200, { reply });
+  } catch (error) {
+    console.error('Study Coach provider request failed', {
+      name: error instanceof Error ? error.name : 'UnknownError',
+      message: error instanceof Error ? error.message : String(error),
     });
-  } catch (err) {
-    const detail = err instanceof Error ? err.message : String(err);
-    console.error('study-coach unhandled error', {
-      name: err instanceof Error ? err.name : 'UnknownError',
-      message: detail,
-      stack: err instanceof Error ? err.stack : undefined,
-    });
-    const reply = fallbackReply('your Study Coach request', detail);
-    return new Response(JSON.stringify(responsePayload(reply, detail)), {
-      status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
+    return json(req, 503, { error: 'Study Coach is temporarily unavailable. Please try again shortly.' });
   }
 });

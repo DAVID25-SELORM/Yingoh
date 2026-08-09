@@ -5,7 +5,7 @@ import {
   CheckCircle2, XCircle, Filter, Loader2, RefreshCw, Sparkles,
 } from 'lucide-react';
 import {
-  bookmarkQuestion, consumeStudyCoachQuestion, getBookmarkedQuestionIds, getQuestions,
+  bookmarkQuestion, getBookmarkedQuestionIds, getQuestions,
   saveItem, submitAttempt, supabase, unbookmarkQuestion, unsaveItem,
 } from '../services/supabase';
 import { DEMO_QUESTIONS } from '../data/demoQuestions';
@@ -268,15 +268,27 @@ export default function QuestionBankView({ session }) {
 
   async function handleSubmit() {
     if (!hasAnswer()) return;
+    let gradedQuestion = question;
+    let correct = checkIsCorrect();
+    if (userId && supabase) {
+      const { data, error } = await submitAttempt(userId, question.id, { ids: selected, ngn: ngnAnswer });
+      if (error || !data) {
+        setCoachError('Your answer could not be graded. Please try again.');
+        return;
+      }
+      correct = Boolean(data.is_correct);
+      gradedQuestion = { ...question, correct_answer: data.correct_answer, rationale: data.rationale, strategy: data.strategy, reference_url: data.reference_url, ngn_data: data.ngn_data ?? question.ngn_data };
+      setQuestions((current) => current.map((item) => item.id === question.id ? gradedQuestion : item));
+      setFiltered((current) => current.map((item) => item.id === question.id ? gradedQuestion : item));
+    }
     setSubmitted(true);
-    const correct = checkIsCorrect();
     setSessionStats((prev) => ({ correct: prev.correct + (correct ? 1 : 0), total: prev.total + 1 }));
     setSessionAttempts((prev) => {
       const withoutCurrent = prev.filter((attempt) => attempt.question.id !== question.id);
       return [
         ...withoutCurrent,
         {
-          question,
+          question: gradedQuestion,
           selected: [...selected],
           ngnAnswer,
           isCorrect: correct,
@@ -285,7 +297,6 @@ export default function QuestionBankView({ session }) {
       ];
     });
     setPlanSaved(false);
-    if (userId) await submitAttempt(userId, question.id, { ids: selected, ngn: ngnAnswer }, correct);
   }
 
   async function toggleBookmark() {
@@ -335,8 +346,6 @@ export default function QuestionBankView({ session }) {
     try {
       let reply = DEMO_COACH_REPLY;
       if (supabase) {
-        const { error: quotaError } = await consumeStudyCoachQuestion();
-        if (quotaError) throw new Error(quotaError.message || 'Your Study Coach allowance has been used for today.');
         const { data, error } = await supabase.functions.invoke('study-coach', {
           body: {
             mode: action === 'similar' ? 'quiz' : 'explainer',

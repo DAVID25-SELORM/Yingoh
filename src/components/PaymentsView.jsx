@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { AlertTriangle, BriefcaseBusiness, Building2, CheckCircle2, CreditCard, DollarSign, FileText, History, PlusCircle, ReceiptText, Search, ShieldCheck, Smartphone, Sparkles, Tag, ToggleLeft, ToggleRight, Users, X } from 'lucide-react';
-import { supabase } from '../services/supabase';
+import { recordLegalAcceptance, supabase } from '../services/supabase';
 import { useSubscription, createCheckoutSession, normalizePlanName } from '../hooks/useSubscription';
 import { SUBSCRIPTION_PLANS } from '../data/subscriptionPlans';
 
@@ -99,6 +99,7 @@ export default function PaymentsView({ session, canManage = false }) {
   const [tab, setTab] = useState('my-subscription');
   const [customerNotice, setCustomerNotice] = useState(null);
   const [selectedQuote, setSelectedQuote] = useState(null);
+  const [legalAccepted, setLegalAccepted] = useState(false);
 
   async function handleCheckout(plan) {
     setCustomerNotice(null);
@@ -107,9 +108,19 @@ export default function PaymentsView({ session, canManage = false }) {
       setCustomerNotice({ type: 'info', message: 'Sign in when you are ready to continue with payment.' });
       return;
     }
+    if (!legalAccepted) {
+      setCustomerNotice({ type: 'error', message: 'Accept the Terms & Conditions and acknowledge the Refund Policy before checkout.' });
+      return;
+    }
     if (!CARD_GATEWAY_ENABLED) return;
     const planName = plan.name;
     setCheckingOut(planName);
+    const { error: acceptanceError } = await recordLegalAcceptance('checkout');
+    if (acceptanceError) {
+      setCustomerNotice({ type: 'error', message: 'We could not record your policy acceptance. Please try again.' });
+      setCheckingOut('');
+      return;
+    }
     const { url, error } = await createCheckoutSession(planKey(planName), session);
     if (error || !url) {
       setCustomerNotice({
@@ -157,6 +168,8 @@ export default function PaymentsView({ session, canManage = false }) {
   const [activatingInvoice, setActivatingInvoice] = useState('');
   const [paymentMessage, setPaymentMessage] = useState('');
   const [paymentError, setPaymentError] = useState('');
+  const [transactions, setTransactions] = useState([]);
+  const [refundRequests, setRefundRequests] = useState([]);
 
   useEffect(() => {
     if (!supabase) return;
@@ -170,6 +183,14 @@ export default function PaymentsView({ session, canManage = false }) {
         }));
       }
     });
+    if (session?.user?.id) {
+      let transactionQuery = supabase.from('billing_transactions').select('*').order('created_at', { ascending: false });
+      if (!canManage) transactionQuery = transactionQuery.eq('user_id', session.user.id);
+      transactionQuery.then(({ data }) => setTransactions(data ?? []));
+      let refundQuery = supabase.from('refund_requests').select('*').order('created_at', { ascending: false });
+      if (!canManage) refundQuery = refundQuery.eq('requester_id', session.user.id);
+      refundQuery.then(({ data }) => setRefundRequests(data ?? []));
+    }
     if (!canManage) return;
     supabase
       .from('invoices')
@@ -205,7 +226,42 @@ export default function PaymentsView({ session, canManage = false }) {
           })));
         }
       });
-  }, [canManage]);
+  }, [canManage, session?.user?.id]);
+
+  async function requestRefund(transaction) {
+    const reason = window.prompt('Why are you requesting a refund? Include relevant details (minimum 10 characters).');
+    if (!reason?.trim()) return;
+    if (reason.trim().length < 10) return setCustomerNotice({ type: 'error', message: 'Please provide at least 10 characters explaining the request.' });
+    const { data, error } = await supabase.from('refund_requests').insert({
+      transaction_id: transaction.id,
+      requester_id: session.user.id,
+      amount_paid: Number(transaction.amount),
+      requested_amount: Number(transaction.amount),
+      reason: reason.trim(),
+      status: 'submitted',
+    }).select().single();
+    if (error) setCustomerNotice({ type: 'error', message: error.message.includes('duplicate') ? 'A refund request is already open for this transaction.' : 'We could not submit the refund request.' });
+    else {
+      setRefundRequests((current) => [data, ...current]);
+      setCustomerNotice({ type: 'info', message: 'Refund request submitted for Finance review.' });
+    }
+  }
+
+  async function reviewRefund(request, status) {
+    const decisionReason = ['approved', 'rejected'].includes(status)
+      ? window.prompt(`${status === 'approved' ? 'Approval' : 'Rejection'} reason`) : null;
+    if (['approved', 'rejected'].includes(status) && !decisionReason?.trim()) return;
+    const updates = {
+      status,
+      reviewed_by: session.user.id,
+      decision_reason: decisionReason?.trim() || request.decision_reason || null,
+      decided_at: ['approved', 'rejected'].includes(status) ? new Date().toISOString() : request.decided_at,
+      updated_at: new Date().toISOString(),
+    };
+    const { data, error } = await supabase.from('refund_requests').update(updates).eq('id', request.id).select().single();
+    if (error) setCustomerNotice({ type: 'error', message: 'The refund status could not be updated.' });
+    else setRefundRequests((current) => current.map((item) => item.id === request.id ? data : item));
+  }
 
   const totalRevenue = invoices.filter((i) => i.status === 'paid').reduce((s, i) => s + Number(i.amount_usd), 0);
   const pendingRevenue = invoices.filter((i) => i.status === 'pending').reduce((s, i) => s + Number(i.amount_usd), 0);
@@ -364,8 +420,14 @@ export default function PaymentsView({ session, canManage = false }) {
       setCustomerNotice({ type: 'error', message: 'Enter the Mobile Money number that will authorize this payment.' });
       return;
     }
+    if (!legalAccepted) {
+      setCustomerNotice({ type: 'error', message: 'Accept the Terms & Conditions and acknowledge the Refund Policy before payment.' });
+      return;
+    }
     setMmLoading(true);
     try {
+      const { error: acceptanceError } = await recordLegalAcceptance('checkout');
+      if (acceptanceError) throw new Error('We could not record your policy acceptance. Please try again.');
       const { data: result, error } = await supabase.functions.invoke('create-paystack-order', {
         body: {
           planId: mmPlan,
@@ -499,6 +561,7 @@ export default function PaymentsView({ session, canManage = false }) {
               ['institution-plans', 'Institution Plans'],
               ['enterprise', 'Enterprise Licensing'],
               ['payment-methods', 'Payment Methods'],
+              ['transactions', 'Transactions & Refunds'],
               ['subscribers', 'Subscribers'],
               ['invoices', 'Invoices'],
               ['promos', 'Promo Codes'],
@@ -509,6 +572,7 @@ export default function PaymentsView({ session, canManage = false }) {
               ['individual-plans', 'Individual Plans'],
               ['institution-plans', 'Institution Plans'],
               ['payment-methods', 'Payment Methods'],
+              ['transactions', 'Transactions & Refunds'],
             ]
         ).map(([key, label]) => (
           <button key={key} className={`tab-btn ${tab === key ? 'tab-active' : ''}`} onClick={() => setTab(key)}>{label}</button>
@@ -704,6 +768,38 @@ export default function PaymentsView({ session, canManage = false }) {
         </div>
       )}
 
+      {tab === 'transactions' && (
+        <div className="billing-section">
+          <div className="billing-section-head"><div><h3>Transactions &amp; Refunds</h3><p>Refund requests are available for eligible paid transactions and reviewed by Finance.</p></div><History size={22} /></div>
+          <div style={{ overflowX: 'auto' }}>
+            <table className="admin-table">
+              <thead><tr><th>Date</th><th>Reference</th><th>Amount</th><th>Payment</th><th>Refund status</th><th>Action</th></tr></thead>
+              <tbody>
+                {transactions.map((transaction) => {
+                  const request = refundRequests.find((item) => item.transaction_id === transaction.id);
+                  const withinWindow = Date.now() - new Date(transaction.paid_at ?? transaction.created_at).getTime() <= 7 * 86400000;
+                  return <tr key={transaction.id}>
+                    <td>{new Date(transaction.paid_at ?? transaction.created_at).toLocaleDateString()}</td>
+                    <td>{transaction.provider_reference || transaction.id.slice(0, 8)}</td>
+                    <td>{transaction.currency} {Number(transaction.amount).toFixed(2)}</td>
+                    <td>{transaction.status}</td>
+                    <td>{request?.status?.replaceAll('_', ' ') || 'None'}</td>
+                    <td>{canManage && request ? <span style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {request.status === 'submitted' && <button className="ghost-btn" onClick={() => reviewRefund(request, 'under_review')}>Review</button>}
+                      {['submitted','under_review'].includes(request.status) && <><button className="ghost-btn" onClick={() => reviewRefund(request, 'approved')}>Approve</button><button className="ghost-btn" onClick={() => reviewRefund(request, 'rejected')}>Reject</button></>}
+                      {request.status === 'approved' && <button className="ghost-btn" onClick={() => reviewRefund(request, 'refund_processing')}>Start processing</button>}
+                      {request.status === 'refund_processing' && <button className="ghost-btn" onClick={() => reviewRefund(request, 'refunded')}>Mark refunded</button>}
+                    </span> : <button className="ghost-btn" disabled={transaction.status !== 'paid' || Boolean(request) || !withinWindow} onClick={() => requestRefund(transaction)}>{request ? 'Request submitted' : withinWindow ? 'Request refund' : 'Window ended'}</button>}</td>
+                  </tr>;
+                })}
+                {!transactions.length && <tr><td colSpan={6} style={{ textAlign: 'center', padding: 24, color: '#8a999c' }}>No billing transactions found.</td></tr>}
+              </tbody>
+            </table>
+          </div>
+          <p style={{ color: '#607478', fontSize: '.82rem' }}>Approved refunds are initiated within 5–10 business days through the original payment method. Provider settlement time may vary.</p>
+        </div>
+      )}
+
       {selectedQuote && (
         <div
           className="modal-backdrop"
@@ -746,6 +842,10 @@ export default function PaymentsView({ session, canManage = false }) {
               <p style={{ color: '#52666b', fontSize: '0.84rem', lineHeight: 1.55, margin: '14px 0' }}>
                 This is an indicative cedi conversion. The final provider amount may vary slightly with the payment-day exchange rate.
               </p>
+              <label className="legal-consent" style={{ marginBottom: 14 }}>
+                <input type="checkbox" checked={legalAccepted} onChange={(event) => setLegalAccepted(event.target.checked)} />
+                <span>I agree to the <a href="/?legal=terms" target="_blank" rel="noreferrer">Terms &amp; Conditions</a> and acknowledge the <a href="/?legal=refund" target="_blank" rel="noreferrer">Refund Policy</a>.</span>
+              </label>
               <div style={{ display: 'grid', gap: 10 }}>
                 <button
                   className="primary-btn"
@@ -934,7 +1034,11 @@ export default function PaymentsView({ session, canManage = false }) {
               <label style={{ fontWeight: 600, fontSize: '0.9rem', display: 'block', marginBottom: 6 }}>Mobile Money Number</label>
               <input value={mmPhone} onChange={(e) => setMmPhone(e.target.value)} placeholder="e.g. 0244123456" style={{ width: '100%', height: 42, borderRadius: 10, border: '1.5px solid #dbe6e4', padding: '0 14px', fontSize: '0.95rem', boxSizing: 'border-box' }} />
             </div>
-            <button className="primary-btn" onClick={handleMobileMoney} disabled={mmLoading || !mmPhone.trim()} style={{ width: '100%', justifyContent: 'center', fontSize: '0.95rem', height: 46 }}>
+            <label className="legal-consent">
+              <input type="checkbox" checked={legalAccepted} onChange={(event) => setLegalAccepted(event.target.checked)} />
+              <span>I agree to the <a href="/?legal=terms" target="_blank" rel="noreferrer">Terms &amp; Conditions</a> and acknowledge the <a href="/?legal=refund" target="_blank" rel="noreferrer">Refund Policy</a>.</span>
+            </label>
+            <button className="primary-btn" onClick={handleMobileMoney} disabled={mmLoading || !mmPhone.trim() || !legalAccepted} style={{ width: '100%', justifyContent: 'center', fontSize: '0.95rem', height: 46 }}>
               <Smartphone size={16} /> {mmLoading ? 'Redirecting to Paystack…' : 'Pay with Mobile Money'}
             </button>
             <p style={{ margin: 0, fontSize: '0.78rem', color: '#8a999c', textAlign: 'center' }}>Secured by Paystack · GHS pricing · Exchange rate applied at checkout</p>

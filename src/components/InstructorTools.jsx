@@ -112,6 +112,8 @@ export default function InstructorTools({ session }) {
   const [form, setForm] = useState(EMPTY_SESSION);
   const [courseForm, setCourseForm] = useState(EMPTY_COURSE);
   const [courses, setCourses] = useState(supabase ? [] : DEMO_COURSES);
+  const [assignments, setAssignments] = useState(supabase ? [] : DEMO_ASSIGNMENTS);
+  const [resources, setResources] = useState(supabase ? [] : DEMO_RESOURCES);
   const [courseLinks, setCourseLinks] = useState({});
   const [courseRosters, setCourseRosters] = useState({});
   const [activeCourseId, setActiveCourseId] = useState(null);
@@ -128,7 +130,7 @@ export default function InstructorTools({ session }) {
       const bySession = Object.fromEntries((counts ?? []).map((item) => [item.session_id, Number(item.attendee_count)]));
       setSessions(data.map((item) => ({ ...item, attendee_count: bySession[item.id] ?? 0 })));
     });
-    getMyCourses(session?.user?.id).then(({ data }) => {
+    getMyCourses(session?.user?.id).then(async ({ data }) => {
       const staffRoles = new Set(['course_owner', 'co_instructor', 'teaching_assistant']);
       const owned = (data ?? [])
         .filter((row) => row.status === 'enrolled' && staffRoles.has(row.membership_role))
@@ -136,8 +138,28 @@ export default function InstructorTools({ session }) {
         .filter((course) => course?.id);
       setCourses(owned);
       setActiveCourseId(owned[0]?.id ?? null);
+      const courseIds = owned.map((course) => course.id);
+      if (courseIds.length) {
+        const [{ data: assignmentRows }, { data: resourceRows }] = await Promise.all([
+          supabase.from('assignments').select('*').in('course_id', courseIds).order('due_date'),
+          supabase.from('instructor_resources').select('*').eq('owner_id', session?.user?.id).order('created_at', { ascending: false }),
+        ]);
+        setAssignments((assignmentRows ?? []).map((item) => ({
+          ...item,
+          course: owned.find((course) => course.id === item.course_id)?.title ?? 'Course',
+          submissions: Number(item.submission_count ?? 0),
+          needs_grading: Number(item.needs_grading_count ?? 0),
+          due: item.due_date,
+        })));
+        setResources((resourceRows ?? []).map((item) => ({
+          ...item, type: String(item.resource_type ?? 'document').replace('_', ' '), usage: item.reusable ? 'Reusable' : 'Course-specific',
+        })));
+      } else {
+        setAssignments([]);
+        setResources([]);
+      }
     });
-  }, []);
+  }, [session?.user?.id]);
 
   const upcoming = sessions
     .filter((s) => ['scheduled', 'live'].includes(s.status) && new Date(s.ends_at || s.starts_at) > new Date())
@@ -289,15 +311,46 @@ export default function InstructorTools({ session }) {
   const activeStudents = Math.max(
     Math.max(totalStudents, rosterStudentCount),
     courses.reduce((sum, course) => sum + Number(course.student_count ?? course.enrolled_count ?? 0), 0),
-    courses.length ? 486 : 0,
   );
   const avgCompletion = courses.length
-    ? Math.round(courses.reduce((sum, course) => sum + Number(course.completion_rate ?? 72), 0) / courses.length)
+    ? Math.round(courses.reduce((sum, course) => sum + Number(course.completion_rate ?? 0), 0) / courses.length)
     : 0;
-  const certificatesIssued = courses.reduce((sum, course) => sum + Number(course.certificates_issued ?? 0), 0) || 342;
-  const assignmentsPending = DEMO_ASSIGNMENTS.reduce((sum, item) => sum + item.needs_grading, 0);
-  const unreadMessages = courses.length ? 7 : 0;
+  const certificatesIssued = courses.reduce((sum, course) => sum + Number(course.certificates_issued ?? 0), 0);
+  const assignmentsPending = assignments.reduce((sum, item) => sum + item.needs_grading, 0);
+  const unreadMessages = 0;
   const activeCourse = courses.find((course) => course.id === activeCourseId) ?? courses[0];
+
+  async function sendCourseAnnouncement() {
+    if (!activeCourse || !supabase) return setMessage('Select a course before sending an announcement.');
+    const title = window.prompt('Announcement title');
+    if (!title?.trim()) return;
+    const body = window.prompt('Announcement message');
+    if (!body?.trim()) return;
+    const { error } = await supabase.from('course_announcements').insert({
+      course_id: activeCourse.id, author_id: session.user.id, title: title.trim(), body: body.trim(), audience: 'students', published_at: new Date().toISOString(),
+    });
+    setMessage(error ? error.message : `Announcement sent to ${activeCourse.title}.`);
+  }
+
+  function exportRoster() {
+    if (!activeCourse) return setMessage('Select a course before exporting a roster.');
+    const rows = courseRosters[activeCourse.id] ?? [];
+    if (!rows.length) return setMessage('Load this course roster before exporting it.');
+    const escape = (value) => `"${String(value ?? '').replaceAll('"', '""')}"`;
+    const csv = [['Name','Email','Role','Status','Student ID'], ...rows.map((row) => [row.full_name,row.email,row.membership_role,row.status,row.student_id])]
+      .map((row) => row.map(escape).join(',')).join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const anchor = document.createElement('a');
+    anchor.href = url; anchor.download = `${activeCourse.course_code || activeCourse.title}-roster.csv`; anchor.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function downloadCertificateReport() {
+    const csv = ['Course,Course code,Certificates issued', ...courses.map((course) =>
+      [course.title, course.course_code, Number(course.certificates_issued ?? 0)].map((value) => `"${String(value ?? '').replaceAll('"', '""')}"`).join(','))].join('\n');
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'nursefaculty-certificate-report.csv'; anchor.click(); URL.revokeObjectURL(url);
+  }
 
   return (
     <section className="content-band">
@@ -475,7 +528,7 @@ export default function InstructorTools({ session }) {
           </div>
           <div className="instructor-panel">
             <div className="instructor-panel-head"><h3>Assignments to Grade</h3><ClipboardCheck size={18} /></div>
-            {DEMO_ASSIGNMENTS.filter((item) => item.needs_grading > 0).map((item) => (
+            {assignments.filter((item) => item.needs_grading > 0).map((item) => (
               <div key={item.id} className="instructor-activity-row">
                 <strong>{item.title}</strong>
                 <span>{item.needs_grading} submissions need grading · {item.course}</span>
@@ -607,7 +660,7 @@ export default function InstructorTools({ session }) {
                     <>
                       <button className="ghost-btn" onClick={() => copyLink(activeLink.code)}><Copy size={14} /> Copy</button>
                       <button className="ghost-btn" onClick={() => shareLink(activeLink.code, course.title)}><Share2 size={14} /> Share</button>
-                      <button className="ghost-btn" title="QR code generation will use this URL"><QrCode size={14} /> QR Ready</button>
+                      <button className="ghost-btn" title="Copy the enrollment URL for use in a QR generator" onClick={() => copyLink(activeLink.code)}><QrCode size={14} /> Copy QR link</button>
                       <button className="ghost-btn" style={{ color: activeLink.is_active ? '#8a2c21' : '#135f55' }} onClick={() => toggleEnrollmentLink(activeLink, !activeLink.is_active)}>
                         {activeLink.is_active ? 'Disable' : 'Enable'}
                       </button>
@@ -639,8 +692,8 @@ export default function InstructorTools({ session }) {
             <p className="instructor-muted">Approve enrollment, remove students, reset progress, export roster, send announcements, and view attendance from the course roster panels.</p>
             <div className="instructor-quick-actions">
               <button className="ghost-btn" onClick={() => activeCourse && loadRoster(activeCourse.id)}><Users size={14} /> Refresh roster</button>
-              <button className="ghost-btn"><Megaphone size={14} /> Send announcement</button>
-              <button className="ghost-btn"><FileText size={14} /> Export roster</button>
+              <button className="ghost-btn" onClick={sendCourseAnnouncement}><Megaphone size={14} /> Send announcement</button>
+              <button className="ghost-btn" onClick={exportRoster}><FileText size={14} /> Export roster</button>
             </div>
           </div>
         </div>
@@ -653,7 +706,7 @@ export default function InstructorTools({ session }) {
             <table className="admin-table">
               <thead><tr><th>Assignment</th><th>Course</th><th>Status</th><th>Submissions</th><th>Needs grading</th><th>Due</th></tr></thead>
               <tbody>
-                {DEMO_ASSIGNMENTS.map((item) => (
+                {assignments.map((item) => (
                   <tr key={item.id}>
                     <td><strong>{item.title}</strong></td>
                     <td>{item.course}</td>
@@ -686,9 +739,9 @@ export default function InstructorTools({ session }) {
             <div className="instructor-panel-head"><h3>Course Certificate Workflow</h3><Award size={18} /></div>
             <p className="instructor-muted">Preview certificates, approve pending issuances, reissue corrected certificates, revoke invalid credentials, and verify public certificate IDs.</p>
             <div className="instructor-quick-actions">
-              <button className="ghost-btn">Preview template</button>
-              <button className="ghost-btn">Issue pending</button>
-              <button className="ghost-btn">Download report</button>
+              <button className="ghost-btn" onClick={() => setMessage(activeCourse ? `Certificate preview uses the template configured for ${activeCourse.title}.` : 'Select a course to preview its certificate configuration.')}>Preview template</button>
+              <button className="ghost-btn" disabled title="Automatic eligibility and duplicate checks must complete before issuance is enabled">Issue pending</button>
+              <button className="ghost-btn" onClick={downloadCertificateReport}>Download report</button>
             </div>
           </div>
         </div>
@@ -698,7 +751,7 @@ export default function InstructorTools({ session }) {
         <div className="instructor-panel">
           <div className="instructor-panel-head"><h3>Reusable Resource Library</h3><FileText size={18} /></div>
           <div className="resource-grid">
-            {DEMO_RESOURCES.map((item) => (
+            {resources.map((item) => (
               <article key={item.title} className="resource-card">
                 <span>{item.type}</span>
                 <strong>{item.title}</strong>

@@ -84,14 +84,20 @@ export default function CustomQuizBuilder({ session }) {
 
   async function handleSubmit(autoTimeout = false) {
     if (!selected.length && !autoTimeout) return;
-    setSubmitted(true);
     setTimerActive(false);
     const q = quiz[idx];
-    const correct = q.question_type === 'sata'
+    let correct = q.question_type === 'sata'
       ? [...selected].sort().join() === [...(q.correct_answer?.ids ?? [])].sort().join()
       : selected[0] === q.correct_answer?.ids?.[0];
+    if (session?.user?.id && supabase) {
+      const { data, error } = await submitAttempt(session.user.id, q.id, { ids: selected });
+      if (error || !data) return;
+      correct = Boolean(data.is_correct);
+      const graded = { ...q, correct_answer: data.correct_answer, rationale: data.rationale, strategy: data.strategy, reference_url: data.reference_url };
+      setQuiz((current) => current.map((item) => item.id === q.id ? graded : item));
+    }
+    setSubmitted(true);
     setResults((p) => [...p, { questionId: q.id, correct }]);
-    if (session?.user?.id) await submitAttempt(session.user.id, q.id, { ids: selected }, correct);
   }
 
   function goNext() {

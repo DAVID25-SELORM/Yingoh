@@ -158,6 +158,8 @@ export default function CATSimulatorView({ pool, maxItems, minItems, statsMap, o
   const [currentQuestion, setCurrentQuestion] = useState(null);
   const [currentAnswer, setCurrentAnswer] = useState([]);
   const [awaitingConfirm, setAwaitingConfirm] = useState(false);
+  const [grading, setGrading] = useState(false);
+  const [submissionError, setSubmissionError] = useState('');
   const [calculatorOpen, setCalculatorOpen] = useState(false);
   const [struck, setStruck] = useState(new Set());
   const [flagged, setFlagged] = useState(new Set());
@@ -206,12 +208,25 @@ export default function CATSimulatorView({ pool, maxItems, minItems, statsMap, o
     setAwaitingConfirm(false);
   }
 
-  function confirmAdvance() {
+  async function confirmAdvance() {
+    if (grading) return;
+    setGrading(true);
+    setSubmissionError('');
     const timeTaken = Math.round((Date.now() - questionStartRef.current) / 1000);
-    const correct = scoreAnswer(currentQuestion, currentAnswer);
+    let correct = scoreAnswer(currentQuestion, currentAnswer);
+    try {
+      if (onSubmitAnswer) {
+        const graded = await onSubmitAnswer(currentQuestion.id, currentAnswer, timeTaken);
+        if (!graded) throw new Error('No grading result was returned.');
+        correct = Boolean(graded.is_correct);
+      }
+    } catch (error) {
+      console.error('CAT answer submission failed', error);
+      setSubmissionError('Your answer could not be saved. Please try again.');
+      setGrading(false);
+      return;
+    }
     const { theta: newTheta, step: newStep } = nextTheta(engine.theta, correct, engine.step);
-
-    onSubmitAnswer?.(currentQuestion.id, currentAnswer, correct, timeTaken);
 
     const newHistory = [...engine.history, {
       questionId: currentQuestion.id, correct, timeTaken, theta: newTheta,
@@ -227,6 +242,7 @@ export default function CATSimulatorView({ pool, maxItems, minItems, statsMap, o
 
     setEngine({ theta: newTheta, step: newStep, history: newHistory, askedIds: newAskedIds, topicCounts: newTopicCounts });
     setAwaitingConfirm(false);
+    setGrading(false);
     setStruck(new Set());
 
     if (verdict.stop || !nextQuestion) {
@@ -326,9 +342,10 @@ export default function CATSimulatorView({ pool, maxItems, minItems, statsMap, o
           <div className="cat-sim-confirm-modal">
             <h3>Confirm Your Answer</h3>
             <p>Once you continue, you cannot return to this item. This matches how the real NCLEX-CAT works.</p>
+            {submissionError && <p style={{ color: '#8a2c21', fontWeight: 700 }}>{submissionError}</p>}
             <div className="cat-sim-confirm-actions">
-              <button type="button" className="ghost-btn" onClick={cancelAdvance}>Review My Answer</button>
-              <button type="button" className="primary-btn" onClick={confirmAdvance}>Confirm &amp; Continue</button>
+              <button type="button" className="ghost-btn" onClick={cancelAdvance} disabled={grading}>Review My Answer</button>
+              <button type="button" className="primary-btn" onClick={confirmAdvance} disabled={grading}>{grading ? 'Saving…' : 'Confirm & Continue'}</button>
             </div>
           </div>
         </div>

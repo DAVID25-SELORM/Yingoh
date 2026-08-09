@@ -1006,6 +1006,8 @@ input, select, textarea { font: inherit; }
 .impersonation-banner strong { color: #17212f; }
 .impersonation-banner small { color: #72520a; }
 .impersonation-banner .ghost-btn { background: #fff; border-color: #f1d59b; color: #72520a; }
+.support-view-readonly { position: relative; }
+.support-view-readonly::before { content: 'Read-only preview'; position: sticky; top: 8px; z-index: 20; display: block; width: max-content; margin: 8px 12px 0 auto; padding: 5px 10px; border-radius: 999px; background: #fff3cd; color: #72520a; border: 1px solid #f1d59b; font-size: .72rem; font-weight: 900; }
 .portal-switcher {
   min-height: 38px; max-width: 230px;
   border: 1px solid #dbe6e4; border-radius: 10px;
@@ -1341,6 +1343,21 @@ input, select, textarea { font: inherit; }
 .public-auth-section .account-checklist { display: none; }
 .public-footer { max-width: 1120px; margin: 0 auto; padding: 26px 28px 38px; border-top: 1px solid #dfebe9; display: flex; align-items: center; justify-content: space-between; gap: 24px; }
 .public-footer p { color: #718386; font-size: .78rem; }
+.legal-page { min-height: 100vh; background: #f5faf9; padding: 28px 18px 48px; color: #24383d; }
+.legal-brand { max-width: 860px; margin: 0 auto 18px; display: flex; align-items: center; gap: 10px; color: #173f3a; text-decoration: none; }
+.legal-brand img { width: 42px; height: 42px; }
+.legal-document { max-width: 860px; margin: 0 auto; background: #fff; border: 1px solid #dce9e7; border-radius: 18px; padding: clamp(24px, 5vw, 52px); box-shadow: 0 18px 45px rgba(23,63,58,.08); }
+.legal-document h1 { font-size: clamp(2rem, 5vw, 3rem); margin: 8px 0 14px; color: #173f3a; }
+.legal-document section { margin-top: 26px; }
+.legal-document h2 { font-size: 1.05rem; color: #1f665c; margin-bottom: 7px; }
+.legal-document p { line-height: 1.72; margin: 0; }
+.legal-document aside { margin-top: 30px; padding: 14px 16px; border-radius: 10px; background: #fff6df; color: #72520a; }
+.legal-links { max-width: 860px; margin: 20px auto 0; display: flex; gap: 18px; flex-wrap: wrap; }
+.legal-links a { color: #1f665c; font-weight: 700; }
+.legal-consent { display: flex; align-items: flex-start; gap: 9px; color: #52666b; font-size: .82rem; line-height: 1.45; }
+.legal-consent input { margin-top: 3px; width: 16px; height: 16px; flex: 0 0 auto; }
+.legal-consent a, .public-legal-links a { color: #176d61; font-weight: 700; }
+.public-legal-links { display: flex; flex-wrap: wrap; gap: 12px; font-size: .78rem; }
 .signature-block {
   display: grid;
   gap: 5px;

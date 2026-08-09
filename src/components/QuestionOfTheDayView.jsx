@@ -19,26 +19,28 @@ function QuestionOfTheDayContent({ session }) {
       if (!supabase || !userId) { setLoading(false); return; }
       setLoading(true);
       setError('');
-      const { data: dq, error: dqError } = await supabase.rpc('get_or_create_daily_question');
+      const { data: rows, error: dqError } = await supabase.rpc('get_daily_question_content');
+      const dq = Array.isArray(rows) ? rows[0] : rows;
       if (!mounted) return;
       if (dqError || !dq) {
         setError(dqError?.message ?? "Could not load today's question.");
         setLoading(false);
         return;
       }
-      const [{ data: q, error: questionError }, { data: existing, error: attemptError }] = await Promise.all([
-        supabase.from('questions').select('*').eq('id', dq.question_id).single(),
-        supabase.from('daily_question_attempts').select('*').eq('user_id', userId).eq('daily_question_id', dq.id).maybeSingle(),
-      ]);
-      if (!mounted) return;
-      if (questionError || attemptError) {
-        setError(questionError?.message ?? attemptError?.message ?? "Could not load today's question.");
-        setLoading(false);
-        return;
-      }
-      setDailyQuestion(dq);
-      setQuestion(q ?? null);
-      setAttempt(existing ?? null);
+      const existing = dq.existing_attempt ?? null;
+      setDailyQuestion({ id: dq.daily_question_id, question_id: dq.question_id, date: dq.question_date });
+      setQuestion({
+        id: dq.question_id,
+        topic: dq.topic,
+        question_type: dq.question_type,
+        prompt: dq.prompt,
+        choices: dq.choices,
+        correct_answer: dq.correct_answer,
+        rationale: dq.rationale,
+        strategy: dq.strategy,
+        reference_url: dq.reference_url,
+      });
+      setAttempt(existing);
       setLoading(false);
     }
     load();
@@ -58,7 +60,7 @@ function QuestionOfTheDayContent({ session }) {
     if (!selected.length || !question || !dailyQuestion || !userId) return;
     setSubmitting(true);
     const { data, error: insertError } = await supabase
-      .rpc('submit_daily_question_answer', {
+      .rpc('submit_daily_question_answer_secure', {
         p_daily_question_id: dailyQuestion.id,
         p_selected_ids: selected,
       });
@@ -67,7 +69,15 @@ function QuestionOfTheDayContent({ session }) {
       setError(insertError.message ?? 'Could not save your answer.');
       return;
     }
-    setAttempt(data);
+    const result = Array.isArray(data) ? data[0] : data;
+    setAttempt(result?.attempt ?? null);
+    setQuestion((current) => current ? {
+      ...current,
+      correct_answer: result?.correct_answer,
+      rationale: result?.rationale,
+      strategy: result?.strategy,
+      reference_url: result?.reference_url,
+    } : current);
   }
 
   if (loading) {

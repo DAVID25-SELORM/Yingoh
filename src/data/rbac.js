@@ -95,7 +95,7 @@ export const PERMISSION_GROUPS = [
 
 const STUDENT = [
   'courses.view', 'exams.practice', 'exams.results', 'questions.view',
-  'analytics.own', 'resources.upload',
+  'analytics.own',
 ];
 
 const INSTRUCTOR = [

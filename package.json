@@ -9,7 +9,8 @@
     "preview": "vite preview --host 0.0.0.0",
     "package:questions": "node scripts/build-question-bank-package.mjs",
     "validate:questions": "node scripts/validate-question-bank.mjs",
-    "validate:questions:progress": "node scripts/validate-question-bank.mjs --allow-incomplete"
+    "validate:questions:progress": "node scripts/validate-question-bank.mjs --allow-incomplete",
+    "validate:security": "node scripts/validate-security-contracts.mjs"
   },
   "keywords": [],
   "author": "",

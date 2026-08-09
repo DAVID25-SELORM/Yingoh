@@ -285,15 +285,21 @@ export default function ExamModeView({ session, onNavigate }) {
   async function handleSubmit() {
     if (!selected.length) return;
     const q = questions[index];
-    const correct = isAnswerCorrect(q, selected);
+    let correct = isAnswerCorrect(q, selected);
     const timeTaken = Math.round((Date.now() - qStartTime) / 1000);
 
+    if (userId && sessionId) {
+      const { data, error } = await submitExamAnswer(sessionId, q.id, { ids: selected }, timeTaken);
+      if (error || !data) {
+        setStartError('Your answer could not be graded. Please try again.');
+        return;
+      }
+      correct = Boolean(data.is_correct);
+      const graded = { ...q, correct_answer: data.correct_answer, rationale: data.rationale, strategy: data.strategy, reference_url: data.reference_url, ngn_data: data.ngn_data ?? q.ngn_data };
+      setQuestions((current) => current.map((item) => item.id === q.id ? graded : item));
+    }
     const newAnswer = { questionId: q.id, selected, correct, timeTaken };
     const newAnswers = [...answers, newAnswer];
-
-    if (userId && sessionId) {
-      await submitExamAnswer(sessionId, q.id, { ids: selected }, correct, timeTaken);
-    }
 
     if (selectedMode === 'practice') {
       setSubmitted(true);
@@ -454,8 +460,11 @@ export default function ExamModeView({ session, onNavigate }) {
         minItems={catConfig.minItems}
         statsMap={catConfig.statsMap}
         sessionId={sessionId}
-        onSubmitAnswer={(questionId, answer, correct, timeTaken) => {
-          if (userId && sessionId) submitExamAnswer(sessionId, questionId, answer, correct, timeTaken);
+        onSubmitAnswer={async (questionId, answer, timeTaken) => {
+          if (!userId || !sessionId) return null;
+          const { data, error } = await submitExamAnswer(sessionId, questionId, { ids: Array.isArray(answer) ? answer : [], ngn: answer }, timeTaken);
+          if (error) throw error;
+          return data;
         }}
         onComplete={handleCatComplete}
         onExit={handleCatComplete}

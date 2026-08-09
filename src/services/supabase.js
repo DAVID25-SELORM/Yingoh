@@ -94,16 +94,38 @@ export async function signInWithEmail(email, password) {
   return supabase.auth.signInWithPassword({ email, password });
 }
 
-export async function signUpWithEmail({ email, password, fullName }) {
+export async function signUpWithEmail({ email, password, fullName, legalAccepted = false, termsVersion = null, refundPolicyVersion = null }) {
   if (!supabase) return { data: null, error: new Error('Supabase is not configured.') };
   return supabase.auth.signUp({
     email,
     password,
     options: {
-      data: { full_name: fullName },
+      data: {
+        full_name: fullName,
+        legal_accepted: legalAccepted,
+        terms_version: termsVersion,
+        refund_policy_version: refundPolicyVersion,
+        legal_accepted_at: legalAccepted ? new Date().toISOString() : null,
+      },
       emailRedirectTo: authRedirectUrl,
     },
   });
+}
+
+export async function recordLegalAcceptance(context = 'checkout') {
+  if (!supabase) return { data: null, error: new Error('Supabase is not configured.') };
+  return supabase.rpc('record_legal_acceptance', {
+    p_terms_version: '2026-08-08',
+    p_refund_policy_version: '2026-08-08',
+    p_context: context,
+    p_user_agent: typeof navigator === 'undefined' ? null : navigator.userAgent,
+    p_metadata: { source: 'web' },
+  });
+}
+
+export async function adminCreateOrInviteUser(payload) {
+  if (!supabase) return { data: null, error: new Error('Supabase is not configured.') };
+  return supabase.functions.invoke('admin-users', { body: payload });
 }
 
 export async function sendPasswordResetEmail(email) {
@@ -135,17 +157,17 @@ export async function signOut() {
 // ─── Questions ─────────────────────────────────────────────
 export async function getQuestions({ topic, type, limit = 500, includeUnpublished = false } = {}) {
   if (!supabase) return { data: null, error: new Error('Not configured') };
+  if (includeUnpublished) return { data: null, error: new Error('Unpublished questions require the content-management interface.') };
   const pageSize = 1000;
   const requested = Number.isFinite(limit) ? Math.max(0, limit) : Infinity;
   const rows = [];
   let offset = 0;
   while (rows.length < requested) {
     const take = Math.min(pageSize, requested - rows.length);
-    let query = supabase.from('questions').select('*');
-    if (!includeUnpublished) query = query.eq('status', 'published');
-    if (topic) query = query.eq('topic', topic);
-    if (type) query = query.eq('question_type', type);
-    const { data, error } = await query.order('created_at', { ascending: true }).range(offset, offset + take - 1);
+    const { data: response, error } = await supabase.functions.invoke('question-service', {
+      body: { action: 'list', topic: topic || null, type: type || null, limit: take, offset },
+    });
+    const data = response?.questions ?? [];
     if (error) return { data: rows.length ? rows : null, error };
     rows.push(...(data ?? []));
     if (!data?.length || data.length < take) break;
@@ -177,10 +199,10 @@ export async function unbookmarkQuestion(userId, questionId) {
 }
 
 // ─── Attempts ──────────────────────────────────────────────
-export async function submitAttempt(userId, questionId, answer, isCorrect) {
+export async function submitAttempt(userId, questionId, answer) {
   if (!supabase) return { error: new Error('Not configured') };
-  const result = await supabase.from('attempts').insert({ user_id: userId, question_id: questionId, answer, is_correct: isCorrect });
-  await incrementQuestionProgress(userId);
+  const result = await supabase.functions.invoke('question-service', { body: { action: 'grade', questionId, answer } });
+  if (!result.error) await incrementQuestionProgress(userId);
   return result;
 }
 
@@ -216,24 +238,19 @@ export async function createExamSession(userId, mode, questionIds, timeLimitSeco
   }).select().single();
 }
 
-export async function submitExamAnswer(sessionId, questionId, answer, isCorrect, timeTakenSeconds) {
+export async function submitExamAnswer(sessionId, questionId, answer, timeTakenSeconds) {
   if (!supabase) return { error: new Error('Not configured') };
-  return supabase.from('exam_session_answers').insert({
-    session_id: sessionId, question_id: questionId,
-    answer, is_correct: isCorrect, time_taken_seconds: timeTakenSeconds,
+  return supabase.functions.invoke('question-service', {
+    body: { action: 'grade', sessionId, questionId, answer, timeTakenSeconds },
   });
 }
 
 export async function completeExamSession(sessionId, { correctCount, totalQuestions, scorePercent, passProbability, timeUsedSeconds }) {
   if (!supabase) return { error: new Error('Not configured') };
-  return supabase.from('exam_sessions').update({
-    status: 'completed',
-    correct_count: correctCount,
-    score_pct: scorePercent,
-    pass_probability: passProbability,
-    time_used_seconds: timeUsedSeconds,
-    completed_at: new Date().toISOString(),
-  }).eq('id', sessionId);
+  return supabase.rpc('complete_exam_session_secure', {
+    p_session_id: sessionId,
+    p_time_used_seconds: timeUsedSeconds,
+  });
 }
 
 export async function getExamHistory(userId) {

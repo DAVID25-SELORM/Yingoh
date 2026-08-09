@@ -5,10 +5,10 @@ import {
 } from 'lucide-react';
 import {
   clearUserPermissionOverride,
+  adminCreateOrInviteUser,
   getUserPermissionOverrides,
   sendPasswordResetEmail,
   setUserPermissionOverride,
-  signUpWithEmail,
   startImpersonationSession,
   supabase,
 } from '../services/supabase';
@@ -150,39 +150,8 @@ export default function UserManagement({ session, onStartViewAs, canManageSuperA
     setError('');
 
     try {
-      if (form.invite_only) {
-        // Create pending invite + send password reset
-        if (supabase) {
-          const { error: inviteError } = await supabase.rpc('admin_invite_user', {
-            p_email: form.email,
-            p_full_name: form.full_name,
-            p_role_name: form.role,
-          });
-          if (inviteError) throw inviteError;
-          if (form.role === 'instructor') {
-            const { error: profileError } = await supabase
-              .from('pending_invites')
-              .update({
-                invite_type: 'platform_role',
-                department: form.department || null,
-                institution: form.institution || null,
-                professional_title: form.professional_title || null,
-                staff_id: form.staff_id || null,
-                status: 'pending',
-              })
-              .eq('email', form.email);
-            if (profileError) throw profileError;
-          }
-          const { error: resetError } = await sendPasswordResetEmail(form.email);
-          if (resetError) throw resetError;
-          setInvites((prev) => [{
-            id: `i${Date.now()}`, email: form.email, full_name: form.full_name,
-            role_name: form.role, accepted_at: null, department: form.department, institution: form.institution,
-            expires_at: new Date(Date.now() + 86400000 * 7).toISOString(),
-            created_at: new Date().toISOString(),
-          }, ...prev]);
-          setMsg(`Invite sent to ${form.email}. They will receive a sign-in link.`);
-        } else {
+      if (!supabase) {
+        if (form.invite_only) {
           setInvites((prev) => [{
             id: `i${Date.now()}`, email: form.email, full_name: form.full_name,
             role_name: form.role, accepted_at: null,
@@ -190,39 +159,33 @@ export default function UserManagement({ session, onStartViewAs, canManageSuperA
             created_at: new Date().toISOString(),
           }, ...prev]);
           setMsg(`[Demo] Invite recorded for ${form.email} as ${form.role}.`);
+        } else {
+          setMsg(`[Demo] Account created for ${form.email}.`);
         }
       } else {
-        // Direct create with password
-        if (!form.password || form.password.length < 6) {
-          setMsg('Password must be at least 6 characters.');
+        if (!form.invite_only && (!form.password || form.password.length < 10)) {
+          setMsg('Temporary password must be at least 10 characters.');
           return;
         }
-        const { error } = await signUpWithEmail({ email: form.email, password: form.password, fullName: form.full_name });
+        const { data, error } = await adminCreateOrInviteUser({
+          action: form.invite_only ? 'invite' : 'create',
+          email: form.email,
+          fullName: form.full_name,
+          password: form.invite_only ? undefined : form.password,
+          role: form.role,
+          department: form.department || null,
+          nursingSpecialty: form.nursing_specialty || null,
+          professionalTitle: form.professional_title || null,
+          institution: form.institution || null,
+          staffId: form.staff_id || null,
+          sendOnboardingEmail: Boolean(form.send_onboarding_email),
+        });
         if (error) throw error;
-        // Assign role after short delay for trigger to fire
-        if (supabase) {
-          setTimeout(async () => {
-            const { data: profile } = await supabase.from('profiles').select('id').eq('email', form.email).single();
-            if (profile) {
-              await supabase.rpc('admin_assign_role', { target_user_id: profile.id, role_name: form.role });
-              if (form.role === 'instructor') {
-                await supabase.from('instructor_profiles').upsert({
-                  user_id: profile.id,
-                  department: form.department || null,
-                  nursing_specialty: form.nursing_specialty || null,
-                  professional_title: form.professional_title || null,
-                  institution: form.institution || null,
-                  staff_id: form.staff_id || null,
-                  account_status: 'active',
-                  onboarding_email_sent: Boolean(form.send_onboarding_email),
-                  updated_at: new Date().toISOString(),
-                });
-              }
-            }
-          }, 1500);
-        }
-        setMsg(`Account created for ${form.email}. They may need to verify their email.`);
-        await loadUsers();
+        if (data?.error) throw new Error(data.error);
+        setMsg(form.invite_only
+          ? `Secure invitation sent to ${form.email}.`
+          : `Account created for ${form.email} without changing your administrator session.`);
+        await Promise.all([loadUsers(), loadInvites()]);
       }
       setForm(EMPTY_FORM);
       setTab('users');
