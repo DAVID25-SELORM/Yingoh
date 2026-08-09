@@ -84,7 +84,7 @@ const roles = [
 ];
 
 const developerSignature = {
-  name: 'Neon Digital Technologies',
+  name: 'Daventra Technologies',
   email: 'neondigitaltechnologies@gmail.com',
 };
 
