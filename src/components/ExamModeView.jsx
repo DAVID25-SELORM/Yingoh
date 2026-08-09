@@ -489,6 +489,9 @@ export default function ExamModeView({ session, onNavigate }) {
 
   const correctIds = question?.correct_answer?.ids ?? [];
   const showRationale = submitted && selectedMode === 'practice';
+  const submittedResult = answers.find((answer) => answer.questionId === question?.id);
+  const correctChoices = (question?.choices ?? []).filter((choice) => correctIds.includes(choice.id));
+  const selectedChoices = (question?.choices ?? []).filter((choice) => selected.includes(choice.id));
 
   return (
     <section className="content-band">
@@ -555,9 +558,24 @@ export default function ExamModeView({ session, onNavigate }) {
       </div>
 
       {showRationale && (
+        <>
+        <div className={`qb-result ${submittedResult?.correct ? 'result-correct' : 'result-wrong'}`}>
+          <div className="result-verdict">
+            {submittedResult?.correct
+              ? <><CheckCircle2 size={22} /> Correct!</>
+              : <><XCircle size={22} /> Incorrect</>}
+          </div>
+          <p style={{ margin: '6px 0 0' }}>
+            {submittedResult?.correct
+              ? 'Your selection matches the correct answer.'
+              : `Your answer (${selectedChoices.map((choice) => `${choice.id.toUpperCase()}. ${choice.text}`).join('; ')}) does not match the correct answer.`}
+          </p>
+        </div>
         <div className="rationale">
-          <strong>Rationale</strong>
-          <p>{question?.rationale}</p>
+          <strong>Correct answer{correctChoices.length === 1 ? '' : 's'}</strong>
+          <p style={{ marginBottom: 14 }}>{correctChoices.map((choice) => `${choice.id.toUpperCase()}. ${choice.text}`).join('; ')}</p>
+          <strong>Detailed explanation</strong>
+          <p>{question?.rationale || 'The explanation for this question is being reviewed.'}</p>
           {question?.strategy && (
             <div style={{ marginTop: 12, padding: '10px 14px', background: '#f0f4ff', borderLeft: '3px solid #6750a4', borderRadius: '0 8px 8px 0' }}>
               <p style={{ margin: 0, fontSize: '0.86rem', color: '#3b2d6b' }}>
@@ -567,6 +585,7 @@ export default function ExamModeView({ session, onNavigate }) {
             </div>
           )}
         </div>
+        </>
       )}
 
       {!submitted ? (

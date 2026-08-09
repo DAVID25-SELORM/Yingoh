@@ -112,6 +112,8 @@ export default function CustomQuizBuilder({ session }) {
 
   const q = quiz?.[idx];
   const correctIds = q?.correct_answer?.ids ?? [];
+  const correctChoices = (q?.choices ?? []).filter((choice) => correctIds.includes(choice.id));
+  const selectedChoices = (q?.choices ?? []).filter((choice) => selected.includes(choice.id));
   const isAnswerCorrect = submitted
     ? (q?.question_type === 'sata'
       ? [...selected].sort().join() === [...correctIds].sort().join()
@@ -276,9 +278,19 @@ export default function CustomQuizBuilder({ session }) {
               <div className="result-verdict">
                 {isAnswerCorrect ? <><CheckCircle2 size={20} /> Correct!</> : <><XCircle size={20} /> Incorrect</>}
               </div>
+              <p style={{ margin: '6px 0 0' }}>
+                {isAnswerCorrect
+                  ? 'Your selection matches the correct answer.'
+                  : `Your answer (${selectedChoices.map((choice) => `${choice.id.toUpperCase()}. ${choice.text}`).join('; ')}) does not match the correct answer.`}
+              </p>
             </div>
             {(setup.mode === 'tutor' || setup.mode === 'practice') && (
-              <div className="rationale"><strong>Rationale</strong><p>{q.rationale}</p></div>
+              <div className="rationale">
+                <strong>Correct answer{correctChoices.length === 1 ? '' : 's'}</strong>
+                <p style={{ marginBottom: 14 }}>{correctChoices.map((choice) => `${choice.id.toUpperCase()}. ${choice.text}`).join('; ')}</p>
+                <strong>Detailed explanation</strong>
+                <p>{q.rationale || 'The explanation for this question is being reviewed.'}</p>
+              </div>
             )}
             <div className="qb-nav" style={{ marginTop: 14 }}>
               <button className="ghost-btn" onClick={() => { setIdx((i) => Math.max(0, i - 1)); setSelected([]); setSubmitted(false); }} disabled={idx === 0}>

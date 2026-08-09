@@ -159,7 +159,7 @@ function QuestionOfTheDayContent({ session }) {
             <p style={{ marginBottom: 14 }}>
               {correctChoices.map((choice) => `${choice.id.toUpperCase()}. ${choice.text}`).join('; ')}
             </p>
-            <strong>Why this is the correct answer</strong>
+            <strong>Detailed explanation</strong>
             <p>{question.rationale}</p>
             {question.reference_url && (
               <a href={question.reference_url} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: 12, fontSize: '0.84rem', color: '#135f55', fontWeight: 700 }}>

@@ -454,6 +454,7 @@ export default function QuestionBankView({ session }) {
 
   const isBookmarked = bookmarks.has(question?.id);
   const correctIds = question?.correct_answer?.ids ?? [];
+  const correctChoices = (question?.choices ?? []).filter((choice) => correctIds.includes(choice.id));
   const qt = question?.question_type;
   const isNGN = ['bow_tie', 'matrix', 'ordered_response', 'highlight'].includes(qt);
   const isAnswerCorrect = submitted ? checkIsCorrect() : null;
@@ -664,13 +665,14 @@ export default function QuestionBankView({ session }) {
       {/* Rationale */}
       {submitted && question.rationale && (
         <div className="rationale">
-          <strong>Rationale</strong>
-          <p>{question.rationale}</p>
-          {qt === 'sata' && (
-            <div style={{ marginTop: 10, fontSize: '0.88rem', color: '#607478' }}>
-              <strong>Correct answers:</strong> {correctIds.map((id) => id.toUpperCase()).join(', ')}
-            </div>
+          {!isNGN && (
+            <>
+              <strong>Correct answer{correctChoices.length === 1 ? '' : 's'}</strong>
+              <p style={{ marginBottom: 14 }}>{correctChoices.map((choice) => `${choice.id.toUpperCase()}. ${choice.text}`).join('; ')}</p>
+            </>
           )}
+          <strong>Detailed explanation</strong>
+          <p>{question.rationale}</p>
           {question.strategy && (
             <div style={{ marginTop: 12, padding: '10px 14px', background: '#f0f4ff', borderLeft: '3px solid #6750a4', borderRadius: '0 8px 8px 0' }}>
               <p style={{ margin: 0, fontSize: '0.86rem', color: '#3b2d6b' }}>
