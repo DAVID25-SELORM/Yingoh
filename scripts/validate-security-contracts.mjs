@@ -9,6 +9,7 @@ const files = Object.fromEntries([
   ['migration', 'supabase/migrations/20260808120000_security_legal_and_refunds.sql'],
   ['main', 'src/main.jsx'],
   ['payments', 'src/components/PaymentsView.jsx'],
+  ['readiness', 'src/utils/questionReadiness.js'],
 ].map(([key, path]) => [key, readFileSync(path, 'utf8')]));
 
 const checks = [
@@ -19,6 +20,7 @@ const checks = [
   ['Study Coach consumes quota server-side', files.coach.includes("rpc('consume_study_coach_question'")],
   ['question service sanitizes answer keys', files.questions.includes('sanitizedQuestion') && files.questions.includes('correct_answer: _answer')],
   ['question service grades server-side', files.questions.includes("body.action==='grade'")],
+  ['learner question filtering accepts sanitized content', files.readiness.includes('isLearnerReadyQuestion') && !files.readiness.match(/isLearnerReadyQuestion[\s\S]*?hasDetailedRationale/)],
   ['admin user creation uses admin auth API', files.adminUsers.includes('auth.admin.createUser') && files.adminUsers.includes('auth.admin.inviteUserByEmail')],
   ['legacy learner question policy is removed', files.migration.includes('drop policy if exists "questions_read_authenticated"')],
   ['public enrollment table policy is removed', files.migration.includes('drop policy if exists "enrollment_links_public_read"')],

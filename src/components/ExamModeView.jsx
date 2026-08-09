@@ -4,7 +4,7 @@ import { calculatePassProbability, completeExamSession, createExamSession, getEx
 import { DEMO_QUESTIONS } from '../data/demoQuestions';
 import { UpgradeCTA } from './SubscriptionGate';
 import { useSubscription } from '../hooks/useSubscription';
-import { isChoiceBasedQuestion, isPracticeReadyQuestion } from '../utils/questionReadiness';
+import { isChoiceBasedQuestion, isLearnerReadyQuestion } from '../utils/questionReadiness';
 import CATSimulatorView from './CATSimulatorView';
 import { computeDifficultyStats } from '../utils/adaptiveEngine';
 
@@ -184,7 +184,7 @@ export default function ExamModeView({ session, onNavigate }) {
     getQuestions({ limit: subscription.questionLimit }).then(({ data }) => {
       const sourceQuestions = supabase ? (data ?? []) : DEMO_QUESTIONS.slice(0, fallbackLimit);
       setAllQuestions(sourceQuestions.filter(isChoiceBasedQuestion));
-      setCatQuestions(sourceQuestions.filter(isPracticeReadyQuestion));
+      setCatQuestions(sourceQuestions.filter(isLearnerReadyQuestion));
     });
   }, [subscription.loading, subscription.questionLimit]);
 

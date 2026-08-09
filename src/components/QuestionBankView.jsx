@@ -16,7 +16,7 @@ import {
   OrderedResponseQuestion, orderedIsCorrect,
   HighlightQuestion, highlightIsCorrect,
 } from './NGNRenderer';
-import { isPracticeReadyQuestion } from '../utils/questionReadiness';
+import { isLearnerReadyQuestion } from '../utils/questionReadiness';
 
 import { TOPICS as TOPIC_LIST } from '../data/topics';
 const TOPICS = ['All Topics', ...TOPIC_LIST];
@@ -205,7 +205,7 @@ export default function QuestionBankView({ session }) {
       });
       const fallbackLimit = Number.isFinite(questionLimit) ? questionLimit : DEMO_QUESTIONS.length;
       const sourceQuestions = supabase ? (data ?? []) : DEMO_QUESTIONS.slice(0, fallbackLimit);
-      const qs = sourceQuestions.filter(isPracticeReadyQuestion);
+      const qs = sourceQuestions.filter(isLearnerReadyQuestion);
       setQuestions(qs);
       if (userId) {
         const { data: bIds } = await getBookmarkedQuestionIds(userId);

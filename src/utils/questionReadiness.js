@@ -52,6 +52,33 @@ export function isPracticeReadyQuestion(question) {
   return false;
 }
 
+// Learner APIs intentionally omit scoring keys, rationales, and strategies until
+// an answer is submitted. Validate only the public shape when building a learner
+// question pool; grading remains exclusively server-side.
+export function isLearnerReadyQuestion(question) {
+  const type = question?.question_type;
+  if (!hasText(question?.prompt)) return false;
+  if (type === 'mcq' || type === 'sata' || type === 'ordered_response') {
+    return hasUsableChoices(question, 2);
+  }
+  if (type === 'matrix') {
+    const data = question?.ngn_data ?? {};
+    return Array.isArray(data.rows) && data.rows.length > 0
+      && Array.isArray(data.columns) && data.columns.length >= 2;
+  }
+  if (type === 'bow_tie') {
+    const data = question?.ngn_data ?? {};
+    return Array.isArray(data.left_choices) && data.left_choices.length > 0
+      && Array.isArray(data.right_choices) && data.right_choices.length > 0;
+  }
+  if (type === 'highlight') {
+    const data = question?.ngn_data ?? {};
+    return hasText(data.passage)
+      && Array.isArray(data.highlights) && data.highlights.length > 0;
+  }
+  return false;
+}
+
 export function isChoiceBasedQuestion(question) {
-  return ['mcq', 'sata'].includes(question?.question_type) && isPracticeReadyQuestion(question);
+  return ['mcq', 'sata'].includes(question?.question_type) && isLearnerReadyQuestion(question);
 }
