@@ -6,6 +6,7 @@ import {
   signInWithEmail,
   signUpWithEmail,
 } from '../services/supabase';
+import PasswordInput from './PasswordInput';
 
 function getJoinCode() {
   const pathMatch = window.location.pathname.match(/\/join\/([^/?#]+)/i);
@@ -119,7 +120,7 @@ export default function CourseJoinView({ session, onJoined }) {
                   <input value={form.fullName} onChange={(e) => setForm((p) => ({ ...p, fullName: e.target.value }))} placeholder="Full name" />
                 )}
                 <input type="email" value={form.email} onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))} placeholder="Email address" />
-                <input type="password" value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))} placeholder="Password" />
+                <PasswordInput autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))} placeholder="Password" />
               </div>
             )}
             <input style={{ marginTop: 10 }} value={form.studentId} onChange={(e) => setForm((p) => ({ ...p, studentId: e.target.value }))} placeholder="Student ID (if required)" />

@@ -19,6 +19,7 @@ import {
   ROLE_COLORS,
   ROLE_LOOKUP,
 } from '../data/rbac';
+import PasswordInput from './PasswordInput';
 
 const DEMO_USERS = [
   { id: 'u1', full_name: 'Selorm Gabiond', email: 'cryxtalcfc@gmail.com', country: 'Ghana', created_at: new Date(Date.now() - 86400000 * 30).toISOString(), roles: ['student', 'admin'] },
@@ -504,7 +505,7 @@ export default function UserManagement({ session, onStartViewAs, canManageSuperA
               {!form.invite_only && (
                 <div className="qm-form-row">
                   <label>Temporary Password</label>
-                  <input type="password" minLength={6} value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))} placeholder="Min 6 characters" />
+                  <PasswordInput minLength={10} autoComplete="new-password" value={form.password} onChange={(e) => setForm((p) => ({ ...p, password: e.target.value }))} placeholder="Min 10 characters" />
                 </div>
               )}
             </div>

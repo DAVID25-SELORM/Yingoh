@@ -826,6 +826,11 @@ input, select, textarea { font: inherit; }
 .auth-form { display: grid; gap: 12px; margin-top: 14px; }
 .auth-form label { display: grid; gap: 6px; color: #42585e; font-weight: 700; font-size: 0.86rem; }
 .auth-form input { min-height: 40px; width: 100%; border-radius: 8px; border: 1px solid #dbe6e4; background: #fff; color: #17212f; padding: 0 12px; }
+.password-input { position: relative; display: block; width: 100%; }
+.password-input input { width: 100%; padding-right: 44px !important; }
+.password-toggle { position: absolute; top: 50%; right: 5px; transform: translateY(-50%); display: grid; place-items: center; width: 34px; height: 34px; padding: 0; border: 0; border-radius: 7px; background: transparent; color: #526b70; cursor: pointer; }
+.password-toggle:hover { background: #edf5f3; color: #135f55; }
+.password-toggle:focus-visible { outline: 2px solid #168574; outline-offset: 1px; }
 .segmented-control { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 4px; padding: 4px; border-radius: 8px; background: #e9f1ef; }
 .segmented-control button { min-height: 34px; border-radius: 6px; color: #51676c; background: transparent; font-weight: 700; }
 .segmented-control .segment-active { color: #17313a; background: #fff; }

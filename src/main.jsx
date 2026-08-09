@@ -28,6 +28,7 @@ import AnnouncementsView from './components/AnnouncementsView';
 import VirtualClassroom from './components/VirtualClassroom';
 import UserManagement from './components/UserManagement';
 import CourseJoinView from './components/CourseJoinView';
+import PasswordInput from './components/PasswordInput';
 import CustomQuizBuilder from './components/CustomQuizBuilder';
 import VideoLearning from './components/VideoLearning';
 import CommunityForum from './components/CommunityForum';
@@ -289,8 +290,8 @@ function AccountAccess({ session, isPasswordRecovery }) {
           {userEmail ? (
             mode === 'updatePassword' ? (
               <form className="auth-form" onSubmit={handleSubmit}>
-                <label>New password<input type="password" minLength="6" value={password} onChange={(e) => setPassword(e.target.value)} required /></label>
-                <label>Confirm password<input type="password" minLength="6" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required /></label>
+                <label>New password<PasswordInput minLength="6" autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></label>
+                <label>Confirm password<PasswordInput minLength="6" autoComplete="new-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required /></label>
                 <button className="primary-btn" type="submit" disabled={!supabaseConfig.isConfigured || isSubmitting}>
                   {isSubmitting ? 'Working...' : 'Update password'}
                 </button>
@@ -321,7 +322,7 @@ function AccountAccess({ session, isPasswordRecovery }) {
               )}
               <label>Email<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
               {mode !== 'reset' && (
-                <label>Password<input type="password" minLength="6" value={password} onChange={(e) => setPassword(e.target.value)} required /></label>
+                <label>Password<PasswordInput minLength="6" autoComplete={mode === 'signup' ? 'new-password' : 'current-password'} value={password} onChange={(e) => setPassword(e.target.value)} required /></label>
               )}
               {mode === 'reset' && (
                 <button className="primary-btn" type="submit" disabled={!supabaseConfig.isConfigured || isSubmitting}>
