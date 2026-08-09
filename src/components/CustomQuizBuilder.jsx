@@ -7,6 +7,7 @@ import { getQuestions, submitAttempt, supabase } from '../services/supabase';
 import { DEMO_QUESTIONS } from '../data/demoQuestions';
 import { useSubscription } from '../hooks/useSubscription';
 import { isChoiceBasedQuestion } from '../utils/questionReadiness';
+import AnswerExplanation from './AnswerExplanation';
 
 import { TOPICS } from '../data/topics';
 const MODES = [
@@ -93,7 +94,14 @@ export default function CustomQuizBuilder({ session }) {
       const { data, error } = await submitAttempt(session.user.id, q.id, { ids: selected });
       if (error || !data) return;
       correct = Boolean(data.is_correct);
-      const graded = { ...q, correct_answer: data.correct_answer, rationale: data.rationale, strategy: data.strategy, reference_url: data.reference_url };
+      const graded = {
+        ...q, correct_answer: data.correct_answer, rationale: data.rationale,
+        strategy: data.strategy, reference_url: data.reference_url,
+        correct_answer_explanation: data.correct_answer_explanation,
+        option_explanations: data.option_explanations,
+        immediate_response: data.immediate_response,
+        reference_urls: data.reference_urls, reviewed_at: data.reviewed_at,
+      };
       setQuiz((current) => current.map((item) => item.id === q.id ? graded : item));
     }
     setSubmitted(true);
@@ -112,8 +120,6 @@ export default function CustomQuizBuilder({ session }) {
 
   const q = quiz?.[idx];
   const correctIds = q?.correct_answer?.ids ?? [];
-  const correctChoices = (q?.choices ?? []).filter((choice) => correctIds.includes(choice.id));
-  const selectedChoices = (q?.choices ?? []).filter((choice) => selected.includes(choice.id));
   const isAnswerCorrect = submitted
     ? (q?.question_type === 'sata'
       ? [...selected].sort().join() === [...correctIds].sort().join()
@@ -274,23 +280,8 @@ export default function CustomQuizBuilder({ session }) {
         ? <button className="primary-btn" onClick={() => handleSubmit()} disabled={!selected.length} style={{ marginTop: 14, width: '100%', justifyContent: 'center' }}>Submit</button>
         : (
           <>
-            <div className={`qb-result ${isAnswerCorrect ? 'result-correct' : 'result-wrong'}`}>
-              <div className="result-verdict">
-                {isAnswerCorrect ? <><CheckCircle2 size={20} /> Correct!</> : <><XCircle size={20} /> Incorrect</>}
-              </div>
-              <p style={{ margin: '6px 0 0' }}>
-                {isAnswerCorrect
-                  ? 'Your selection matches the correct answer.'
-                  : `Your answer (${selectedChoices.map((choice) => `${choice.id.toUpperCase()}. ${choice.text}`).join('; ')}) does not match the correct answer.`}
-              </p>
-            </div>
             {(setup.mode === 'tutor' || setup.mode === 'practice') && (
-              <div className="rationale">
-                <strong>Correct answer{correctChoices.length === 1 ? '' : 's'}</strong>
-                <p style={{ marginBottom: 14 }}>{correctChoices.map((choice) => `${choice.id.toUpperCase()}. ${choice.text}`).join('; ')}</p>
-                <strong>Detailed explanation</strong>
-                <p>{q.rationale || 'The explanation for this question is being reviewed.'}</p>
-              </div>
+              <AnswerExplanation question={q} selectedIds={selected} isCorrect={Boolean(isAnswerCorrect)} />
             )}
             <div className="qb-nav" style={{ marginTop: 14 }}>
               <button className="ghost-btn" onClick={() => { setIdx((i) => Math.max(0, i - 1)); setSelected([]); setSubmitted(false); }} disabled={idx === 0}>

@@ -214,10 +214,12 @@ export default function CATSimulatorView({ pool, maxItems, minItems, statsMap, o
     setSubmissionError('');
     const timeTaken = Math.round((Date.now() - questionStartRef.current) / 1000);
     let correct = scoreAnswer(currentQuestion, currentAnswer);
+    let gradedPayload = null;
     try {
       if (onSubmitAnswer) {
         const graded = await onSubmitAnswer(currentQuestion.id, currentAnswer, timeTaken);
         if (!graded) throw new Error('No grading result was returned.');
+        gradedPayload = graded;
         correct = Boolean(graded.is_correct);
       }
     } catch (error) {
@@ -228,8 +230,24 @@ export default function CATSimulatorView({ pool, maxItems, minItems, statsMap, o
     }
     const { theta: newTheta, step: newStep } = nextTheta(engine.theta, correct, engine.step);
 
+    const reviewedQuestion = gradedPayload ? {
+      ...currentQuestion,
+      correct_answer: gradedPayload.correct_answer,
+      rationale: gradedPayload.rationale,
+      strategy: gradedPayload.strategy,
+      reference_url: gradedPayload.reference_url,
+      correct_answer_explanation: gradedPayload.correct_answer_explanation,
+      option_explanations: gradedPayload.option_explanations,
+      immediate_response: gradedPayload.immediate_response,
+      reference_urls: gradedPayload.reference_urls,
+      reviewed_at: gradedPayload.reviewed_at,
+      ngn_data: gradedPayload.ngn_data ?? currentQuestion.ngn_data,
+    } : currentQuestion;
+    const reviewedQuestions = servedQuestions.map((question) => question.id === currentQuestion.id ? reviewedQuestion : question);
+    setServedQuestions(reviewedQuestions);
+
     const newHistory = [...engine.history, {
-      questionId: currentQuestion.id, correct, timeTaken, theta: newTheta,
+      questionId: currentQuestion.id, correct, selected: currentAnswer, timeTaken, theta: newTheta,
     }];
     const newAskedIds = new Set(engine.askedIds);
     newAskedIds.add(currentQuestion.id);
@@ -248,8 +266,13 @@ export default function CATSimulatorView({ pool, maxItems, minItems, statsMap, o
     if (verdict.stop || !nextQuestion) {
       finishedRef.current = true;
       const result = {
-        answers: newHistory.map((h) => ({ questionId: h.questionId, correct: h.correct, timeTaken: h.timeTaken })),
-        questions: [...servedQuestions],
+        answers: newHistory.map((h) => ({
+          questionId: h.questionId,
+          selected: h.selected,
+          correct: h.correct,
+          timeTaken: h.timeTaken,
+        })),
+        questions: reviewedQuestions,
         passed: verdict.passed ?? (newTheta >= PASSING_THETA),
         finalTheta: newTheta,
         timeUsed: Math.round((Date.now() - startTimeRef.current) / 1000),

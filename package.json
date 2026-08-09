@@ -10,7 +10,8 @@
     "package:questions": "node scripts/build-question-bank-package.mjs",
     "validate:questions": "node scripts/validate-question-bank.mjs",
     "validate:questions:progress": "node scripts/validate-question-bank.mjs --allow-incomplete",
-    "validate:security": "node scripts/validate-security-contracts.mjs"
+    "validate:security": "node scripts/validate-security-contracts.mjs",
+    "validate:explanations": "node scripts/validate-structured-explanations.mjs"
   },
   "keywords": [],
   "author": "",

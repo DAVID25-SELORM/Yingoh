@@ -832,6 +832,49 @@ input, select, textarea { font: inherit; }
 .password-toggle:hover { background: #edf5f3; color: #135f55; }
 .password-toggle:focus-visible { outline: 2px solid #168574; outline-offset: 1px; }
 .rationale > p { white-space: pre-line; line-height: 1.65; }
+.answer-explanation { display: grid; gap: 12px; margin-top: 16px; }
+.answer-explanation .qb-result { margin: 0; }
+.explanation-section { padding: 14px 16px; border: 1px solid #dbe6e4; border-radius: 10px; background: #fff; }
+.explanation-section h3 { margin: 0 0 7px; color: #17313a; font-size: 0.91rem; }
+.explanation-section p { margin: 0; color: #42585e; font-size: 0.9rem; line-height: 1.65; }
+.explanation-correct { border-left: 4px solid #29b7a3; background: #f4fbf9; }
+.explanation-response { border-left: 4px solid #e85d4f; background: #fff8f6; }
+.explanation-strategy { border-left: 4px solid #6750a4; background: #f6f4ff; }
+.preserve-format { white-space: pre-line; }
+.option-explanation-list { display: grid; gap: 9px; }
+.option-explanation-list article { padding: 11px 12px; border-radius: 8px; border-left: 3px solid #b8c9c6; background: #f8fbfa; }
+.option-explanation-list article.option-explanation-correct { border-left-color: #29b7a3; background: #eef9f6; }
+.option-explanation-list article.option-explanation-wrong { border-left-color: #e18b82; }
+.option-explanation-list strong { display: block; margin-bottom: 4px; color: #263c42; font-size: 0.86rem; }
+.explanation-references { display: grid; gap: 8px; margin: 0; padding-left: 18px; }
+.explanation-references a { display: inline-flex; gap: 4px; align-items: center; color: #135f55; font-weight: 700; overflow-wrap: anywhere; }
+.explanation-references span { display: block; margin-top: 2px; color: #718488; font-size: 0.76rem; }
+.clinical-review-note, .legacy-explanation-note { margin: 0; color: #718488; font-size: 0.78rem; }
+.legacy-explanation-note { padding: 8px 10px; border-radius: 7px; background: #fff8e8; color: #7a5a12; }
+.qm-option-editor { display: grid; gap: 6px; padding: 10px; border: 1px solid #e1ebe9; border-radius: 10px; background: #fbfdfc; }
+.field-warning { color: #8a5b12; font-size: 0.76rem; }
+.field-hint { margin-left: 7px; color: #718488; font-size: 0.76rem; font-weight: 400; }
+.reference-editor-list { display: grid; gap: 9px; }
+.reference-editor-row { display: grid; grid-template-columns: 1fr 1fr minmax(220px, 1.5fr) 150px auto; gap: 7px; align-items: center; }
+.qm-learning-preview { display: grid; gap: 8px; margin: 16px 0; padding: 14px; border: 1px dashed #9ebdb7; border-radius: 12px; background: #f7fbfa; }
+.validation-summary { color: #8a2c21; }
+.validation-summary ul { margin: 7px 0 0; padding-left: 20px; }
+.audit-issue-chip { display: inline-block; margin: 2px 4px 2px 0; padding: 3px 7px; border-radius: 999px; background: #fff0dc; color: #7a4d0b; font-size: 0.72rem; }
+.audit-summary-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; margin-bottom: 12px; }
+.audit-summary-grid > div { display: grid; gap: 2px; padding: 10px; border: 1px solid #e1ebe9; border-radius: 8px; background: #f8fbfa; }
+.audit-summary-grid strong { color: #17313a; font-size: 1.05rem; }
+.audit-summary-grid span { color: #607478; font-size: 0.74rem; }
+.exam-answer-review { display: grid; gap: 10px; margin-top: 24px; }
+.exam-answer-review details { border: 1px solid #dbe6e4; border-radius: 10px; background: #fff; overflow: hidden; }
+.exam-answer-review summary { padding: 12px 14px; cursor: pointer; font-weight: 750; color: #263c42; background: #f7faf9; }
+.exam-review-prompt { margin: 14px 14px 0; font-weight: 650; line-height: 1.55; }
+.exam-answer-review .answer-explanation { padding: 0 14px 14px; }
+
+@media (max-width: 760px) {
+  .reference-editor-row { grid-template-columns: 1fr; }
+  .reference-editor-row .icon-btn { justify-self: end; }
+  .explanation-section { padding: 12px; }
+}
 .segmented-control { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 4px; padding: 4px; border-radius: 8px; background: #e9f1ef; }
 .segmented-control button { min-height: 34px; border-radius: 6px; color: #51676c; background: transparent; font-weight: 700; }
 .segmented-control .segment-active { color: #17313a; background: #fff; }

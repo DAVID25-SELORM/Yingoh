@@ -6,6 +6,7 @@ import { UpgradeCTA } from './SubscriptionGate';
 import { useSubscription } from '../hooks/useSubscription';
 import { isChoiceBasedQuestion, isLearnerReadyQuestion } from '../utils/questionReadiness';
 import CATSimulatorView from './CATSimulatorView';
+import AnswerExplanation from './AnswerExplanation';
 import { computeDifficultyStats } from '../utils/adaptiveEngine';
 
 const CAT_MIN_ITEMS = 85;
@@ -112,6 +113,22 @@ function ResultScreen({ answers, questions, mode, timeUsed, passedOverride, onRe
               </div>
               <b>{pct}%</b>
             </div>
+          );
+        })}
+      </div>
+
+      <div className="exam-answer-review">
+        <h3>Answer Review</h3>
+        {answers.map((answer, answerIndex) => {
+          const reviewedQuestion = questions.find((question) => question.id === answer.questionId);
+          if (!reviewedQuestion) return null;
+          const selectedIds = Array.isArray(answer.selected) ? answer.selected : [];
+          return (
+            <details key={`${answer.questionId}-${answerIndex}`} open={!answer.correct}>
+              <summary>Question {answerIndex + 1}: {answer.correct ? 'Correct' : 'Incorrect'} — {reviewedQuestion.topic}</summary>
+              <p className="exam-review-prompt">{reviewedQuestion.prompt}</p>
+              <AnswerExplanation question={reviewedQuestion} selectedIds={selectedIds} isCorrect={answer.correct} />
+            </details>
           );
         })}
       </div>
@@ -295,7 +312,15 @@ export default function ExamModeView({ session, onNavigate }) {
         return;
       }
       correct = Boolean(data.is_correct);
-      const graded = { ...q, correct_answer: data.correct_answer, rationale: data.rationale, strategy: data.strategy, reference_url: data.reference_url, ngn_data: data.ngn_data ?? q.ngn_data };
+      const graded = {
+        ...q, correct_answer: data.correct_answer, rationale: data.rationale,
+        strategy: data.strategy, reference_url: data.reference_url,
+        correct_answer_explanation: data.correct_answer_explanation,
+        option_explanations: data.option_explanations,
+        immediate_response: data.immediate_response,
+        reference_urls: data.reference_urls, reviewed_at: data.reviewed_at,
+        ngn_data: data.ngn_data ?? q.ngn_data,
+      };
       setQuestions((current) => current.map((item) => item.id === q.id ? graded : item));
     }
     const newAnswer = { questionId: q.id, selected, correct, timeTaken };
@@ -490,8 +515,6 @@ export default function ExamModeView({ session, onNavigate }) {
   const correctIds = question?.correct_answer?.ids ?? [];
   const showRationale = submitted && selectedMode === 'practice';
   const submittedResult = answers.find((answer) => answer.questionId === question?.id);
-  const correctChoices = (question?.choices ?? []).filter((choice) => correctIds.includes(choice.id));
-  const selectedChoices = (question?.choices ?? []).filter((choice) => selected.includes(choice.id));
 
   return (
     <section className="content-band">
@@ -558,34 +581,7 @@ export default function ExamModeView({ session, onNavigate }) {
       </div>
 
       {showRationale && (
-        <>
-        <div className={`qb-result ${submittedResult?.correct ? 'result-correct' : 'result-wrong'}`}>
-          <div className="result-verdict">
-            {submittedResult?.correct
-              ? <><CheckCircle2 size={22} /> Correct!</>
-              : <><XCircle size={22} /> Incorrect</>}
-          </div>
-          <p style={{ margin: '6px 0 0' }}>
-            {submittedResult?.correct
-              ? 'Your selection matches the correct answer.'
-              : `Your answer (${selectedChoices.map((choice) => `${choice.id.toUpperCase()}. ${choice.text}`).join('; ')}) does not match the correct answer.`}
-          </p>
-        </div>
-        <div className="rationale">
-          <strong>Correct answer{correctChoices.length === 1 ? '' : 's'}</strong>
-          <p style={{ marginBottom: 14 }}>{correctChoices.map((choice) => `${choice.id.toUpperCase()}. ${choice.text}`).join('; ')}</p>
-          <strong>Detailed explanation</strong>
-          <p>{question?.rationale || 'The explanation for this question is being reviewed.'}</p>
-          {question?.strategy && (
-            <div style={{ marginTop: 12, padding: '10px 14px', background: '#f0f4ff', borderLeft: '3px solid #6750a4', borderRadius: '0 8px 8px 0' }}>
-              <p style={{ margin: 0, fontSize: '0.86rem', color: '#3b2d6b' }}>
-                <strong style={{ display: 'block', marginBottom: 4, fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#6750a4' }}>Test-Taking Strategy</strong>
-                {question.strategy}
-              </p>
-            </div>
-          )}
-        </div>
-        </>
+        <AnswerExplanation question={question} selectedIds={selected} isCorrect={Boolean(submittedResult?.correct)} />
       )}
 
       {!submitted ? (

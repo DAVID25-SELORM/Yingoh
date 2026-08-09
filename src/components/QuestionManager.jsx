@@ -6,6 +6,12 @@ import {
 import { supabase } from '../services/supabase';
 import { TOPICS } from '../data/topics';
 import { DEMO_QUESTIONS } from '../data/demoQuestions';
+import AnswerExplanation from './AnswerExplanation';
+import {
+  EMPTY_STRUCTURED_EXPLANATION,
+  syncOptionExplanations,
+  validateStructuredExplanation,
+} from '../utils/structuredExplanations';
 
 
 const EMPTY_QUESTION = {
@@ -22,6 +28,8 @@ const EMPTY_QUESTION = {
   correct_answer: { ids: [] },
   rationale: '',
   strategy: '',
+  ...EMPTY_STRUCTURED_EXPLANATION,
+  clinical_review_status: 'pending',
   status: 'draft',
 };
 
@@ -55,6 +63,11 @@ export default function QuestionManager() {
   const [isNew, setIsNew] = useState(false);
   const [saving, setSaving] = useState(false);
   const [preview, setPreview] = useState(null);
+  const [saveErrors, setSaveErrors] = useState([]);
+  const [auditIssue, setAuditIssue] = useState('all');
+  const [auditRows, setAuditRows] = useState([]);
+  const [auditSummary, setAuditSummary] = useState(null);
+  const [auditLoading, setAuditLoading] = useState(false);
 
   useEffect(() => {
     loadCounts();
@@ -151,12 +164,24 @@ export default function QuestionManager() {
   function openNew() {
     setEditing(JSON.parse(JSON.stringify(EMPTY_QUESTION)));
     setIsNew(true);
+    setSaveErrors([]);
   }
 
   async function openEdit(q) {
     const fullQuestion = await fetchQuestionDetails(q);
-    setEditing(JSON.parse(JSON.stringify(fullQuestion)));
+    const normalized = {
+      ...EMPTY_STRUCTURED_EXPLANATION,
+      ...fullQuestion,
+      option_explanations: syncOptionExplanations(
+        fullQuestion.choices,
+        fullQuestion.correct_answer?.ids,
+        fullQuestion.option_explanations,
+      ),
+      reference_urls: Array.isArray(fullQuestion.reference_urls) ? fullQuestion.reference_urls : [],
+    };
+    setEditing(JSON.parse(JSON.stringify(normalized)));
     setIsNew(false);
+    setSaveErrors([]);
   }
 
   async function togglePreview(q) {
@@ -168,7 +193,7 @@ export default function QuestionManager() {
     setPreview(fullQuestion);
   }
 
-  function closeEditor() { setEditing(null); setIsNew(false); }
+  function closeEditor() { setEditing(null); setIsNew(false); setSaveErrors([]); }
 
   function updateEditing(field, value) {
     setEditing((prev) => ({ ...prev, [field]: value }));
@@ -185,37 +210,90 @@ export default function QuestionManager() {
   function addChoice() {
     setEditing((prev) => {
       if (prev.choices.length >= 6) return prev;
-      const nextId = CHOICE_IDS[prev.choices.length];
-      return { ...prev, choices: [...prev.choices, { id: nextId, text: '' }] };
+      const used = new Set(prev.choices.map((choice) => choice.id));
+      const nextId = CHOICE_IDS.find((id) => !used.has(id));
+      const choices = [...prev.choices, { id: nextId, text: '' }];
+      return { ...prev, choices, option_explanations: syncOptionExplanations(choices, prev.correct_answer.ids, prev.option_explanations) };
     });
   }
 
   function removeChoice(idx) {
     setEditing((prev) => {
       if (prev.choices.length <= 2) return prev;
-      const choices = prev.choices.filter((_, i) => i !== idx).map((c, i) => ({ ...c, id: CHOICE_IDS[i] }));
+      const removed = prev.choices[idx];
+      const written = prev.option_explanations?.[removed.id]?.explanation?.trim();
+      if (written && !window.confirm(`Option ${removed.id.toUpperCase()} has a written explanation. Remove both the option and its explanation?`)) return prev;
+      const choices = prev.choices.filter((_, i) => i !== idx);
       const correctIds = prev.correct_answer.ids.filter((id) => choices.some((c) => c.id === id));
-      return { ...prev, choices, correct_answer: { ids: correctIds } };
+      return {
+        ...prev, choices, correct_answer: { ids: correctIds },
+        option_explanations: syncOptionExplanations(choices, correctIds, prev.option_explanations),
+      };
     });
   }
 
   function toggleCorrect(id) {
     setEditing((prev) => {
       const ids = prev.correct_answer.ids ?? [];
-      if (prev.question_type === 'mcq') {
-        return { ...prev, correct_answer: { ids: [id] } };
-      }
-      return { ...prev, correct_answer: { ids: ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id] } };
+      const correctIds = prev.question_type === 'mcq'
+        ? [id]
+        : ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id];
+      return {
+        ...prev, correct_answer: { ids: correctIds },
+        option_explanations: syncOptionExplanations(prev.choices, correctIds, prev.option_explanations),
+      };
     });
   }
 
-  async function handleSave(publish = false) {
+  function updateOptionExplanation(id, explanation) {
+    setEditing((prev) => ({
+      ...prev,
+      option_explanations: {
+        ...prev.option_explanations,
+        [id]: { ...prev.option_explanations?.[id], explanation },
+      },
+    }));
+  }
+
+  function addReference() {
+    setEditing((prev) => ({
+      ...prev,
+      reference_urls: [...(prev.reference_urls ?? []), { title: '', organization: '', url: '', accessed_at: new Date().toISOString().slice(0, 10) }],
+    }));
+  }
+
+  function updateReference(index, field, value) {
+    setEditing((prev) => ({
+      ...prev,
+      reference_urls: prev.reference_urls.map((reference, i) => i === index ? { ...reference, [field]: value } : reference),
+    }));
+  }
+
+  function removeReference(index) {
+    setEditing((prev) => ({ ...prev, reference_urls: prev.reference_urls.filter((_, i) => i !== index) }));
+  }
+
+  async function handleSave(submitForReview = false) {
     if (!editing.prompt.trim() || !editing.choices.some((c) => c.text.trim())) return;
+    const cleanedChoices = editing.choices.filter((c) => c.text.trim());
+    const normalized = {
+      ...editing,
+      choices: cleanedChoices,
+      option_explanations: syncOptionExplanations(cleanedChoices, editing.correct_answer.ids, editing.option_explanations),
+    };
+    if (submitForReview) {
+      const errors = validateStructuredExplanation(normalized, { requireReviewer: false });
+      if (errors.length) { setSaveErrors(errors); return; }
+    }
     setSaving(true);
     const payload = {
-      ...editing,
-      status: publish ? 'published' : editing.status,
-      choices: editing.choices.filter((c) => c.text.trim()),
+      ...normalized,
+      // Content edits always leave the live set. A reviewer must explicitly
+      // approve the revised version before it can be published again.
+      status: 'draft',
+      clinical_review_status: submitForReview || normalized.status === 'published'
+        ? 'pending'
+        : normalized.clinical_review_status,
     };
     delete payload.id;
 
@@ -241,7 +319,8 @@ export default function QuestionManager() {
   }
 
   async function handleTogglePublish(q) {
-    const newStatus = q.status === 'published' ? 'draft' : 'published';
+    if (q.status !== 'published') { await openEdit(q); return; }
+    const newStatus = 'draft';
     if (supabase) {
       await supabase.from('questions').update({ status: newStatus }).eq('id', q.id);
       clearQuestionCache();
@@ -250,6 +329,18 @@ export default function QuestionManager() {
       return;
     }
     setQuestions((prev) => prev.map((x) => x.id === q.id ? { ...x, status: newStatus } : x));
+  }
+
+  async function loadExplanationAudit(issue = auditIssue) {
+    if (!supabase) return;
+    setAuditLoading(true);
+    const [{ data }, { data: summaryData }] = await Promise.all([
+      supabase.rpc('admin_question_explanation_audit', { p_issue: issue, p_stale_days: 365, p_limit: 100, p_offset: 0 }),
+      supabase.rpc('admin_question_explanation_audit_summary', { p_stale_days: 365 }),
+    ]);
+    setAuditRows(data ?? []);
+    setAuditSummary(Array.isArray(summaryData) ? summaryData[0] : summaryData);
+    setAuditLoading(false);
   }
 
   async function handleDelete(q) {
@@ -274,7 +365,8 @@ export default function QuestionManager() {
 
   // Expected CSV columns:
   // topic, question_type, prompt, choice_a..choice_f, correct_ids, correct_order,
-  // ngn_data, rationale, status
+  // ngn_data, rationale, status, correct_answer_explanation,
+  // option_explanations, immediate_response, strategy, reference_urls, quality_notes
   function parseCSV(text) {
     const lines = text.split(/\r?\n/).filter((l) => l.trim());
     if (!lines.length) return { rows: [], errors: ['File is empty'] };
@@ -327,6 +419,8 @@ export default function QuestionManager() {
       const isChoiceBased = ['mcq', 'sata'].includes(qType);
       const isComplexNgn = complexNgnTypes.includes(qType);
       let ngnData = null;
+      let optionExplanations = {};
+      let referenceUrls = [];
 
       if (![...complexNgnTypes, 'ordered_response', 'mcq', 'sata'].includes(qType)) {
         errors.push(`Row ${i + 1}: Unsupported question_type "${qType}"`);
@@ -361,6 +455,15 @@ export default function QuestionManager() {
         }
       }
 
+      if (get('option_explanations')) {
+        try { optionExplanations = JSON.parse(get('option_explanations')); }
+        catch { errors.push(`Row ${i + 1}: Invalid option_explanations JSON`); continue; }
+      }
+      if (get('reference_urls')) {
+        try { referenceUrls = JSON.parse(get('reference_urls')); }
+        catch { errors.push(`Row ${i + 1}: Invalid reference_urls JSON`); continue; }
+      }
+
       const correctAnswer = isOrdered ? { ids: [], order: correctOrder } : { ids: correctIds };
 
       rows.push({
@@ -370,7 +473,14 @@ export default function QuestionManager() {
         choices,
         correct_answer: correctAnswer,
         rationale: get('rationale'),
-        status,
+        correct_answer_explanation: get('correct_answer_explanation'),
+        option_explanations: syncOptionExplanations(choices, correctIds, optionExplanations),
+        immediate_response: get('immediate_response'),
+        strategy: get('strategy'),
+        reference_urls: referenceUrls,
+        quality_notes: get('quality_notes'),
+        clinical_review_status: 'pending',
+        status: status === 'published' ? 'draft' : status,
         ngn_data: ngnData,
         _rowNum: i + 1,
       });
@@ -430,6 +540,7 @@ export default function QuestionManager() {
     const columns = [
       'topic', 'question_type', 'prompt', 'choice_a', 'choice_b', 'choice_c', 'choice_d', 'choice_e', 'choice_f',
       'correct_ids', 'correct_order', 'ngn_data', 'rationale', 'status',
+      'correct_answer_explanation', 'option_explanations', 'immediate_response', 'strategy', 'reference_urls', 'quality_notes',
     ];
     const rows = [
       [
@@ -499,7 +610,7 @@ export default function QuestionManager() {
         'Highlight items store the passage and selectable highlights in ngn_data JSON.', 'draft',
       ],
     ];
-    const csv = [columns.join(','), ...rows.map((row) => row.map(escapeCell).join(','))].join('\n');
+    const csv = [columns.join(','), ...rows.map((row) => [...row, ...Array(Math.max(0, columns.length - row.length)).fill('')].map(escapeCell).join(','))].join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -520,11 +631,64 @@ export default function QuestionManager() {
           <button className="ghost-btn" onClick={() => setCsvModal(true)}>
             <Upload size={15} /> Import CSV
           </button>
+          <button className="ghost-btn" onClick={() => loadExplanationAudit()}>
+            <AlertCircle size={15} /> Explanation Audit
+          </button>
           <button className="primary-btn" onClick={openNew}>
             <FilePlus size={16} /> New Question
           </button>
         </div>
       </div>
+
+      {(auditLoading || auditSummary || auditRows.length > 0) && (
+        <div className="qm-editor" style={{ marginBottom: 18 }}>
+          <div className="qm-editor-header">
+            <strong>Structured Explanation Quality Audit</strong>
+            <button className="icon-btn" onClick={() => { setAuditRows([]); setAuditSummary(null); }} aria-label="Close audit"><X size={18} /></button>
+          </div>
+          {auditSummary && (
+            <div className="audit-summary-grid">
+              {[
+                ['Total', auditSummary.total_questions], ['Legacy only', auditSummary.legacy_only],
+                ['Structured complete', auditSummary.structured_complete], ['Missing option explanations', auditSummary.missing_option_explanations],
+                ['Missing references', auditSummary.missing_references], ['Invalid references', auditSummary.invalid_references],
+                ['Answer mismatches', auditSummary.answer_mismatches], ['Requires review', auditSummary.requiring_review],
+                ['Stale review', auditSummary.stale_reviews],
+              ].map(([label, value]) => <div key={label}><strong>{Number(value ?? 0).toLocaleString()}</strong><span>{label}</span></div>)}
+            </div>
+          )}
+          <div className="qb-filters" style={{ marginBottom: 12 }}>
+            <label htmlFor="explanation-audit-filter" style={{ fontWeight: 700 }}>Issue</label>
+            <select id="explanation-audit-filter" value={auditIssue} onChange={(event) => { setAuditIssue(event.target.value); loadExplanationAudit(event.target.value); }}>
+              <option value="all">All issues</option>
+              <option value="legacy_only">Legacy rationale only</option>
+              <option value="missing_option_explanations">Missing option explanations</option>
+              <option value="missing_references">Missing references</option>
+              <option value="invalid_references">Invalid references</option>
+              <option value="answer_mismatch">Answer mismatch</option>
+              <option value="requires_review">Requires clinical review</option>
+              <option value="stale_review">Review older than 365 days</option>
+            </select>
+            <span>{auditLoading ? 'Auditing…' : `${auditRows.length} question${auditRows.length === 1 ? '' : 's'} shown`}</span>
+          </div>
+          <div style={{ overflowX: 'auto' }}>
+            <table className="admin-table">
+              <thead><tr><th>Question</th><th>Status</th><th>Issues</th><th>Review date</th><th /></tr></thead>
+              <tbody>
+                {auditRows.map((row) => (
+                  <tr key={row.id}>
+                    <td><strong>{row.topic}</strong><div style={{ maxWidth: 480 }}>{row.prompt}</div></td>
+                    <td>{row.status} / {row.clinical_review_status}</td>
+                    <td>{(row.issues ?? []).map((issue) => <span key={issue} className="audit-issue-chip">{issue.replaceAll('_', ' ')}</span>)}</td>
+                    <td>{row.reviewed_at ? new Date(row.reviewed_at).toLocaleDateString() : 'Not recorded'}</td>
+                    <td><button className="ghost-btn" onClick={() => openEdit(row)}>Open</button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {/* CSV Import Modal */}
       {csvModal && (
@@ -540,7 +704,7 @@ export default function QuestionManager() {
               <div style={{ background: '#e9f6f4', borderRadius: 10, padding: '14px 18px', marginBottom: 18 }}>
                 <p style={{ margin: '0 0 8px', fontWeight: 700, color: '#135f55', fontSize: '0.9rem' }}>Required CSV columns (in order):</p>
                 <code style={{ fontSize: '0.78rem', color: '#2b8a7d', wordBreak: 'break-all' }}>
-                  topic, question_type, prompt, choice_a, choice_b, choice_c, choice_d, choice_e, choice_f, correct_ids, correct_order, ngn_data, rationale, status
+                  topic, question_type, prompt, choice_a…choice_f, correct_ids, correct_order, ngn_data, rationale, status, correct_answer_explanation, option_explanations, immediate_response, strategy, reference_urls, quality_notes
                 </code>
                 <p style={{ margin: '8px 0 0', fontSize: '0.8rem', color: '#607478' }}>
                   <strong>question_type:</strong> mcq | sata | ordered_response | bow_tie | matrix | highlight &nbsp;|&nbsp;
@@ -684,7 +848,10 @@ export default function QuestionManager() {
           <div className="qm-form-row">
             <label>Question Type</label>
               <div className="segmented-control" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
-                <button type="button" className={editing.question_type === 'mcq' ? 'segment-active' : ''} onClick={() => updateEditing('question_type', 'mcq')}>Multiple Choice</button>
+                <button type="button" className={editing.question_type === 'mcq' ? 'segment-active' : ''} onClick={() => setEditing((prev) => {
+                  const correctIds = prev.correct_answer.ids?.slice(0, 1) ?? [];
+                  return { ...prev, question_type: 'mcq', correct_answer: { ids: correctIds }, option_explanations: syncOptionExplanations(prev.choices, correctIds, prev.option_explanations) };
+                })}>Multiple Choice</button>
                 <button type="button" className={editing.question_type === 'sata' ? 'segment-active' : ''} onClick={() => updateEditing('question_type', 'sata')}>Select All That Apply</button>
               </div>
             </div>
@@ -720,7 +887,8 @@ export default function QuestionManager() {
               {editing.choices.map((choice, idx) => {
                 const isCorrect = editing.correct_answer.ids?.includes(choice.id);
                 return (
-                  <div key={choice.id} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <div key={choice.id} className="qm-option-editor">
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     <button
                       type="button"
                       onClick={() => toggleCorrect(choice.id)}
@@ -744,6 +912,16 @@ export default function QuestionManager() {
                       </button>
                     )}
                   </div>
+                  <textarea
+                    className="editor-textarea"
+                    rows={2}
+                    value={editing.option_explanations?.[choice.id]?.explanation ?? ''}
+                    onChange={(event) => updateOptionExplanation(choice.id, event.target.value)}
+                    placeholder={`Explain why option ${choice.id.toUpperCase()} is ${isCorrect ? 'correct' : 'incorrect'}…`}
+                    aria-label={`Explanation for option ${choice.id.toUpperCase()}`}
+                  />
+                  {!editing.option_explanations?.[choice.id]?.explanation?.trim() && <small className="field-warning">Option {choice.id.toUpperCase()} has no explanation.</small>}
+                  </div>
                 );
               })}
               {editing.choices.length < 6 && (
@@ -761,7 +939,7 @@ export default function QuestionManager() {
           )}
 
           <div className="qm-form-row">
-            <label>Rationale</label>
+            <label>Legacy Rationale <span className="field-hint">Retained for existing questions and fallback display</span></label>
             <textarea
               className="editor-textarea"
               rows={4}
@@ -769,6 +947,16 @@ export default function QuestionManager() {
               value={editing.rationale}
               onChange={(e) => updateEditing('rationale', e.target.value)}
             />
+          </div>
+
+          <div className="qm-form-row">
+            <label>Why the Correct Answer Is Correct</label>
+            <textarea className="editor-textarea" rows={5} value={editing.correct_answer_explanation ?? ''} onChange={(event) => updateEditing('correct_answer_explanation', event.target.value)} placeholder="Connect the condition, assessment cues, pathophysiology, and priority decision…" />
+          </div>
+
+          <div className="qm-form-row">
+            <label>Immediate Clinical or Nursing Response <span className="field-hint">Optional when the question does not call for action</span></label>
+            <textarea className="editor-textarea" rows={5} value={editing.immediate_response ?? ''} onChange={(event) => updateEditing('immediate_response', event.target.value)} placeholder={'1. Assess and stabilize…\n2. Notify or escalate…\n3. Administer or prepare…'} />
           </div>
 
           <div className="qm-form-row">
@@ -787,13 +975,46 @@ export default function QuestionManager() {
             />
           </div>
 
+          <div className="qm-form-row">
+            <label>Clinical References</label>
+            <div className="reference-editor-list">
+              {(editing.reference_urls ?? []).map((reference, index) => (
+                <div key={index} className="reference-editor-row">
+                  <input value={reference.title ?? ''} onChange={(event) => updateReference(index, 'title', event.target.value)} placeholder="Source title" aria-label={`Reference ${index + 1} title`} />
+                  <input value={reference.organization ?? ''} onChange={(event) => updateReference(index, 'organization', event.target.value)} placeholder="Organization" aria-label={`Reference ${index + 1} organization`} />
+                  <input type="url" value={reference.url ?? ''} onChange={(event) => updateReference(index, 'url', event.target.value)} placeholder="https://…" aria-label={`Reference ${index + 1} URL`} />
+                  <input type="date" value={reference.accessed_at ?? ''} max={new Date().toISOString().slice(0, 10)} onChange={(event) => updateReference(index, 'accessed_at', event.target.value)} aria-label={`Reference ${index + 1} access date`} />
+                  <button type="button" className="icon-btn" onClick={() => removeReference(index)} aria-label={`Remove reference ${index + 1}`}><Trash2 size={15} /></button>
+                </div>
+              ))}
+              <button type="button" className="ghost-btn" onClick={addReference}><PlusCircle size={14} /> Add reference</button>
+            </div>
+          </div>
+
+          <div className="qm-form-row">
+            <label>Quality Notes</label>
+            <textarea className="editor-textarea" rows={3} value={editing.quality_notes ?? ''} onChange={(event) => updateEditing('quality_notes', event.target.value)} placeholder="Document review concerns, required corrections, or provenance…" />
+          </div>
+
+          <div className="qm-learning-preview">
+            <strong>Learner explanation preview (shown only after submission)</strong>
+            <AnswerExplanation question={editing} selectedIds={editing.correct_answer.ids ?? []} isCorrect showReviewInfo={false} />
+          </div>
+
+          {saveErrors.length > 0 && (
+            <div className="form-message validation-summary" role="alert">
+              <strong>Complete these items before submitting for review:</strong>
+              <ul>{saveErrors.map((error) => <li key={error}>{error}</li>)}</ul>
+            </div>
+          )}
+
           <div className="editor-footer">
             <button className="ghost-btn" onClick={closeEditor}>Cancel</button>
             <button className="ghost-btn" onClick={() => handleSave(false)} disabled={saving || !editing.prompt.trim()}>
               <Save size={15} /> Save as Draft
             </button>
             <button className="primary-btn" onClick={() => handleSave(true)} disabled={saving || !editing.prompt.trim() || !editing.correct_answer.ids?.length}>
-              <CheckCircle2 size={15} /> {saving ? 'Saving…' : 'Save & Publish'}
+              <CheckCircle2 size={15} /> {saving ? 'Saving…' : 'Submit for Clinical Review'}
             </button>
           </div>
         </div>
@@ -851,11 +1072,7 @@ export default function QuestionManager() {
                     );
                   })}
                 </div>
-                {preview.rationale && (
-                  <div style={{ marginTop: 10, padding: 10, background: '#fff6ef', borderRadius: 6, border: '1px solid #f2d6bd', fontSize: '0.84rem', color: '#4a3020' }}>
-                    <strong>Rationale:</strong> {preview.rationale}
-                  </div>
-                )}
+                <AnswerExplanation question={preview} selectedIds={preview.correct_answer?.ids ?? []} isCorrect showReviewInfo={false} />
               </div>
             )}
           </div>

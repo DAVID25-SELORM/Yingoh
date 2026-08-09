@@ -10,7 +10,21 @@ const sorted = (value: unknown) => Array.isArray(value) ? [...value].map(String)
 const same = (a: unknown,b: unknown) => JSON.stringify(a) === JSON.stringify(b);
 
 function sanitizedQuestion(row: Record<string, any>) {
-  const { correct_answer: _answer, rationale: _rationale, strategy: _strategy, reference_url: _reference, ...safe } = row;
+  const {
+    correct_answer: _answer,
+    rationale: _rationale,
+    strategy: _strategy,
+    reference_url: _reference,
+    correct_answer_explanation: _correctExplanation,
+    option_explanations: _optionExplanations,
+    immediate_response: _immediateResponse,
+    reference_urls: _references,
+    quality_notes: _qualityNotes,
+    reviewed_by: _reviewedBy,
+    reviewed_at: _reviewedAt,
+    clinical_review_status: _reviewStatus,
+    ...safe
+  } = row;
   if (safe.ngn_data && typeof safe.ngn_data === 'object') {
     const { correct_left: _left, correct_right: _right, correct: _matrix, highlights, ...ngnSafe } = safe.ngn_data;
     safe.ngn_data = {
@@ -78,7 +92,19 @@ Deno.serve(async(req)=>{
     }else{
       await service.from('attempts').insert({user_id:auth.user.id,question_id:questionId,answer:body.answer,is_correct:isCorrect});
     }
-    return json(req,200,{is_correct:isCorrect,correct_answer:question.correct_answer,rationale:question.rationale,strategy:question.strategy,reference_url:question.reference_url,ngn_data:question.ngn_data});
+    return json(req,200,{
+      is_correct:isCorrect,
+      correct_answer:question.correct_answer,
+      rationale:question.rationale,
+      strategy:question.strategy,
+      reference_url:question.reference_url,
+      correct_answer_explanation:question.correct_answer_explanation,
+      option_explanations:question.option_explanations,
+      immediate_response:question.immediate_response,
+      reference_urls:question.reference_urls,
+      reviewed_at:question.reviewed_at,
+      ngn_data:question.ngn_data,
+    });
   }
   return json(req,400,{error:'Unsupported action.'});
 });

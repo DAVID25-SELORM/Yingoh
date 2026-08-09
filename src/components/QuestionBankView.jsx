@@ -17,6 +17,7 @@ import {
   HighlightQuestion, highlightIsCorrect,
 } from './NGNRenderer';
 import { isLearnerReadyQuestion } from '../utils/questionReadiness';
+import AnswerExplanation from './AnswerExplanation';
 
 import { TOPICS as TOPIC_LIST } from '../data/topics';
 const TOPICS = ['All Topics', ...TOPIC_LIST];
@@ -277,7 +278,15 @@ export default function QuestionBankView({ session }) {
         return;
       }
       correct = Boolean(data.is_correct);
-      gradedQuestion = { ...question, correct_answer: data.correct_answer, rationale: data.rationale, strategy: data.strategy, reference_url: data.reference_url, ngn_data: data.ngn_data ?? question.ngn_data };
+      gradedQuestion = {
+        ...question, correct_answer: data.correct_answer, rationale: data.rationale,
+        strategy: data.strategy, reference_url: data.reference_url,
+        correct_answer_explanation: data.correct_answer_explanation,
+        option_explanations: data.option_explanations,
+        immediate_response: data.immediate_response,
+        reference_urls: data.reference_urls, reviewed_at: data.reviewed_at,
+        ngn_data: data.ngn_data ?? question.ngn_data,
+      };
       setQuestions((current) => current.map((item) => item.id === question.id ? gradedQuestion : item));
       setFiltered((current) => current.map((item) => item.id === question.id ? gradedQuestion : item));
     }
@@ -454,7 +463,6 @@ export default function QuestionBankView({ session }) {
 
   const isBookmarked = bookmarks.has(question?.id);
   const correctIds = question?.correct_answer?.ids ?? [];
-  const correctChoices = (question?.choices ?? []).filter((choice) => correctIds.includes(choice.id));
   const qt = question?.question_type;
   const isNGN = ['bow_tie', 'matrix', 'ordered_response', 'highlight'].includes(qt);
   const isAnswerCorrect = submitted ? checkIsCorrect() : null;
@@ -653,35 +661,7 @@ export default function QuestionBankView({ session }) {
           Submit Answer
         </button>
       ) : (
-        <div className={`qb-result ${isAnswerCorrect ? 'result-correct' : 'result-wrong'}`}>
-          <div className="result-verdict">
-            {isAnswerCorrect
-              ? <><CheckCircle2 size={22} /> Correct!</>
-              : <><XCircle size={22} /> Incorrect — review the rationale below.</>}
-          </div>
-        </div>
-      )}
-
-      {/* Rationale */}
-      {submitted && question.rationale && (
-        <div className="rationale">
-          {!isNGN && (
-            <>
-              <strong>Correct answer{correctChoices.length === 1 ? '' : 's'}</strong>
-              <p style={{ marginBottom: 14 }}>{correctChoices.map((choice) => `${choice.id.toUpperCase()}. ${choice.text}`).join('; ')}</p>
-            </>
-          )}
-          <strong>Detailed explanation</strong>
-          <p>{question.rationale}</p>
-          {question.strategy && (
-            <div style={{ marginTop: 12, padding: '10px 14px', background: '#f0f4ff', borderLeft: '3px solid #6750a4', borderRadius: '0 8px 8px 0' }}>
-              <p style={{ margin: 0, fontSize: '0.86rem', color: '#3b2d6b' }}>
-                <strong style={{ display: 'block', marginBottom: 4, fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#6750a4' }}>Test-Taking Strategy</strong>
-                {question.strategy}
-              </p>
-            </div>
-          )}
-        </div>
+        <AnswerExplanation question={question} selectedIds={selected} isCorrect={Boolean(isAnswerCorrect)} />
       )}
 
       {submitted && (

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { CalendarDays, CheckCircle2, XCircle } from 'lucide-react';
 import { supabase } from '../services/supabase';
 import { SubscriptionGate } from './SubscriptionGate';
+import AnswerExplanation from './AnswerExplanation';
 
 function QuestionOfTheDayContent({ session }) {
   const userId = session?.user?.id;
@@ -39,6 +40,11 @@ function QuestionOfTheDayContent({ session }) {
         rationale: dq.rationale,
         strategy: dq.strategy,
         reference_url: dq.reference_url,
+        correct_answer_explanation: dq.correct_answer_explanation,
+        option_explanations: dq.option_explanations,
+        immediate_response: dq.immediate_response,
+        reference_urls: dq.reference_urls,
+        reviewed_at: dq.reviewed_at,
       });
       setAttempt(existing);
       setLoading(false);
@@ -77,6 +83,11 @@ function QuestionOfTheDayContent({ session }) {
       rationale: result?.rationale,
       strategy: result?.strategy,
       reference_url: result?.reference_url,
+      correct_answer_explanation: result?.correct_answer_explanation,
+      option_explanations: result?.option_explanations,
+      immediate_response: result?.immediate_response,
+      reference_urls: result?.reference_urls,
+      reviewed_at: result?.reviewed_at,
     } : current);
   }
 
@@ -93,7 +104,6 @@ function QuestionOfTheDayContent({ session }) {
   }
 
   const correctIds = question.correct_answer?.ids ?? [];
-  const correctChoices = (question.choices ?? []).filter((choice) => correctIds.includes(choice.id));
   const answered = Boolean(attempt);
   const answerIds = answered ? (attempt.answer?.ids ?? []) : selected;
 
@@ -148,33 +158,7 @@ function QuestionOfTheDayContent({ session }) {
         </button>
       ) : (
         <>
-          <div className={`qb-result ${attempt.is_correct ? 'result-correct' : 'result-wrong'}`}>
-            <div className="result-verdict">
-              {attempt.is_correct ? <><CheckCircle2 size={20} /> Correct!</> : <><XCircle size={20} /> Incorrect</>}
-            </div>
-          </div>
-
-          <div className="rationale">
-            <strong>Correct answer{correctChoices.length === 1 ? '' : 's'}</strong>
-            <p style={{ marginBottom: 14 }}>
-              {correctChoices.map((choice) => `${choice.id.toUpperCase()}. ${choice.text}`).join('; ')}
-            </p>
-            <strong>Detailed explanation</strong>
-            <p>{question.rationale}</p>
-            {question.reference_url && (
-              <a href={question.reference_url} target="_blank" rel="noreferrer" style={{ display: 'inline-block', marginTop: 12, fontSize: '0.84rem', color: '#135f55', fontWeight: 700 }}>
-                Review clinical source
-              </a>
-            )}
-            {question.strategy && (
-              <div style={{ marginTop: 12, padding: '10px 14px', background: '#f0f4ff', borderLeft: '3px solid #6750a4', borderRadius: '0 8px 8px 0' }}>
-                <p style={{ margin: 0, fontSize: '0.86rem', color: '#3b2d6b' }}>
-                  <strong style={{ display: 'block', marginBottom: 4, fontSize: '0.78rem', textTransform: 'uppercase', letterSpacing: '0.06em', color: '#6750a4' }}>Test-Taking Strategy</strong>
-                  {question.strategy}
-                </p>
-              </div>
-            )}
-          </div>
+          <AnswerExplanation question={question} selectedIds={answerIds} isCorrect={Boolean(attempt.is_correct)} />
 
           <p className="qotd-tomorrow">Come back tomorrow for a new question.</p>
         </>

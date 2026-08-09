@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { CheckCircle2, MessageSquare, ThumbsDown, ThumbsUp, XCircle } from 'lucide-react';
+import { CheckCircle2, ThumbsDown, ThumbsUp, XCircle } from 'lucide-react';
 import { supabase } from '../services/supabase';
+import AnswerExplanation from './AnswerExplanation';
+import { validateStructuredExplanation } from '../utils/structuredExplanations';
 
 export default function ContentReviewer() {
   const [queue, setQueue] = useState([]);
   const [selected, setSelected] = useState(null);
   const [rejectNote, setRejectNote] = useState('');
-  const [referenceUrl, setReferenceUrl] = useState('');
   const [reviewError, setReviewError] = useState('');
   const [showRejectModal, setShowRejectModal] = useState(false);
 
@@ -24,21 +25,21 @@ export default function ContentReviewer() {
   }
 
   async function approve(q) {
-    if (!referenceUrl.trim()) {
+    const validationErrors = validateStructuredExplanation(q, { requireReviewer: false });
+    if (validationErrors.length) {
       setSelected(q);
-      setReviewError('Add an authoritative clinical reference before approval.');
+      setReviewError(`Cannot approve: ${validationErrors.join(' ')}`);
       return;
     }
     const { error } = await supabase.rpc('review_question', {
       target_question_id: q.id,
       decision: 'approved',
-      clinical_reference: referenceUrl.trim(),
+      clinical_reference: q.reference_urls?.[0]?.url ?? '',
       reviewer_notes: rejectNote.trim() || null,
     });
     if (error) { setReviewError(error.message); return; }
     setQueue((prev) => prev.filter((x) => x.id !== q.id));
     if (selected?.id === q.id) setSelected(null);
-    setReferenceUrl('');
     setRejectNote('');
     setReviewError('');
   }
@@ -47,7 +48,7 @@ export default function ContentReviewer() {
     const { error } = await supabase.rpc('review_question', {
       target_question_id: q.id,
       decision: 'changes_requested',
-      clinical_reference: referenceUrl.trim() || '',
+      clinical_reference: q.reference_urls?.[0]?.url ?? q.reference_url ?? '',
       reviewer_notes: rejectNote.trim(),
     });
     if (error) { setReviewError(error.message); return; }
@@ -120,22 +121,8 @@ export default function ContentReviewer() {
                 );
               })}
             </div>
-            {selected.rationale && (
-              <div style={{ padding: 12, background: '#fff6ef', borderRadius: 8, border: '1px solid #f2d6bd', fontSize: '0.86rem', color: '#4a3020' }}>
-                <strong style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 6 }}><MessageSquare size={14} /> Rationale</strong>
-                {selected.rationale}
-              </div>
-            )}
-            <div className="qm-form-row" style={{ marginTop: 14 }}>
-              <label>Authoritative clinical reference</label>
-              <input
-                type="url"
-                value={referenceUrl}
-                onChange={(e) => { setReferenceUrl(e.target.value); setReviewError(''); }}
-                placeholder="https://www.cdc.gov/... or another authoritative clinical source"
-              />
-              <small style={{ color: '#607478' }}>Required before publishing. Confirm the source directly supports the answer and rationale.</small>
-            </div>
+            <AnswerExplanation question={selected} selectedIds={selected.correct_answer?.ids ?? []} isCorrect showReviewInfo={false} />
+            <p style={{ marginTop: 12, color: '#607478', fontSize: '0.84rem' }}>Confirm every explanation and reference directly supports the answer. Return the question for correction if any structured field is incomplete or clinically inaccurate.</p>
             {reviewError && <div className="form-message" style={{ color: '#8a2c21', marginTop: 10 }}>{reviewError}</div>}
             <div className="editor-footer" style={{ marginTop: 16 }}>
               <button className="ghost-btn" style={{ color: '#8a2c21' }} onClick={() => setShowRejectModal(true)}>
