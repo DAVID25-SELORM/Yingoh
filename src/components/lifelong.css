@@ -1,0 +1,30 @@
+.lifelong { max-width: 1200px; margin: auto; }
+.lifelong p { line-height: 1.65; }
+.lf-stats,.lf-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:16px; margin:20px 0; }
+.lf-stats article,.lf-card,.lf-panel { background:white; border:1px solid #dbe6e4; border-radius:16px; padding:22px; color:#17313a; }
+.lf-stats strong { display:block; font-size:30px; margin-top:10px; }
+.lf-stats span,.lf-card small { color:#607478; font-size:13px; }
+.lf-card { text-align:left; display:flex; flex-direction:column; gap:10px; }
+button.lf-card { cursor:pointer; font:inherit; }
+.lf-card h3,.lf-card p { margin:0; }
+.lf-card button { margin-top:auto; }
+.lf-panel { margin:20px 0; }
+.lf-form { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:16px; }
+.lf-form h3,.lf-form .lf-wide { grid-column:1/-1; }
+.lifelong label { display:flex; flex-direction:column; gap:8px; font-size:14px; }
+.lifelong input,.lifelong select,.lifelong textarea { padding:11px; border:1px solid #b8ceca; border-radius:8px; min-width:0; width:100%; font:inherit; background:#fff; color:#17313a; }
+.lifelong textarea { min-height:140px; }
+.lifelong .lf-check { flex-direction:row; align-items:center; margin:10px 0; }
+.lf-check input { width:auto; }
+.lf-toolbar { display:flex; align-items:center; flex-wrap:wrap; gap:12px; margin:14px 0; }
+.lf-toolbar input,.lf-toolbar select { width:auto; max-width:100%; }
+.lf-error,.lf-notice { padding:14px; border-radius:8px; background:#eef7f4; }
+.lf-error { background:#fff0ec; color:#8a2c21; }
+.lf-prose { white-space:pre-wrap; line-height:1.8; margin:20px 0; overflow-wrap:anywhere; }
+.lifelong fieldset { border:1px solid #dbe6e4; border-radius:10px; margin:20px 0; padding:18px; }
+.lf-table { overflow-x:auto; }
+.lf-table table { width:100%; border-collapse:collapse; text-align:left; }
+.lf-table th,.lf-table td { padding:12px; border-bottom:1px solid #dbe6e4; }
+.lifelong button:disabled { opacity:.55; cursor:not-allowed; }
+.lifelong :focus-visible { outline:3px solid #2b8a7d; outline-offset:3px; }
+@media(max-width:600px) { .lf-form { grid-template-columns:1fr; } .lf-panel { padding:16px; } }

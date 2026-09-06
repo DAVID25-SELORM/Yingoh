@@ -45,6 +45,12 @@ import SavedItemsView from './components/SavedItemsView';
 import { useSubscription } from './hooks/useSubscription';
 import LegalDocumentView, { LEGAL_VERSION } from './components/LegalDocumentView';
 import './styles.css';
+import LifelongLearning from './components/LifelongLearning';
+import LearningAdmin from './components/LearningAdmin';
+import CompetencyManagement from './components/CompetencyManagement';
+import CertificateVerification from './components/CertificateVerification';
+import LearningDashboard from './components/LearningDashboard';
+import ProfessionalCV from './components/ProfessionalCV';
 
 if (typeof window !== 'undefined' && window.location.hostname === 'yingoh.vercel.app') {
   window.location.replace(`https://nursefaculty.org${window.location.pathname}${window.location.search}${window.location.hash}`);
@@ -361,12 +367,25 @@ function AccountAccess({ session, isPasswordRecovery }) {
 
 // â”€â”€â”€ Navigation config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const NAV = [
+  { label: 'Learning Hub', icon: GraduationCap, group: 'learn' },
+  { label: 'CPD Centre', icon: BookOpen, group: 'learn', more: true },
+  { label: 'Learning Catalog', icon: BookOpen, group: 'learn', more: true },
+  { label: 'Nursing Question Bank', icon: ClipboardCheck, group: 'learn', more: true },
+  { label: 'Educator Academy', icon: GraduationCap, group: 'learn', more: true },
+  { label: 'Leadership Academy', icon: Users, group: 'learn', more: true },
+  { label: 'Clinical Cases', icon: Stethoscope, group: 'learn', more: true },
+  { label: 'Learning Analytics', icon: BarChart3, group: 'learn', more: true },
+  { label: 'Professional Passport', icon: FileBadge, group: 'learn', more: true },
+  { label: 'Career Hub', icon: GraduationCap, group: 'learn', more: true },
+  { label: 'Professional CV', icon: FileBadge, group: 'learn', more: true },
+  { label: 'Competencies', icon: ClipboardCheck, group: 'learn', more: true },
+  { label: 'Learning Content', icon: BookOpen, group: 'admin' },
   { label: 'Dashboard', icon: LayoutDashboard, group: 'learn' },
   { label: 'Questions', icon: ClipboardCheck, group: 'learn' },
   { label: 'Exam', icon: Target, group: 'learn' },
   { label: 'Question of the Day', icon: CalendarDays, group: 'learn', more: true },
   { label: 'Flashcards', icon: Brain, group: 'learn' },
-  { label: 'Study Coach', icon: Brain, group: 'learn' },
+  { label: 'NurseFaculty Tutor', viewKey: 'Study Coach', icon: Brain, group: 'learn' },
   { label: 'Analytics', icon: BarChart3, group: 'learn' },
   { label: 'Planner', icon: CalendarDays, group: 'learn' },
   { label: 'Notebook', icon: Sparkles, group: 'learn', more: true },
@@ -433,7 +452,7 @@ function PublicLanding({ isPasswordRecovery }) {
       <header className="public-header">
         <a className="public-brand" href="#top" aria-label="NurseFaculty home">
           <img src="/nursefaculty-mark.png" alt="" />
-          <span><strong>NurseFaculty</strong><small>Learn. Practice. Pass.</small></span>
+          <span><strong>NurseFaculty</strong><small>Learn. Practice. Grow.</small></span>
         </a>
         <a className="public-signin-link" href="#signin">Sign in</a>
       </header>
@@ -441,8 +460,8 @@ function PublicLanding({ isPasswordRecovery }) {
       <section className="public-hero" id="top">
         <div className="public-hero-copy">
           <span className="public-kicker"><Sparkles size={15} /> Built for international nurses</span>
-          <h1>Your personal path to NCLEX confidence.</h1>
-          <p>Learn the concept, practice clinical judgment, understand every rationale, and focus each day on what will move your score.</p>
+          <h1>From NCLEX confidence to lifelong nursing growth.</h1>
+          <p>Prepare for NCLEX with questions, rationales and guided practice. Continue your learning journey with clinical education, CPD records and professional development.</p>
           <div className="public-hero-actions">
             <a className="public-primary-link" href="#signin">Start studying</a>
             <a className="public-secondary-link" href="#why-nursefaculty">Explore NurseFaculty</a>
@@ -578,6 +597,7 @@ function App() {
   }
 
   useEffect(() => {
+    if (window.location.hash.startsWith('#/VerifyCertificate')) return;
     if (!VALID_VIEW_KEYS.has(activeView)) return;
     window.localStorage.setItem(ACTIVE_VIEW_STORAGE_KEY, activeView);
     const hash = `#/${encodeURIComponent(activeView)}`;
@@ -645,6 +665,7 @@ function App() {
     ? effectiveRoles.some((role) => ['admin', 'super_admin'].includes(role))
     : hasAdminAccess;
   const canAccessView = (view) => {
+    if (view === 'Learning Content') return effectiveHasAdminAccess || isInstructor || isReviewer;
     if (SUPER_ADMIN_VIEWS.has(view)) return isSuperAdmin;
     if (view === 'Users') return isSuperAdmin || effectiveHasAdminAccess;
     if (view === 'Analytics') return true;
@@ -674,6 +695,9 @@ function App() {
   }
 
   const legalType = new URLSearchParams(window.location.search).get('legal');
+  if (window.location.hash.startsWith('#/VerifyCertificate')) {
+    return <CertificateVerification initialCode={decodeURIComponent(window.location.hash.split('/')[2] || '')} />;
+  }
   if (['terms', 'refund', 'privacy', 'cookie'].includes(legalType)) {
     return <LegalDocumentView type={legalType} />;
   }
@@ -788,7 +812,7 @@ function App() {
               </button>
               <span className="topbar-brand"><img src="/nursefaculty-mark.png" alt="" /> NurseFaculty NCLEX Preparation</span>
             </div>
-            <h2>{activeView}</h2>
+            <h2>{activeView === 'Study Coach' ? 'NurseFaculty Tutor' : activeView}</h2>
           </div>
           <div className="topbar-actions">
             {(roles.includes('admin') || roles.includes('super_admin')) && (
@@ -805,7 +829,7 @@ function App() {
                 ))}
               </select>
             )}
-            <NotificationsBell session={session} />
+            <NotificationsBell session={session} onNavigate={navigateTo} />
             <button className="ghost-btn" onClick={() => setActiveView('Analytics')}>
               <BarChart3 size={18} /> Analytics
             </button>
@@ -832,7 +856,11 @@ function App() {
             }
           }}
         >
-        {activeView === 'Dashboard' && <StudentDashboard session={session} onNavigate={setActiveView} />}
+        {activeView === 'Dashboard' && <LearningDashboard session={session} onNavigate={setActiveView} />}
+        {['Learning Hub', 'CPD Centre', 'Educator Academy', 'Leadership Academy', 'Clinical Cases', 'Learning Analytics', 'Professional Passport', 'Career Hub', 'Learning Catalog', 'Nursing Question Bank'].includes(activeView) && <LifelongLearning key={`${session.user.id}-${activeView}`} session={session} view={activeView} onNavigate={navigateTo} />}
+        {activeView === 'Professional CV' && <ProfessionalCV session={session} />}
+        {activeView === 'Competencies' && <CompetencyManagement session={session} />}
+        {activeView === 'Learning Content' && canAccessView('Learning Content') && <LearningAdmin session={session} />}
         {activeView === 'Questions' && <QuestionBankView session={session} />}
         {activeView === 'Exam' && <ExamModeView session={session} onNavigate={setActiveView} />}
         {activeView === 'Question of the Day' && <QuestionOfTheDayView session={session} />}
@@ -849,16 +877,10 @@ function App() {
           </SubscriptionGate>
         )}
         {activeView === 'Live Classes' && (
-          <SubscriptionGate session={session} requiredPlan="master" featureName="weekly live classes and masterclasses" onUpgrade={() => setActiveView('Billing')}>
-            <VirtualClassroom session={session} />
-          </SubscriptionGate>
+          <VirtualClassroom session={session} />
         )}
         {activeView === 'Community' && <CommunityForum session={session} />}
-        {activeView === 'Certificates' && (
-          <SubscriptionGate session={session} requiredPlan="pro" featureName="certificates" onUpgrade={() => setActiveView('Billing')}>
-            <CertificatesView session={session} />
-          </SubscriptionGate>
-        )}
+        {activeView === 'Certificates' && <CertificatesView session={session} />}
         {activeView === 'Super Admin' && isSuperAdmin && <SuperAdminPanel session={session} />}
         {activeView === 'Users' && (isSuperAdmin || effectiveHasAdminAccess) && (
           <UserManagement

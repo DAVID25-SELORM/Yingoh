@@ -1,0 +1,159 @@
+-- General live classes for all paid subscribers; course membership boundaries preserved.
+begin;
+drop policy if exists "schedules_read" on public.class_schedules;
+create policy "schedules_read" on public.class_schedules
+  for select to authenticated
+  using (
+    public.has_role(array['admin', 'super_admin', 'department_admin'])
+    or instructor_id = auth.uid()
+    or (course_id is not null and public.is_course_staff(course_id))
+    or (
+      course_id is not null
+      and exists (
+        select 1 from public.course_memberships cm
+        where cm.course_id = class_schedules.course_id
+          and cm.user_id = auth.uid()
+          and cm.status = 'enrolled'
+      )
+    )
+    or (
+      course_id is null
+      and (
+        public.current_subscription_level() >= 1
+        or public.has_role(array['instructor'])
+      )
+    )
+  );
+
+create or replace function public.join_live_session(p_session_id uuid)
+returns table (id uuid, meeting_url text, joined_at timestamptz)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  target_session public.class_schedules%rowtype;
+  join_time timestamptz := now();
+  allowed boolean := false;
+begin
+  if auth.uid() is null then
+    raise exception 'Sign in to join this session';
+  end if;
+
+  select * into target_session
+  from public.class_schedules cs
+  where cs.id = p_session_id;
+
+  if not found or target_session.status in ('cancelled', 'completed') then
+    raise exception 'This session is not available';
+  end if;
+
+  allowed := target_session.instructor_id = auth.uid()
+    or public.has_role(array['admin', 'super_admin', 'department_admin'])
+    or (target_session.course_id is not null and public.is_course_staff(target_session.course_id))
+    or (
+      target_session.course_id is not null
+      and exists (
+        select 1 from public.course_memberships cm
+        where cm.course_id = target_session.course_id
+          and cm.user_id = auth.uid()
+          and cm.status = 'enrolled'
+      )
+    )
+    or (
+      target_session.course_id is null
+      and (
+        public.current_subscription_level() >= 1
+        or public.has_role(array['instructor'])
+      )
+    );
+
+  if not allowed then
+    raise exception 'You are not enrolled or eligible for this session';
+  end if;
+
+  if join_time < target_session.starts_at - interval '30 minutes' then
+    raise exception 'The room opens 30 minutes before the session starts';
+  end if;
+
+  if target_session.ends_at is not null and join_time > target_session.ends_at then
+    raise exception 'This session has ended';
+  end if;
+
+  insert into public.attendance(session_id, user_id, joined_at)
+  values (target_session.id, auth.uid(), join_time)
+  on conflict (session_id, user_id) do update
+    set joined_at = coalesce(public.attendance.joined_at, excluded.joined_at);
+
+  return query select
+    target_session.id,
+    coalesce(target_session.meeting_url, 'https://meet.jit.si/nursefaculty-' || target_session.id::text),
+    join_time;
+end;
+$$;
+
+revoke all on function public.join_live_session(uuid) from public;
+grant execute on function public.join_live_session(uuid) to authenticated;
+
+create or replace function public.get_live_session_attendee_counts(p_session_ids uuid[])
+returns table (session_id uuid, attendee_count bigint)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select cs.id, count(a.user_id)
+  from public.class_schedules cs
+  left join public.attendance a on a.session_id = cs.id and a.joined_at is not null
+  where cs.id = any(coalesce(p_session_ids, array[]::uuid[]))
+    and (
+      public.has_role(array['admin', 'super_admin', 'department_admin'])
+      or cs.instructor_id = auth.uid()
+      or (cs.course_id is not null and public.is_course_staff(cs.course_id))
+      or exists (
+        select 1 from public.course_memberships cm
+        where cm.course_id = cs.course_id
+          and cm.user_id = auth.uid()
+          and cm.status = 'enrolled'
+      )
+      or (
+        cs.course_id is null
+        and (
+          public.current_subscription_level() >= 1
+          or public.has_role(array['instructor'])
+        )
+      )
+    )
+  group by cs.id;
+$$;
+
+revoke all on function public.get_live_session_attendee_counts(uuid[]) from public;
+grant execute on function public.get_live_session_attendee_counts(uuid[]) to authenticated;
+
+create or replace function public.list_daily_question_recipients()
+returns table (user_id uuid, email text, full_name text)
+language sql
+security definer
+set search_path = public
+as $$
+  select distinct on (p.id) p.id, p.email, p.full_name
+  from public.subscriptions s
+  join public.profiles p on p.id = s.user_id
+  where s.status = 'active'
+    and (s.current_period_end is null or s.current_period_end > now())
+    and lower(coalesce(s.plan_name, '')) not in ('free', '')
+    and nullif(trim(p.email), '') is not null
+    and not exists (select 1 from public.learning_profiles lp where lp.user_id=p.id and lp.daily_email=false)
+    and not exists (
+      select 1 from public.daily_question_emails_sent d
+      where d.user_id = s.user_id and d.date = current_date
+    )
+  order by p.id;
+$$;
+
+revoke all on function public.list_daily_question_recipients() from public, anon, authenticated;
+grant execute on function public.list_daily_question_recipients() to service_role;
+
+drop policy if exists "certs_own" on public.user_certificates;
+create policy "certs_own" on public.user_certificates for select to authenticated using(auth.uid()=user_id);
+commit;

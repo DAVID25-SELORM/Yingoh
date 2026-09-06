@@ -11,7 +11,8 @@
     "validate:questions": "node scripts/validate-question-bank.mjs",
     "validate:questions:progress": "node scripts/validate-question-bank.mjs --allow-incomplete",
     "validate:security": "node scripts/validate-security-contracts.mjs",
-    "validate:explanations": "node scripts/validate-structured-explanations.mjs"
+    "validate:explanations": "node scripts/validate-structured-explanations.mjs",
+    "test:lifelong": "node scripts/test-lifelong.mjs && vitest run scripts/lifelong-ui.test.jsx"
   },
   "keywords": [],
   "author": "",
@@ -21,8 +22,14 @@
     "@supabase/supabase-js": "^2.108.2",
     "@vitejs/plugin-react": "^6.0.2",
     "lucide-react": "^1.21.0",
+    "qrcode": "^1.5.4",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
     "vite": "^8.0.16"
+  },
+  "devDependencies": {
+    "@testing-library/react": "^16.3.3",
+    "jsdom": "^30.0.1",
+    "vitest": "^5.0.0"
   }
 }

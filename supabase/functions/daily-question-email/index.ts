@@ -44,7 +44,7 @@ function emailHtml(topic: string, promptPreview: string, ctaUrl: string) {
           Solve Today's Question
         </a>
       </p>
-      <p style="color:#8a999c; font-size:0.78rem;">You're receiving this because you have an active NurseFaculty subscription.</p>
+      <p style="color:#8a999c; font-size:0.78rem;">You're receiving this because you have an active NurseFaculty subscription. <a href="${escapeHtml(`${appUrl}/#/Learning%20Hub`)}">Manage daily email preferences</a>.</p>
     </div>
   `;
 }

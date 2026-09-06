@@ -25,7 +25,7 @@ function timeAgo(iso) {
   return `${mins}m ago`;
 }
 
-export default function NotificationsBell({ session }) {
+export default function NotificationsBell({ session, onNavigate }) {
   const [notifs, setNotifs] = useState(supabase ? [] : DEMO_NOTIFICATIONS);
   const [open, setOpen] = useState(false);
   const ref = useRef();
@@ -115,6 +115,7 @@ export default function NotificationsBell({ session }) {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: n.is_read ? 400 : 700, fontSize: '0.86rem', marginBottom: 2 }}>{n.title}</div>
                     <div style={{ fontSize: '0.8rem', color: '#607478', lineHeight: 1.4 }}>{n.message}</div>
+                    {onNavigate && ['/#/CPD%20Centre','/#/Competencies','/#/Certificates','/#/Learning%20Content'].includes(n.link) && <button className="ghost-btn" onClick={(e) => { e.stopPropagation(); markRead(n.id); setOpen(false); onNavigate(decodeURIComponent(n.link.slice(3))); }}>Open learning record</button>}
                     <div style={{ fontSize: '0.74rem', color: '#8a999c', marginTop: 4 }}>{timeAgo(n.created_at)}</div>
                   </div>
                   <button className="icon-btn" style={{ alignSelf: 'flex-start', flexShrink: 0 }} onClick={(e) => { e.stopPropagation(); dismiss(n.id); }}>

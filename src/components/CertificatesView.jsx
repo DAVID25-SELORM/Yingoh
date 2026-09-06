@@ -19,6 +19,8 @@ import {
   Trophy,
 } from 'lucide-react';
 import { supabase } from '../services/supabase';
+import QRCode from 'qrcode';
+import CertificateVerification from './CertificateVerification';
 
 const ACHIEVEMENT_BADGES = [
   { type: 'readiness', label: 'NCLEX Readiness', color: '#29b7a3', icon: Trophy, desc: 'Pass probability reaches 85% or higher.', target: '85% readiness' },
@@ -103,7 +105,13 @@ function getStyle(cert) {
 function CertificatePrint({ cert, userName }) {
   const style = getStyle(cert);
   const color = style.color;
-  const verificationUrl = cert.verification_url || `${window.location.origin}/#/VerifyCertificate/${cert.verification_code}`;
+  const verificationUrl = `${window.location.origin}/#/VerifyCertificate/${encodeURIComponent(cert.verification_code || cert.certificate_number || '')}`;
+  const [qr, setQr] = useState('');
+  useEffect(() => {
+    let active = true;
+    QRCode.toDataURL(verificationUrl, { width: 160, margin: 2 }).then(value => { if (active) setQr(value); }).catch(() => { if (active) setQr(''); });
+    return () => { active = false; };
+  }, [verificationUrl]);
 
   return (
     <div className="certificate-print">
@@ -132,7 +140,7 @@ function CertificatePrint({ cert, userName }) {
       </div>
 
       <div className="certificate-verification-strip">
-        <QrCode size={44} />
+        {qr && <img src={qr} width="100" height="100" alt="Scan to verify this certificate" />}
         <div>
           <strong>Verification ID: {cert.verification_code || cert.certificate_number}</strong>
           <small>{verificationUrl}</small>
@@ -348,12 +356,12 @@ export default function CertificatesView({ session }) {
             <h3>Digital Credential Verification</h3>
             <div className="verification-preview">
               <SearchCheck size={42} />
-              <h4>Certificate Verified</h4>
+              <h4>Check a certificate</h4>
               <p>Employers, schools, and regulators can verify certificates using a public certificate ID or QR code.</p>
               <div>
                 <span>Student</span><strong>{userName || 'Jane Doe'}</strong>
                 <span>Issued by</span><strong>NurseFaculty</strong>
-                <span>Status</span><strong>Verified</strong>
+                <span>Status</span><strong>Enter an ID below to verify</strong>
               </div>
             </div>
           </div>
@@ -368,6 +376,7 @@ export default function CertificatesView({ session }) {
               <li><CheckCircle2 size={15} /> Expiry tracking</li>
             </ul>
           </aside>
+          <CertificateVerification />
         </div>
       )}
 
@@ -375,7 +384,7 @@ export default function CertificatesView({ session }) {
         <div className="modal-backdrop">
           <div className="certificate-modal">
             <div className="certificate-modal-head">
-              <button className="ghost-btn" onClick={() => { setPreview(null); setTimeout(printCert, 300); }}><Download size={15} /> Print / Save PDF</button>
+              <button className="ghost-btn" onClick={printCert}><Download size={15} /> Print / Save PDF</button>
               <button className="icon-btn" onClick={() => setPreview(null)}>×</button>
             </div>
             <div id="cert-print-area" ref={printRef}>

@@ -5,6 +5,7 @@ import {
   saveItem, sm2, supabase, upsertFlashcardProgress,
 } from '../services/supabase';
 import { useSubscription } from '../hooks/useSubscription';
+import PersonalLearningCards from './PersonalLearningCards';
 
 const DEMO_DECKS = [
   { id: 'demo-pharm', name: 'NCLEX Pharmacology Essentials', topic: 'Pharmacology', card_count: 15 },
@@ -141,6 +142,7 @@ export default function FlashcardsView({ session }) {
     return (
       <section className="content-band">
         <div className="section-title"><h2>Flashcard Decks</h2><Brain size={22} /></div>
+        <PersonalLearningCards session={session} />
         <p style={{ color: '#607478', marginTop: 0 }}>
           Spaced repetition powered by the SM-2 algorithm. Cards you struggle with appear more frequently.
         </p>

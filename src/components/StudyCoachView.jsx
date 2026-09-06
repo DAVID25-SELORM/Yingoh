@@ -1,9 +1,12 @@
 ﻿import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Brain, BookOpen, Bookmark, BookmarkCheck, CalendarDays, ClipboardList, Loader2, RotateCcw, Send, Sparkles } from 'lucide-react';
-import { getStudyCoachConversations, saveStudyCoachConversation, saveItem, supabase } from '../services/supabase';
+import { getStudyCoachConversations, saveStudyCoachConversation, saveItem, supabase, getAttemptStats } from '../services/supabase';
+import { parseTutorCards } from '../utils/tutorCards';
 import { useSubscription } from '../hooks/useSubscription';
 
 const TABS = [
+  { key: 'flashcards', label: 'Flashcard Generator', icon: BookOpen, placeholder: 'Create flashcards on a nursing topic...' },
+  { key: 'clinical', label: 'Clinical Case Tutor', icon: Brain, placeholder: 'Help me reason through a fictional clinical case...' },
   { key: 'tutor', label: 'Chat Tutor', icon: Brain, placeholder: 'Ask an NCLEX question or paste answer choices...' },
   { key: 'explainer', label: 'Rationale Explainer', icon: BookOpen, placeholder: 'Paste a question and choices to explain...' },
   { key: 'quiz', label: 'Quiz Generator', icon: ClipboardList, placeholder: 'Generate 3 NGN questions on heart failure' },
@@ -44,6 +47,17 @@ export default function StudyCoachView({ session }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [topic, setTopic] = useState('Pharmacology');
+  const [learningContext, setLearningContext] = useState('NCLEX preparation');
+  const [weakAreas, setWeakAreas] = useState('');
+  const [savedCardMessages, setSavedCardMessages] = useState(new Set());
+  useEffect(() => {
+    if (!session?.user?.id) return;
+    getAttemptStats(session.user.id).then(({ data }) => {
+      const topics = {};
+      for (const a of data || []) { const t = a.questions?.topic; if (!t) continue; topics[t] ||= { n: 0, correct: 0 }; topics[t].n++; if (a.is_correct) topics[t].correct++; }
+      setWeakAreas(Object.entries(topics).filter(([,s]) => s.n >= 3 && s.correct / s.n < .72).map(([t,s]) => `${t}: ${s.correct}/${s.n} correct`).slice(0,8).join('; '));
+    }).catch(() => {});
+  }, [session?.user?.id]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [savedAnswerIds, setSavedAnswerIds] = useState(new Set());
@@ -122,7 +136,7 @@ export default function StudyCoachView({ session }) {
             mode: activeTab,
             message: prompt,
             history: apiHistory.slice(0, -1),
-            context: activeTab === 'quiz' ? `Topic: ${topic}` : undefined,
+            context: `Learning context: ${learningContext}. ${activeTab === 'quiz' ? `Topic: ${topic}` : ''} Recorded NCLEX practice areas needing review (not clinical competency scores): ${weakAreas || 'Insufficient practice data'}`,
           },
         });
         if (fnError) throw fnError;
@@ -164,6 +178,14 @@ export default function StudyCoachView({ session }) {
     if (!saveError) setSavedAnswerIds((prev) => new Set([...prev, msg.id]));
   }
 
+  async function saveCards(msg) {
+    const cards = parseTutorCards(msg.content);
+    if (!supabase || !userId || !cards.length) return;
+    const { error: err } = await supabase.from('personal_learning_cards').upsert(cards.map(c => ({ ...c, user_id: userId })), { onConflict: 'user_id,front' });
+    if (err) setError('Flashcards could not be saved. Please try again.');
+    else setSavedCardMessages(prev => new Set([...prev, msg.id]));
+  }
+
   const emptyText = userId
     ? 'Ask a question to start a saved Study Coach conversation.'
     : 'Sign in to save Study Coach conversations. You can still try the demo response.';
@@ -172,11 +194,13 @@ export default function StudyCoachView({ session }) {
     <section className="content-band">
       <div className="section-title">
         <div>
-          <h2>Study Coach</h2>
-          <p style={{ margin: '4px 0 0', color: '#607478', fontSize: '0.88rem' }}>NCLEX coaching with rationales, distractor review, and clinical tips.</p>
+          <h2>NurseFaculty Tutor</h2>
+          <p style={{ margin: '4px 0 0', color: '#607478', fontSize: '0.88rem' }}>NCLEX, nursing school and professional learning with explanations and clinical reasoning.</p>
         </div>
         <button className="ghost-btn" onClick={() => startNew()}><RotateCcw size={15} /> New Chat</button>
       </div>
+
+      <label>Learning context <select value={learningContext} onChange={e => setLearningContext(e.target.value)}>{['NCLEX preparation','Nursing school','Clinical practice education','Nurse educator development','Nursing leadership'].map(value => <option key={value}>{value}</option>)}</select></label>
 
       {!supabase && (
         <div className="setup-alert" style={{ marginBottom: 14 }}>
@@ -230,13 +254,13 @@ export default function StudyCoachView({ session }) {
                 <div className={`coach-bubble coach-bubble-${msg.role} ${msg.is_error ? 'coach-bubble-error' : ''}`}>
                   {msg.role === 'assistant' && (
                     <div className="coach-bubble-head">
-                      <span><Brain size={12} /> NurseFaculty Study Coach</span>
+                      <span><Brain size={12} /> NurseFaculty Tutor</span>
                       <button className="icon-btn" title="Save answer" onClick={() => saveAnswer(msg)}>
                         {savedAnswerIds.has(msg.id) ? <BookmarkCheck size={14} /> : <Bookmark size={14} />}
                       </button>
                     </div>
                   )}
-                  {msg.content}
+                  {activeTab === 'flashcards' && parseTutorCards(msg.content).length ? <div>{parseTutorCards(msg.content).map((c,i) => <details key={i}><summary>{c.front}</summary><p>{c.back}</p></details>)}<button className="ghost-btn" disabled={savedCardMessages.has(msg.id)} onClick={() => saveCards(msg)}>{savedCardMessages.has(msg.id) ? 'Saved to Flashcards' : 'Save to my Flashcards'}</button></div> : msg.content}
                 </div>
               </div>
             ))}
