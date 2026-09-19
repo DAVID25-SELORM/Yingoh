@@ -3,6 +3,7 @@ import {
   AlertCircle, CheckCircle2, Edit3, Eye, EyeOff, FilePlus, Filter,
   PlusCircle, Save, Trash2, Upload, X, XCircle,
 } from 'lucide-react';
+import './question-manager.css';
 import { supabase } from '../services/supabase';
 import { TOPICS } from '../data/topics';
 import { DEMO_QUESTIONS } from '../data/demoQuestions';
@@ -624,10 +625,10 @@ export default function QuestionManager() {
   const showingEnd = page * PAGE_SIZE + questions.length;
 
   return (
-    <section className="content-band">
-      <div className="section-title">
-        <h2>Question Manager</h2>
-        <div style={{ display: 'flex', gap: 8 }}>
+    <section className="question-manager" aria-label="Question inventory">
+      <div className="qm-inventory-heading">
+        <div><h3>Question inventory</h3><p>Review, organize, and maintain your question bank.</p></div>
+        <div className="qm-primary-actions">
           <button className="ghost-btn" onClick={() => setCsvModal(true)}>
             <Upload size={15} /> Import CSV
           </button>
@@ -803,30 +804,30 @@ export default function QuestionManager() {
       )}
 
       {/* Stats bar */}
-      <div style={{ display: 'flex', gap: 16, marginBottom: 16, flexWrap: 'wrap' }}>
-        <div className="qm-stat"><strong>{counts.total.toLocaleString()}</strong><span>Total</span></div>
-        <div className="qm-stat" style={{ borderColor: '#29b7a3' }}><strong style={{ color: '#135f55' }}>{counts.published.toLocaleString()}</strong><span>Published</span></div>
-        <div className="qm-stat" style={{ borderColor: '#e3a72f' }}><strong style={{ color: '#875f08' }}>{counts.draft.toLocaleString()}</strong><span>Drafts</span></div>
+      <div className="qm-summary-grid">
+        <div className="qm-stat"><span>Total Questions <FilePlus size={18} aria-hidden="true" /></span><strong>{counts.total.toLocaleString()}</strong><small>Complete question inventory</small></div>
+        <div className="qm-stat"><span>Published <CheckCircle2 size={18} aria-hidden="true" /></span><strong>{counts.published.toLocaleString()}</strong><small>Available to learners</small></div>
+        <div className="qm-stat"><span>Drafts <Edit3 size={18} aria-hidden="true" /></span><strong>{counts.draft.toLocaleString()}</strong><small>In the authoring workflow</small></div>
       </div>
 
       {/* Filters */}
-      <div className="qb-filters" style={{ marginBottom: 14 }}>
-        <Filter size={15} color="#607478" />
+      <div className="qb-filters qm-filter-toolbar" aria-label="Question filters">
+        <span className="qm-filter-label"><Filter size={16} aria-hidden="true" /> Filters</span>
         <div className="segmented-control" style={{ width: 'auto', display: 'flex', gap: 4, padding: 3, background: '#e9f1ef', borderRadius: 8 }}>
           {['all', 'published', 'draft'].map((s) => (
-            <button key={s} style={{ minHeight: 30, padding: '0 12px', fontSize: '0.82rem', fontWeight: 700, borderRadius: 6, background: statusFilter === s ? '#fff' : 'transparent', color: statusFilter === s ? '#17313a' : '#51676c', border: 0, cursor: 'pointer' }} onClick={() => { setPage(0); setStatusFilter(s); }}>
+            <button key={s} aria-pressed={statusFilter === s} style={{ minHeight: 30, padding: '0 12px', fontSize: '0.82rem', fontWeight: 700, borderRadius: 6, background: statusFilter === s ? '#fff' : 'transparent', color: statusFilter === s ? '#17313a' : '#51676c', border: 0, cursor: 'pointer' }} onClick={() => { setPage(0); setStatusFilter(s); }}>
               {s.charAt(0).toUpperCase() + s.slice(1)}
             </button>
           ))}
         </div>
-        <select value={topicFilter} onChange={(e) => { setPage(0); setTopicFilter(e.target.value); }} style={{ height: 36, borderRadius: 8, border: '1px solid #dbe6e4', padding: '0 10px', background: '#fff' }}>
+        <select aria-label="Filter by topic" value={topicFilter} onChange={(e) => { setPage(0); setTopicFilter(e.target.value); }} style={{ height: 36, borderRadius: 8, border: '1px solid #dbe6e4', padding: '0 10px', background: '#fff' }}>
           <option>All Topics</option>
           {TOPICS.map((t) => <option key={t}>{t}</option>)}
         </select>
-        <span style={{ marginLeft: 'auto', color: '#607478', fontSize: '0.88rem' }}>
+        <span className="qm-results" role="status">
           {loading
             ? (questions.length ? 'Refreshing questions…' : 'Loading questions…')
-            : `Showing ${showingStart.toLocaleString()}–${showingEnd.toLocaleString()} of ${counts.total.toLocaleString()}`}
+            : `Showing ${showingStart.toLocaleString()}–${showingEnd.toLocaleString()} · ${counts.total.toLocaleString()} questions in inventory`}
         </span>
       </div>
 
@@ -1021,35 +1022,36 @@ export default function QuestionManager() {
       )}
 
       {/* Question list */}
-      <div style={{ display: 'grid', gap: 10 }}>
+      <div className="qm-inventory-list" aria-label="Questions" aria-busy={loading}>
         {questions.map((q) => (
           <div key={q.id} className="qm-question-row">
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 4 }}>
+              <div className="qm-row-metadata">
                 <span className={`qm-status qm-status-${q.status}`}>{q.status}</span>
                 <span style={{ fontSize: '0.78rem', color: '#2b8a7d', fontWeight: 700, textTransform: 'uppercase' }}>{q.topic}</span>
-                <span style={{ fontSize: '0.76rem', color: '#8a999c' }}>{q.question_type?.replaceAll('_', ' ').toUpperCase()}</span>
+                <span className="qm-type">{q.question_type?.replaceAll('_', ' ').toUpperCase()}</span>
               </div>
-              <p style={{ margin: 0, fontSize: '0.92rem', lineHeight: 1.45, color: '#17212f', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              <p className="qm-stem">
                 {q.prompt}
               </p>
             </div>
-            <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-              <button className="icon-btn" title="Preview" onClick={() => togglePreview(q)}>
+            <div className="qm-row-actions" role="group" aria-label={`Actions for ${q.prompt}`}>
+              <button className="icon-btn" title="Preview" aria-label="Preview question" aria-expanded={preview?.id === q.id} onClick={() => togglePreview(q)}>
                 {preview?.id === q.id ? <EyeOff size={15} /> : <Eye size={15} />}
               </button>
-              <button className="icon-btn" title="Edit" onClick={() => openEdit(q)}>
+              <button className="icon-btn" title="Edit" aria-label="Edit question" onClick={() => openEdit(q)}>
                 <Edit3 size={15} />
               </button>
               <button
                 className="icon-btn"
                 title={q.status === 'published' ? 'Unpublish' : 'Publish'}
+                aria-label={q.status === 'published' ? 'Unpublish question' : 'Publish question'}
                 style={{ color: q.status === 'published' ? '#135f55' : '#875f08' }}
                 onClick={() => handleTogglePublish(q)}
               >
                 {q.status === 'published' ? <CheckCircle2 size={15} /> : <XCircle size={15} />}
               </button>
-              <button className="icon-btn" title="Delete" style={{ color: '#8a2c21' }} onClick={() => handleDelete(q)}>
+              <button className="icon-btn" title="Delete" aria-label="Delete question" style={{ color: '#8a2c21' }} onClick={() => handleDelete(q)}>
                 <Trash2 size={15} />
               </button>
             </div>

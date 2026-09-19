@@ -794,7 +794,7 @@ function App() {
         </div>
       </aside>
 
-      <section className={`workspace ${activeView === 'Super Admin' ? 'sa-workspace' : ''}`}>
+      <section className={`workspace ${['Super Admin', 'AdminQuestions'].includes(activeView) ? 'sa-workspace' : ''}`}>
         {supportView && (
           <div className="impersonation-banner">
             <div>
@@ -820,7 +820,8 @@ function App() {
               </button>
               <span className="topbar-brand"><img src="/nursefaculty-mark.png" alt="" /> NurseFaculty NCLEX Preparation</span>
             </div>
-            <h2>{activeView === 'Study Coach' ? 'NurseFaculty Tutor' : activeView}</h2>
+            <h2>{activeView === 'Study Coach' ? 'NurseFaculty Tutor' : activeView === 'AdminQuestions' ? 'Admin Questions' : activeView}</h2>
+            {activeView === 'AdminQuestions' && <p className="sa-page-subtitle">Manage question inventory, publishing status, and content workflows.</p>}
             {activeView === 'Super Admin' && <p className="sa-page-subtitle">Platform overview, user activity, content and system health.</p>}
           </div>
           <div className="topbar-actions">
