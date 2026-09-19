@@ -2,6 +2,26 @@
 
 **PRODUCTION READINESS: NOT READY**
 
+## Current status — cleanup and live deployment verification
+
+This section is the authoritative current summary. Sections below are historical evidence and may describe earlier PAUSED or undeployed states.
+
+- Global sending: **ENABLED by explicit user direction**, not by completion of readiness gates. Latest read-only production check confirms enabled=true, zero eligible opted-in users, zero campaign deliveries, and three recent HTTP 200 scheduler responses without timeouts or reported errors.
+- Frontend deployment: **PASS for published feature presence**. `https://nursefaculty.org` returns HTTP 200; live asset `/assets/index-JtmHqlbn.js` contains `get_daily_delivery`, `admin_daily_emails`, and `user_email_preferences`. This is not an authenticated end-to-end test.
+- Migration, worker, SMTP configuration, confirmed diagnostic receipt, cron configuration/authentication and paused-mode scheduler verification: **PASS** based on recorded evidence. Diagnostic arrived in spam; inbox placement is unresolved.
+- Hosted scheduler/worker send-path concurrency, retries, ambiguous timeouts, timezone behavior, secure-answer end-to-end and admin-history end-to-end: **NOT VERIFIED**. Earlier local tests and paused overlap do not establish these gates.
+- External blockers: recipient must provide SPF/DKIM/DMARC pass/fail results (not credentials/full message contents); a designated isolated hosted staging environment and test accounts are needed for fault injection and authenticated workflows. Do not create billable infrastructure, alter sender DNS/Auth SMTP, or use ordinary users without appropriate scope/authorization.
+- Repository hygiene: local `.claude/` files are preserved and ignored, not deleted or committed. Private backups remain outside the repository. Diagnostic tests and typechecking are included in the standard daily-email validation commands.
+- Cleanup validation: all 37 tests and all three daily-email entry-point typechecks passed. Stopped the dedicated network-isolated rehearsal container while retaining its database and backups; no data was deleted. Cleanup changes are committed locally without a deployment push.
+
+**PRODUCTION READINESS: NOT READY** — operational activation is not readiness approval.
+
+## Explicit user-directed activation — 19 September 2026
+
+After requesting activation and explicitly confirming production-user sending following disclosure of the outstanding readiness checks, the user authorized enabling the master switch. Production `daily_email_config.enabled` was updated to true and returned `updated_at=2026-09-19 17:32:55.109946+00`. **Global system status: ENABLED.** This supersedes earlier PAUSED statements; it does not convert incomplete test gates into passes.
+
+Immediately before activation, one active daily-email cron job and zero eligible opted-in users were verified. No preferences, subscriptions, eligibility rules, SMTP configuration, or cron frequency were changed. Future eligible opted-in users can receive messages on scheduled runs. Deliverability (test arrived in spam), hosted concurrency/retry/timeout tests, and hosted frontend end-to-end checks remain outstanding. Activation was user-directed, not automatic production-readiness approval.
+
 ## Recipient confirmation and Git deployment handoff
 
 The user confirmed the single diagnostic arrived in spam. Controlled SMTP delivery is therefore PASS for receipt, with inbox placement unresolved; SPF/DKIM/DMARC results remain unverified. This supersedes the earlier pending-receipt gate. The user authorized committing and pushing daily-email changes to the Git-linked Vercel production branch. A Git push is not proof of a successful hosted deployment or completion of the remaining hosted tests. Global sending must remain PAUSED. No automatic enablement is authorized by this deployment handoff.
