@@ -794,16 +794,16 @@ function App() {
         </div>
       </aside>
 
-      <section className="workspace">
+      <section className={`workspace ${activeView === 'Super Admin' ? 'sa-workspace' : ''}`}>
         {supportView && (
           <div className="impersonation-banner">
             <div>
               <Eye size={16} />
-              <span>{supportView.type === 'impersonation' ? 'Viewing as' : 'Portal preview'}</span>
-              <strong>{supportView.type === 'impersonation' ? supportView.userName : supportView.portalLabel}</strong>
+              <span>{supportView.type === 'impersonation' ? 'Viewing as' : 'Preview Mode'}</span>
+              <strong>{supportView.type === 'impersonation' ? supportView.userName : `Viewing as ${supportView.portalLabel}`}</strong>
               <small>Role: {(supportView.roles ?? []).join(', ').replaceAll('_', ' ')} · Started by {supportView.startedBy || session.user.email}</small>
             </div>
-            <button className="ghost-btn" onClick={exitSupportView}>Exit View</button>
+            <button className="ghost-btn" onClick={exitSupportView}>{supportView.type === 'portal' ? 'Exit Preview' : 'Exit View'}</button>
           </div>
         )}
         <header className="topbar">
@@ -821,6 +821,7 @@ function App() {
               <span className="topbar-brand"><img src="/nursefaculty-mark.png" alt="" /> NurseFaculty NCLEX Preparation</span>
             </div>
             <h2>{activeView === 'Study Coach' ? 'NurseFaculty Tutor' : activeView}</h2>
+            {activeView === 'Super Admin' && <p className="sa-page-subtitle">Platform overview, user activity, content and system health.</p>}
           </div>
           <div className="topbar-actions">
             {(roles.includes('admin') || roles.includes('super_admin')) && (
@@ -891,7 +892,7 @@ function App() {
         )}
         {activeView === 'Community' && <CommunityForum session={session} />}
         {activeView === 'Certificates' && <CertificatesView session={session} />}
-        {activeView === 'Super Admin' && isSuperAdmin && <SuperAdminPanel session={session} />}
+        {activeView === 'Super Admin' && isSuperAdmin && <SuperAdminPanel session={session} onNavigate={navigateTo} />}
         {activeView === 'Users' && (isSuperAdmin || effectiveHasAdminAccess) && (
           <UserManagement
             session={session}

@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import {
   Activity, AlertTriangle, BarChart3, CheckCircle2, RefreshCw,
-  Search, Shield, Trash2, UserCheck, UserX, Users,
+  Search, Shield, UserCheck, UserX, Users, BookOpen, FileClock,
+  ClipboardList, CreditCard, DollarSign, CalendarDays, NotebookPen, Megaphone, ArrowUpRight,
 } from 'lucide-react';
+import './super-admin.css';
 import { supabase, checkTableAvailability, nurseFacultyTables } from '../services/supabase';
 import {
   getEffectivePermissions,
@@ -50,10 +52,10 @@ const ROLE_COLORS = Object.fromEntries(
 
 const ALL_ROLES = RBAC_ROLE_NAMES;
 
-function StatCard({ label, value, sub, color = '#29b7a3' }) {
+function StatCard({ label, value, sub, icon: Icon = Activity }) {
   return (
-    <div className="admin-stat-card" style={{ borderTopColor: color }}>
-      <span>{label}</span>
+    <div className="admin-stat-card">
+      <div className="sa-stat-label"><span>{label}</span><Icon size={19} aria-hidden="true" /></div>
       <strong>{typeof value === 'number' && value > 999 ? value.toLocaleString() : value}</strong>
       {sub && <small>{sub}</small>}
     </div>
@@ -94,7 +96,7 @@ function EffectivePermissionPanel({ roles }) {
   );
 }
 
-export default function SuperAdminPanel({ session }) {
+export default function SuperAdminPanel({ session, onNavigate }) {
   const [tab, setTab] = useState('overview');
   const [stats, setStats] = useState(supabase ? {
     total_users: 0,
@@ -215,51 +217,77 @@ export default function SuperAdminPanel({ session }) {
   ];
 
   return (
-    <section className="content-band">
-      <div className="section-title">
-        <h2>Super Admin Panel</h2>
-        <Shield size={22} />
-      </div>
+    <section className="super-admin-dashboard" aria-label="Super Admin dashboard">
+      <div className="sa-toolbar">
 
       {/* Tabs */}
-      <div className="admin-tabs">
+      <div className="admin-tabs" aria-label="Dashboard sections">
         {TABS.map(({ key, label, icon: Icon }) => (
-          <button key={key} className={tab === key ? 'admin-tab-active' : 'admin-tab'} onClick={() => setTab(key)}>
+          <button key={key} aria-pressed={tab === key} className={tab === key ? 'admin-tab-active' : 'admin-tab'} onClick={() => setTab(key)}>
             <Icon size={15} /> {label}
           </button>
         ))}
+      </div>
+      <button className="ghost-btn" onClick={loadData}><RefreshCw size={16} aria-hidden="true" /> Refresh overview</button>
       </div>
 
       {/* ── Overview ── */}
       {tab === 'overview' && (
         <div style={{ display: 'grid', gap: 20 }}>
           <div className="admin-stats-grid">
-            <StatCard label="Total Users" value={stats.total_users} sub="registered accounts" />
-            <StatCard label="Published Questions" value={stats.published_questions} sub={`${stats.draft_questions} drafts pending`} color="#e3a72f" />
-            <StatCard label="Total Attempts" value={stats.total_attempts} sub="across all students" color="#6750a4" />
-            <StatCard label="Exam Sessions" value={stats.total_sessions} sub="completed sessions" color="#e85d4f" />
-            <StatCard label="Active Subscriptions" value={stats.active_subscriptions} color="#29b7a3" />
-            <StatCard label="Revenue" value={`$${Number(stats.total_revenue ?? 0).toFixed(2)}`} sub={`${stats.paid_invoices} paid invoices`} color="#29b7a3" />
-            <StatCard label="Upcoming Classes" value={stats.upcoming_classes} sub="scheduled sessions" color="#e3a72f" />
-            <StatCard label="Notes Created" value={stats.total_notes} sub={`${stats.total_bookmarks} bookmarks`} color="#6750a4" />
+            <StatCard label="Total Users" value={stats.total_users} sub="Registered accounts" icon={Users} />
+            <StatCard label="Published Questions" value={stats.published_questions} sub="Available learning content" icon={BookOpen} />
+            <StatCard label="Pending Questions" value={stats.draft_questions} sub="Drafts awaiting publication" icon={FileClock} />
+            <StatCard label="Exam Sessions" value={stats.total_sessions} sub="Completed sessions" icon={ClipboardList} />
+            <StatCard label="Active Subscriptions" value={stats.active_subscriptions} sub="Current subscriptions" icon={CreditCard} />
+            <StatCard label="Revenue" value={`$${Number(stats.total_revenue ?? 0).toFixed(2)}`} sub={`${stats.paid_invoices} paid invoices`} icon={DollarSign} />
+            <StatCard label="Upcoming Classes" value={stats.upcoming_classes} sub="Scheduled sessions" icon={CalendarDays} />
+            <StatCard label="Notes Created" value={stats.total_notes} sub={`${stats.total_bookmarks} bookmarks`} icon={NotebookPen} />
+          </div>
+
+          <div className="sa-main-grid">
+            <section className="sa-panel" aria-labelledby="sa-platform-title">
+              <div className="sa-panel-heading"><div><h3 id="sa-platform-title">Platform Activity</h3><p>A snapshot of learning across the platform.</p></div><Activity size={20} aria-hidden="true" /></div>
+              <dl className="sa-activity-summary">
+                {[
+                  ['Registered accounts', stats.total_users, Users],
+                  ['Question attempts', stats.total_attempts, ClipboardList],
+                  ['Published learning content', stats.published_questions, BookOpen],
+                  ['Active subscriptions', stats.active_subscriptions, CreditCard],
+                  ['Scheduled classes', stats.upcoming_classes, CalendarDays],
+                ].map(([label, value, Icon]) => <div key={label}><dt><Icon size={17} aria-hidden="true" />{label}</dt><dd>{Number(value ?? 0).toLocaleString()}</dd></div>)}
+              </dl>
+            </section>
+            <section className="sa-panel" aria-labelledby="sa-actions-title">
+              <div className="sa-panel-heading"><div><h3 id="sa-actions-title">Quick Actions</h3><p>Your most-used administration tools.</p></div><ArrowUpRight size={20} aria-hidden="true" /></div>
+              <div className="sa-quick-actions">
+                {[
+                  ['Manage Users', 'Users', Users], ['Manage Questions', 'AdminQuestions', BookOpen],
+                  ['Exams', 'Exam', ClipboardList], ['Announcements', 'Announcements', Megaphone],
+                  ['Manage Classes', 'Classroom', CalendarDays], ['Content Review', 'Content Review', FileClock],
+                ].map(([label, destination, Icon]) => <button key={destination} disabled={!onNavigate} onClick={() => onNavigate(destination)}><Icon size={19} aria-hidden="true" /><span>{label}</span><ArrowUpRight size={14} aria-hidden="true" /></button>)}
+              </div>
+            </section>
           </div>
 
           {/* Recent audit log */}
-          <div className="surface">
+          <div className="sa-panel">
             <div className="section-title"><h3>Recent Activity</h3><Activity size={18} /></div>
             <div style={{ display: 'grid', gap: 8 }}>
               {auditLog.map((log) => (
-                <div key={log.id} className="audit-row">
-                  <span className="audit-action">{log.action}</span>
-                  <span style={{ color: '#607478', fontSize: '0.84rem', flex: 1 }}>
+                <div key={log.id} className="sa-audit-row">
+                  <span className="sa-audit-icon"><Activity size={16} aria-hidden="true" /></span>
+                  <div className="sa-audit-description"><strong>{log.action}</strong>
+                  <span>
                     {log.details ? JSON.stringify(log.details).replace(/[{}"]/g, '').replace(/,/g, ' · ') : ''}
                   </span>
-                  <span style={{ color: '#9fb3b7', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                  <small>Actor: {log.actor_id || log.user_id || 'Not recorded'} · {log.target_table || 'Platform'}</small></div>
+                  <time dateTime={log.created_at}>
                     {new Date(log.created_at).toLocaleString()}
-                  </span>
+                  </time>
                 </div>
               ))}
-              {!auditLog.length && <p style={{ color: '#607478', margin: 0 }}>No audit log entries yet.</p>}
+              {!auditLog.length && <div className="sa-empty"><span className="sa-audit-icon"><Activity size={22} aria-hidden="true" /></span><div><h4>No recent activity yet</h4><p>Platform activity will appear here as users interact with the system.</p></div></div>}
             </div>
           </div>
         </div>
