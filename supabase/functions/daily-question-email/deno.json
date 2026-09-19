@@ -1,0 +1,7 @@
+{
+  "imports": {
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.108.2",
+    "denomailer": "https://deno.land/x/denomailer@1.6.0/mod.ts"
+  },
+  "compilerOptions": { "checkJs": true, "strict": false }
+}

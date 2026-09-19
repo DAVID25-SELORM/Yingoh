@@ -4,7 +4,7 @@ import { supabase } from '../services/supabase';
 import { SubscriptionGate } from './SubscriptionGate';
 import AnswerExplanation from './AnswerExplanation';
 
-function QuestionOfTheDayContent({ session }) {
+function QuestionOfTheDayContent({ session, deliveryId }) {
   const userId = session?.user?.id;
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -20,6 +20,18 @@ function QuestionOfTheDayContent({ session }) {
       if (!supabase || !userId) { setLoading(false); return; }
       setLoading(true);
       setError('');
+      if (deliveryId) {
+        const { data, error } = await supabase.rpc('get_daily_delivery', { p_id: deliveryId });
+        if (!mounted) return;
+        if (error || !data) setError('This assigned question is unavailable for your account.');
+        else {
+          setDailyQuestion({ id: data.id, date: data.scheduled_date });
+          setQuestion(data.question);
+          setAttempt(data.answered_at ? { answer: data.selected_answer, is_correct: data.is_correct } : null);
+        }
+        setLoading(false);
+        return;
+      }
       const { data: rows, error: dqError } = await supabase.rpc('get_daily_question_content');
       const dq = Array.isArray(rows) ? rows[0] : rows;
       if (!mounted) return;
@@ -51,7 +63,7 @@ function QuestionOfTheDayContent({ session }) {
     }
     load();
     return () => { mounted = false; };
-  }, [userId]);
+  }, [userId, deliveryId]);
 
   function toggleChoice(id) {
     if (!question) return;
@@ -65,6 +77,16 @@ function QuestionOfTheDayContent({ session }) {
   async function handleSubmit() {
     if (!selected.length || !question || !dailyQuestion || !userId) return;
     setSubmitting(true);
+    if (deliveryId) {
+      try {
+        const { data, error } = await supabase.rpc('answer_daily_delivery', { p_id: deliveryId, p_ids: selected });
+        if (error) throw error;
+        setQuestion(data.question);
+        setAttempt({ answer: data.selected_answer, is_correct: data.is_correct });
+      } catch { setError('Could not submit this answer. Please reload and try again.'); }
+      finally { setSubmitting(false); }
+      return;
+    }
     const { data, error: insertError } = await supabase
       .rpc('submit_daily_question_answer_secure', {
         p_daily_question_id: dailyQuestion.id,
@@ -167,7 +189,8 @@ function QuestionOfTheDayContent({ session }) {
   );
 }
 
-export default function QuestionOfTheDayView({ session }) {
+export default function QuestionOfTheDayView({ session, deliveryId }) {
+  if (deliveryId) return <QuestionOfTheDayContent session={session} deliveryId={deliveryId} />;
   return (
     <SubscriptionGate session={session} requiredPlan="basic" featureName="the daily Question of the Day">
       <QuestionOfTheDayContent session={session} />

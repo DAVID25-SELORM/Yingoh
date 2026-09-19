@@ -12,7 +12,11 @@
     "validate:questions:progress": "node scripts/validate-question-bank.mjs --allow-incomplete",
     "validate:security": "node scripts/validate-security-contracts.mjs",
     "validate:explanations": "node scripts/validate-structured-explanations.mjs",
-    "test:lifelong": "node scripts/test-lifelong.mjs && vitest run scripts/lifelong-ui.test.jsx"
+    "test:lifelong": "node scripts/test-lifelong.mjs && vitest run scripts/lifelong-ui.test.jsx",
+    "test:daily-email": "node --test scripts/daily-email.test.mjs && vitest run scripts/daily-email-ui.test.jsx",
+    "check:daily-email": "deno check --config supabase/functions/daily-question-email/deno.json supabase/functions/daily-question-email/index.ts scripts/diagnose-daily-email.ts",
+    "lint:daily-email": "deno lint --config supabase/functions/daily-question-email/deno.json supabase/functions/daily-question-email scripts/diagnose-daily-email.ts",
+    "diagnose:daily-email": "deno run --config supabase/functions/daily-question-email/deno.json --allow-env=SMTP_HOST,SMTP_PORT,SMTP_USER,SMTP_PASS,SMTP_FROM,SMTP_FROM_NAME,SMTP_REPLY_TO,APP_URL --allow-net scripts/diagnose-daily-email.ts"
   },
   "keywords": [],
   "author": "",
@@ -28,7 +32,9 @@
     "vite": "^8.0.16"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.8",
     "@testing-library/react": "^16.3.3",
+    "deno": "^2.9.6",
     "jsdom": "^30.0.1",
     "vitest": "^5.0.0"
   }

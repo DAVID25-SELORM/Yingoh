@@ -1,0 +1,7 @@
+[functions.daily-question-email]
+# This function checks a server-only x-cron-secret before any work.
+verify_jwt = false
+
+[functions.daily-email-diagnostic]
+# One-shot diagnostic requires the server-only cron credential.
+verify_jwt = false

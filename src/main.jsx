@@ -51,6 +51,8 @@ import CompetencyManagement from './components/CompetencyManagement';
 import CertificateVerification from './components/CertificateVerification';
 import LearningDashboard from './components/LearningDashboard';
 import ProfessionalCV from './components/ProfessionalCV';
+import DailyEmailSettings from './components/DailyEmailSettings';
+import DailyEmailAdmin from './components/DailyEmailAdmin';
 
 if (typeof window !== 'undefined' && window.location.hostname === 'yingoh.vercel.app') {
   window.location.replace(`https://nursefaculty.org${window.location.pathname}${window.location.search}${window.location.hash}`);
@@ -410,6 +412,7 @@ const NAV = [
   { label: 'Classroom', icon: Video, group: 'admin' },
   { label: 'Video Manager', icon: MonitorPlay, group: 'admin' },
   { label: 'Audit Logs', icon: ShieldCheck, group: 'admin' },
+  { label: 'Daily Emails', icon: Bell, group: 'admin' },
 ];
 
 const VALID_VIEW_KEYS = new Set(NAV.map((n) => n.viewKey ?? n.label));
@@ -429,6 +432,7 @@ const PORTAL_PREVIEWS = [
 
 function getInitialView() {
   if (typeof window === 'undefined') return DEFAULT_VIEW;
+  if (dailyDeliveryId()) return 'Question of the Day';
   const fromHash = decodeURIComponent(window.location.hash.replace(/^#\/?/, ''));
   if (VALID_VIEW_KEYS.has(fromHash)) return fromHash;
   const saved = window.localStorage.getItem(ACTIVE_VIEW_STORAGE_KEY);
@@ -441,7 +445,11 @@ function isCourseJoinRoute() {
 }
 
 const SUPER_ADMIN_VIEWS = new Set(['Super Admin']);
-const ADMIN_VIEWS = new Set(['AdminQuestions', 'Audit Logs']);
+function dailyDeliveryId() {
+  const id = new URLSearchParams(window.location.search).get('dailyDelivery');
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id || '') ? id : null;
+}
+const ADMIN_VIEWS = new Set(['AdminQuestions', 'Audit Logs', 'Daily Emails']);
 const FINANCE_VIEWS = new Set(['Payments']);
 const INSTRUCTOR_VIEWS = new Set(['Instructors', 'Announcements', 'Classroom', 'Video Manager']);
 const REVIEWER_VIEWS = new Set(['Content Review', 'AdminQuestions']);
@@ -863,7 +871,9 @@ function App() {
         {activeView === 'Learning Content' && canAccessView('Learning Content') && <LearningAdmin session={session} />}
         {activeView === 'Questions' && <QuestionBankView session={session} />}
         {activeView === 'Exam' && <ExamModeView session={session} onNavigate={setActiveView} />}
-        {activeView === 'Question of the Day' && <QuestionOfTheDayView session={session} />}
+        {activeView === 'Question of the Day' && <QuestionOfTheDayView session={session} deliveryId={dailyDeliveryId()} />}
+        {activeView === 'Daily Emails' && canAccessView('Daily Emails') && <DailyEmailAdmin />}
+        {activeView === 'Account' && <DailyEmailSettings session={session} />}
         {activeView === 'Flashcards' && <FlashcardsView session={session} />}
         {activeView === 'Planner' && <StudyPlannerView session={session} />}
         {activeView === 'Notebook' && <NotebookView session={session} />}
