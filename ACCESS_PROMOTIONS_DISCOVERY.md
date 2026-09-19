@@ -1,0 +1,92 @@
+# Access & Promotions — discovery and implementation plan
+
+Status: foundation implemented; full feature incomplete. User authorized a source push on 19 September 2026. No production database writes, migration deployment, backfill, payment, or email send performed. Pushing main can trigger the existing Vercel build; no new runtime UI or payment endpoint is included.
+
+## Existing architecture
+
+| Area | Repository evidence |
+| --- | --- |
+| Accounts | `auth.users` -> `public.profiles.id`; `roles` and `user_roles`; instructor metadata in `instructor_profiles` |
+| Subscriptions | `subscriptions`: user_id, plan_name, status, provider/reference, current_period_end; not consistently linked to payment_plans by UUID |
+| Products | `payment_plans` UUIDs with name, price_usd, duration_days, active flag. Frontend has symbolic keys free/thirty_day/ninety_day/master_180/faculty_365. Stripe maps symbolic keys to configured price IDs; Paystack uses separate fixed server price maps and a fixed USD-to-GHS rate |
+| Current plans | Explorer, 30-Day Pass, 90-Day Success, 180-Day Master, 365-Day Faculty; internal entitlement keys free/basic/pro/master/faculty |
+| Frontend access | `useSubscription` reads latest active subscription then checks expiry; `SubscriptionGate` and components consume its plan/entitlements/canAccess outputs |
+| Server access | `current_subscription_plan_key` / `current_subscription_level`; `current_question_access_level` (question-service); `has_daily_question_access`; daily-email eligibility independently checks subscriptions; lifelong learning calls subscription-level functions; Study Coach uses database quota enforcement |
+| Payment records | `invoices`, `billing_transactions`, billing settings/payment methods, institution accounts/license seats. Stripe webhook updates subscriptions and records invoices |
+| Existing promotions | `promo_codes`, `promo_redemptions`, `validate_promo_code`, and PaymentsView promo forms already exist. Must evolve these rather than recreate incompatible tables |
+| Roles | Granular permissions via permissions/role_permissions/user_permission_overrides, `has_permission` and effective-permission RPCs. Admin, super_admin and finance currently have broad billing/promo access |
+| Audit | Both `audit_logs` and `admin_audit_logs` exist; use server-authored append-only events for this feature, with actor derived from auth.uid() |
+| Notifications | `notifications` table and NotificationsBell support in-app delivery. No general-purpose email queue was found; daily-question delivery ledger/worker is purpose-specific, not a reusable arbitrary email queue |
+| Scheduler | Five-minute daily-email pg_cron/pg_net recipe, Vault-authenticated worker, master switch. Production sending was explicitly enabled in the preceding task; do not change it or enqueue sends during implementation |
+| RLS | Owner-scoped subscriptions/invoices/notifications, entitlement-gated content policies; existing promo redemption policy permits finance/admin/super_admin writes and deletes. New feature requires narrower server mutations and preservation of used history |
+| Admin users | UserManagement supports invite/create and role management; suitable for a student Grant Access entry point |
+| Billing UI | PaymentsView includes subscription selection, invoices, promos, transactions and manual activation; SubscriptionGate also starts Stripe checkout |
+| Reusable UI | Existing sidebar and guarded view routing, primary/ghost/icon buttons, admin cards, responsive lists, dialogs, status feedback, Lucide icons, redesigned admin CSS |
+
+## Risks to address, not hide
+
+1. Current promo validation accepts caller-provided amount and user ID, updates applied_count during validation, and checks a cached used_count without transactional reservation locking.
+2. Paystack inserts an applied redemption before initialization/payment success and counts applied rows against per-user limits. No completion/verification webhook exists in this repository.
+3. Paystack enforces a minimum 100 pesewas charge even when a discount reduces the amount to zero.
+4. Stripe uses recurring subscription checkout and currently receives no promotion. Discount duration must be defined before changing billing behavior.
+5. Plans/prices/currencies have multiple representations. Fixed-discount denomination and rounding must be explicit; browser exchange-rate displays cannot authorize a payment amount.
+6. Existing promo foreign-key cascade/deletion permissions conflict with immutable used history. Any migration must preserve existing rows and detect normalized-code collisions before a unique normalized index is introduced.
+7. Latest-paid selection and highest-question-tier selection are not identical today. Preserve paid precedence without silently replacing the existing paid plan-selection policy.
+8. A shared effective-access resolver must avoid recursion through entitlement functions and must not expose internal grant notes. Permission checks must not fall back to permissive client claims on RPC errors.
+
+## Proposed implementation sequence
+
+1. Establish compatibility fixtures for existing plans, promo rows, subscriptions, RLS and provider flows. Inventory every subscription-reading SQL function before migration authoring.
+2. Add access_grants, immutable feature audit and idempotency/batch records. Extend existing promos/redemptions with validated benefit fields, grant links and checkout reservation states. Detect incompatible legacy rows; no silent deletion or fabricated redemption/payment backfill.
+3. Add an internal timestamp-based resolver: valid paid subscription first, otherwise valid non-revoked grant, otherwise existing free baseline. Route current entitlement functions and frontend hook through safe adapters. Never mutate paid subscriptions on grant expiration/revocation.
+4. Implement permission-checked transactional grant/extend/revoke/bulk RPCs. Admin cap: 30 days with cumulative-extension guardrails; sensitive promo management and bulk actions reserved for super-admin permissions. Derive actors server-side. Extensions create linked grants; overlapping free promo grants are rejected rather than silently stacked.
+5. Upgrade promo validation to server-priced preview and atomic redemption/reservation. Lock promo and user scope; require idempotency keys; limits include live reservations but only settled successful payments become completed redemptions. Zero-total checkout creates auditable access, never a fake external payment.
+6. Integrate authenticated Stripe/Paystack checkout and verified completion, retry, cancellation and reservation expiry behavior. Do not release a reservation while a provider payment could still settle without reconciliation.
+7. Add Overview/Free Access/Promo Codes/History UI; student profile grant entry; bulk preview and explicit confirmation; safe student access summary; integrate existing checkout promo entry.
+8. Use in-app notifications initially. Any email expansion must reuse the SMTP module with existing sending controls, preferences and deduplication; do not pretend the current question ledger is a generic queue. Access expiry remains timestamp-safe without cron.
+9. Run all existing tests plus the requested grant/promo/payment/security/bulk suite. Use separate PostgreSQL connections for real concurrency tests, not PGlite serial execution. Rehearse migrations and test responsive views at 1440/1024/768/390. Report local versus hosted evidence separately.
+
+## Billing direction
+
+User selected Hubtel. Work proceeds on the basis of adding Hubtel while preserving existing Stripe/Paystack flows, as described in chat. No live Hubtel credentials or verified merchant checkout contract are available to this implementation. No network payment adapter or checkout button has been added. Do not treat pure pricing tests as Hubtel integration evidence. Server-owned GHS product prices and verified payment settlement are still required.
+
+The following questions apply only if existing providers are subsequently included in the new discount flow; those providers remain unchanged:
+
+- Recurring Stripe discounts: first paid invoice only, or every renewal? Recommended default is first invoice only, retaining existing renewal pricing.
+- Fixed discount currency: allow USD for Stripe and GHS for Paystack, rejecting currency mismatch (recommended), or define a centrally maintained exchange-rate conversion policy?
+
+New-user rule proposed: no successful paid invoice/transaction or verified paid subscription history and no prior completed promo redemption; not account age. Failed/expired checkout reservations do not establish a completed redemption.
+
+## Local foundation (19 September 2026)
+
+- Migration `20260919200000_access_grant_foundation.sql`: access_grants, access_grant_events, granular permissions, authenticated grant/extend/revoke RPCs, own-account summary and effective-access projection. Not deployed.
+- Recipient row locking serializes grant creation and extensions. Actor/request-key uniqueness plus canonical request comparison handles identical retries and rejects changed payloads. Timestamp comparisons use epoch values for timezone-independent idempotency.
+- Extensions create new linked grants; overlap is rejected. Revocation is retained and audited, never deletes. Revoking a parent does not revoke separately granted extension rows; each grant is explicitly managed.
+- Ordinary admins have a conservative cumulative lifetime 30-day recipient cap, including revoked grants; super admins are exempt from duration limits, not permissions. This intentionally prevents repeated grants/revokes from resetting authority. A configurable cap and bulk-specific permissions remain outstanding.
+- Students cannot read raw grant/audit rows or write either table. Own summaries exclude notes, actors and request payloads. Staff reads require both admin role and view permission. Mutations require the corresponding granular permission. Public/anonymous RPC execution is revoked.
+- The effective-access projection gives valid paid subscriptions precedence, then a non-revoked, currently valid grant, then free. Expiry is timestamp-based and scheduled grants do not activate early. Existing live entitlement functions and frontend have NOT yet been routed to this projection: do not deploy this as a complete access system.
+- Pure pricing policy supports percentage basis points, fixed minor-unit discounts and free days; rejects client-supplied prices/identity, mismatched currencies, invalid windows, limits and overlapping free grants. It is NOT a redemption authorizer; atomic reservation/settlement is unimplemented.
+- Notifications, admin/student UI, bulk workflow, promo schema compatibility migration, reservation coordinator, Hubtel verification and existing entitlement adapters remain outstanding.
+
+## Validation evidence
+
+- `npm run test:access-promotions`: 25 passing Node test entries, including the database suite parent (24 leaf tests); no failures. Uses isolated PGlite fixtures, not hosted RLS evidence.
+- `npm run test:access-concurrency`: 5 passing Node test entries, including the suite parent (4 leaf tests). Uses independent PostgreSQL 17 sessions in a disposable network-isolated Docker container with only synthetic records. Covers duplicate grant retries, overlap rejection, the cumulative admin duration cap under concurrent requests, and atomic rollback on audit failure. Container removed after the test. Does NOT cover promo reservations, provider callbacks, or bulk jobs, which are not implemented.
+- Pricing module strict Deno JavaScript typecheck and lint: passed.
+- Existing daily-email/diagnostic/permissions Node tests: 31 passed.
+- Existing security contract checks: 18/18; explanation checks: 11/11; lifelong utility check passed.
+- Production build passed, with the existing large bundle warning (about 1.21 MB uncompressed).
+- Existing UI regressions: 4 files, 19 tests passed (question manager, super admin, lifelong, daily email). No new UI or responsive claims at this stage.
+- Hosted/provider tests, promo/bulk concurrency tests, migration rehearsal against the complete schema and the remainder of the requested acceptance suite are outstanding.
+
+## Remaining work before enablement
+
+1. Integrate the resolver into all existing database and frontend entitlement consumers, preserving paid-plan behavior and failing closed on RPC errors.
+2. Implement the admin/student UI, notifications, paginated reporting, profile shortcut and confirmed bulk workflow.
+3. Extend legacy promo schema safely and implement transactional redemption, reservations, settlement, reconciliation and zero-payment access grants.
+4. Confirm Hubtel merchant checkout/verification contract, server-side configuration and approved GHS prices; implement and test the provider adapter without trusting browser/callback assertions alone.
+5. Complete full-schema migration rehearsal, RLS acceptance coverage, promo/bulk concurrency, responsive review and hosted/provider tests.
+
+Items 1–3 are unfinished implementation, not merchant-account blockers. A source push does not make this feature complete or ready to enable. Do not deploy the foundation migration as though it delivers the full feature.
+
+PRODUCTION READINESS: NOT READY. This is an undeployed, unconnected foundation, not the completed Access & Promotions feature.
