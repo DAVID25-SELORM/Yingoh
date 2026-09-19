@@ -48,7 +48,20 @@ Status: foundation plus gated entitlement integration implemented; full feature 
 
 ## Billing direction
 
-User selected Hubtel. Work proceeds on the basis of adding Hubtel while preserving existing Stripe/Paystack flows, as described in chat. No live Hubtel credentials or verified merchant checkout contract are available to this implementation. No network payment adapter or checkout button has been added. Do not treat pure pricing tests as Hubtel integration evidence. Server-owned GHS product prices and verified payment settlement are still required.
+User selected Hubtel and explicitly instructed reuse of existing subscription amounts. Work proceeds on the basis of adding Hubtel while preserving existing Stripe/Paystack flows. No live Hubtel credentials or verified merchant checkout contract are available to this implementation. No network payment adapter or checkout button has been added. Do not treat pure pricing tests as Hubtel integration evidence. Pricing is now specified and tested; verified payment settlement is still required.
+
+### Approved existing pricing
+
+The new server-only `subscription-prices.js` catalog matches the existing Paystack USD amounts and its configured 11.34 GHS/USD conversion. This is the application's existing fixed conversion, not a current market-rate claim. Integer arithmetic produces the same undiscounted pesewa totals. Versioned immutable quotes reject unknown plans and browser-provided monetary amounts are not accepted as catalog input. Tests detect drift against the existing Paystack source. The catalog is not yet wired to a live Hubtel endpoint.
+
+| Plan | Existing USD | GHS checkout amount |
+| --- | ---: | ---: |
+| 30-Day Pass | 19 | 215.46 |
+| 90-Day Success Plan | 49 | 555.66 |
+| 180-Day Master Plan | 79 | 895.86 |
+| 365-Day Faculty Pass | 129 | 1,462.86 |
+
+No additional price confirmation is needed. Hubtel merchant configuration and verified settlement implementation remain outstanding. Existing providers and browser exchange displays are unchanged. New promotion calculations must use the server-owned amount and explicit discount currency; currency conversion of fixed discounts must never be inferred.
 
 The following questions apply only if existing providers are subsequently included in the new discount flow; those providers remain unchanged:
 
@@ -70,10 +83,10 @@ New-user rule proposed: no successful paid invoice/transaction or verified paid 
 
 ## Validation evidence
 
-- `npm run test:access-promotions`: 26 passing Node test entries, including the database suite parent (25 leaf tests); no failures. Uses isolated PGlite fixtures, not hosted RLS evidence.
+- `npm run test:access-promotions`: 29 passing Node test entries, including the database suite parent (28 leaf tests); no failures. Uses isolated PGlite fixtures, not hosted RLS evidence. Includes three catalog/conversion/zero-payment pricing tests.
 - `npm run test:access-ui`: 5 hook tests passed, covering complimentary labels, paid fallback, fail-closed permissions, disabled rollout and expired grants/logout.
 - `npm run test:access-concurrency`: 5 passing Node test entries, including the suite parent (4 leaf tests). Uses independent PostgreSQL 17 sessions in a disposable network-isolated Docker container with only synthetic records. Covers duplicate grant retries, overlap rejection, the cumulative admin duration cap under concurrent requests, and atomic rollback on audit failure. Container removed after the test. Does NOT cover promo reservations, provider callbacks, or bulk jobs, which are not implemented.
-- Pricing module strict Deno JavaScript typecheck and lint: passed.
+- Both server pricing modules' strict Deno JavaScript typecheck and lint: passed.
 - Existing daily-email/diagnostic/permissions Node tests: 31 passed.
 - Existing security contract checks: 18/18; explanation checks: 11/11; lifelong utility check passed.
 - Production build passed, with the existing large bundle warning (about 1.21 MB uncompressed).
@@ -85,7 +98,7 @@ New-user rule proposed: no successful paid invoice/transaction or verified paid 
 1. Rehearse the entitlement adapter migration and enable the gated frontend only after the remaining feature is validated. Explicitly review the daily-email cohort separately; this update does not expand live sending.
 2. Implement the admin/student UI, notifications, paginated reporting, profile shortcut and confirmed bulk workflow.
 3. Extend legacy promo schema safely and implement transactional redemption, reservations, settlement, reconciliation and zero-payment access grants.
-4. Confirm Hubtel merchant checkout/verification contract, server-side configuration and approved GHS prices; implement and test the provider adapter without trusting browser/callback assertions alone.
+4. Confirm Hubtel merchant checkout/verification contract and server-side configuration; implement and test the provider adapter using the approved existing prices, without trusting browser/callback assertions alone.
 5. Complete full-schema migration rehearsal, RLS acceptance coverage, promo/bulk concurrency, responsive review and hosted/provider tests.
 
 Items 1–3 are unfinished implementation, not merchant-account blockers. A source push does not make this feature complete or ready to enable. Do not deploy the foundation migration as though it delivers the full feature.
