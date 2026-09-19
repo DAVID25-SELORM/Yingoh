@@ -9,6 +9,7 @@
     "preview": "vite preview --host 0.0.0.0",
     "test:access-promotions": "node --test scripts/access-grants.test.mjs scripts/promotion-pricing.test.mjs",
     "test:access-concurrency": "node --test scripts/access-grants-concurrency.test.mjs",
+    "test:access-ui": "vitest run scripts/access-subscription-ui.test.jsx",
     "check:access-promotions": "deno check --check-js supabase/functions/_shared/promotion-pricing.js",
     "lint:access-promotions": "deno lint supabase/functions/_shared/promotion-pricing.js",
     "package:questions": "node scripts/build-question-bank-package.mjs",

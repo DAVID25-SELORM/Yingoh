@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../services/supabase';
 import { entitlementsFor, PLAN_LEVELS, questionLimitFor } from '../data/subscriptionPlans';
-import { getEffectivePermissions } from '../data/rbac';
 
 const ADMIN_ROLES = new Set(['admin', 'super_admin']);
 
@@ -24,41 +23,60 @@ export function useSubscription(session) {
   const [roles, setRoles] = useState([]);
   const [permissions, setPermissions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [access, setAccess] = useState(null);
+  const [revision, setRevision] = useState(0);
 
   useEffect(() => {
     setLoading(true);
     setSub(null);
     setRoles([]);
     setPermissions([]);
+    setAccess(null);
     if (!session?.user?.id) { setLoading(false); return; }
     if (!supabase) { setLoading(false); return; }
 
+    let cancelled = false;
+    let expiryTimer;
+    const refresh = () => setRevision(value => value + 1);
+    window.addEventListener('focus', refresh);
     Promise.all([
       supabase
         .from('subscriptions')
         .select('*')
         .eq('user_id', session.user.id)
         .eq('status', 'active')
+        .or(`current_period_end.is.null,current_period_end.gt.${new Date().toISOString()}`)
         .order('created_at', { ascending: false })
         .limit(1)
         .maybeSingle(),
       supabase.from('user_roles').select('roles(name)').eq('user_id', session.user.id),
       supabase.rpc('my_effective_permissions'),
-    ]).then(([{ data }, { data: roleRows }, { data: permissionRows }]) => {
+      import.meta.env.VITE_ACCESS_PROMOTIONS_ENABLED === 'true'
+        ? supabase.rpc('my_effective_access') : Promise.resolve({ data: null }),
+    ]).then(([{ data }, { data: roleRows }, { data: permissionRows, error: permissionError }, accessResult]) => {
+        if (cancelled) return;
         const periodEnd = data?.current_period_end ? new Date(data.current_period_end) : null;
         const userRoles = (roleRows ?? []).map((row) => row.roles?.name).filter(Boolean);
         setSub(!periodEnd || periodEnd > new Date() ? data : null);
         setRoles(userRoles);
-        setPermissions(permissionRows?.length
-          ? permissionRows.map((row) => row.permission_id).filter(Boolean)
-          : getEffectivePermissions(userRoles));
+        setPermissions(!permissionError && Array.isArray(permissionRows)
+          ? permissionRows.map((row) => row.permission_id).filter(Boolean) : []);
+        const effective = !accessResult.error && accessResult.data?.has_access === true ? accessResult.data : null;
+        const effectiveEnd = effective?.expires_at ? Date.parse(effective.expires_at) : null;
+        const validEffective = effective && (effectiveEnd === null || effectiveEnd > Date.now()) ? effective : null;
+        setAccess(validEffective);
+        const expiresAt = validEffective?.expires_at ?? data?.current_period_end;
+        if (expiresAt && Number.isFinite(Date.parse(expiresAt)) && Date.parse(expiresAt) > Date.now()) {
+          expiryTimer = setTimeout(refresh, Math.min(2147483647, Date.parse(expiresAt) - Date.now() + 50));
+        }
         setLoading(false);
       }).catch(() => {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       });
-  }, [session?.user?.id]);
+    return () => { cancelled = true; clearTimeout(expiryTimer); window.removeEventListener('focus', refresh); };
+  }, [session?.user?.id, revision]);
 
-  const rawPlanName = sub?.plan_name ?? 'Free';
+  const rawPlanName = access?.plan_key ?? sub?.plan_name ?? 'Free';
   const planName = normalizePlanName(rawPlanName);
   const hasAdminAccess = roles.some((role) => ADMIN_ROLES.has(role));
   const configuredLimit = null;
@@ -70,22 +88,23 @@ export function useSubscription(session) {
   const entitlements = entitlementsFor(planName, hasAdminAccess);
   return {
     plan: planName,
-    planLabel: sub?.plan_name ?? 'Free',
-    status: sub?.status ?? (session ? 'free' : 'none'),
-    isActive: Boolean(sub?.status === 'active'),
+    planLabel: access && access.source !== 'paid_subscription' ? `Complimentary ${planName} access` : sub?.plan_name ?? 'Free',
+    accessSource: access?.source ?? (sub ? 'paid_subscription' : 'free'),
+    status: access ? 'active' : sub?.status ?? (session ? 'free' : 'none'),
+    isActive: Boolean(access || sub?.status === 'active'),
     isBasic: planMeets(planName, 'basic'),
     isPro: planMeets(planName, 'pro'),
     isPremium: planMeets(planName, 'master'),
     isMaster: planMeets(planName, 'master'),
     isFaculty: planMeets(planName, 'faculty'),
-    isFree: !sub || planName === 'free',
+    isFree: planName === 'free',
     features: entitlements,
     entitlements,
     roles,
     permissions,
     hasAdminAccess,
     questionLimit,
-    periodEnd: sub?.current_period_end ?? null,
+    periodEnd: access?.expires_at ?? sub?.current_period_end ?? null,
     loading,
     canAccess: (requiredPlan) => planMeets(planName, requiredPlan),
     can: (permission) => permissions.includes(permission),

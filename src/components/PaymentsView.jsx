@@ -95,6 +95,7 @@ function planKey(name) {
 export default function PaymentsView({ session, canManage = false }) {
   const subscription = useSubscription(session);
   const { plan: currentPlan, planLabel: currentPlanLabel, loading: subLoading } = subscription;
+  const complimentary = subscription.isActive && subscription.accessSource !== 'paid_subscription' && subscription.accessSource !== 'free';
   const [checkingOut, setCheckingOut] = useState('');
   const [tab, setTab] = useState('my-subscription');
   const [customerNotice, setCustomerNotice] = useState(null);
@@ -585,12 +586,12 @@ export default function PaymentsView({ session, canManage = false }) {
           <div className="billing-current-card">
             <div className="billing-card-kicker">Current Plan</div>
             <h3>{currentPlanLabel || 'Explorer Pass'}</h3>
-            <p>{subscription.isActive ? 'Active subscription' : session ? 'Free access active' : 'Sign in to activate your plan'}</p>
+            <p>{complimentary ? 'Complimentary access — no paid subscription or invoice' : subscription.isActive ? 'Active subscription' : session ? 'Free access active' : 'Sign in to activate your plan'}</p>
             <div className="billing-current-metrics">
               <div><span>Expires</span><strong>{subscription.periodEnd ? new Date(subscription.periodEnd).toLocaleDateString() : 'No expiry'}</strong></div>
               <div><span>Questions Remaining</span><strong>{questionsRemaining.toLocaleString()}</strong></div>
               <div><span>Study Coach</span><strong>{coachLimitLabel}</strong></div>
-              <div><span>Renewal</span><strong>{subscription.isActive ? 'Auto renew ON' : 'Manual upgrade'}</strong></div>
+              <div><span>Renewal</span><strong>{complimentary ? 'No automatic renewal' : subscription.isActive ? 'Auto renew ON' : 'Manual upgrade'}</strong></div>
             </div>
             <button className="primary-btn" onClick={() => setTab('individual-plans')}><Sparkles size={15} /> Upgrade or renew</button>
           </div>

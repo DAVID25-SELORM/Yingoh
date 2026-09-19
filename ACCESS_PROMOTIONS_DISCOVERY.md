@@ -1,6 +1,6 @@
 # Access & Promotions — discovery and implementation plan
 
-Status: foundation implemented; full feature incomplete. User authorized a source push on 19 September 2026. No production database writes, migration deployment, backfill, payment, or email send performed. Pushing main can trigger the existing Vercel build; no new runtime UI or payment endpoint is included.
+Status: foundation plus gated entitlement integration implemented; full feature incomplete. User authorized source pushes on 19 September 2026. No production database writes, migration deployment, backfill, payment, or email send performed. Pushing main can trigger the existing Vercel build. No Hubtel endpoint is included; grant UI entitlement rollout remains off by default.
 
 ## Existing architecture
 
@@ -64,13 +64,14 @@ New-user rule proposed: no successful paid invoice/transaction or verified paid 
 - Extensions create new linked grants; overlap is rejected. Revocation is retained and audited, never deletes. Revoking a parent does not revoke separately granted extension rows; each grant is explicitly managed.
 - Ordinary admins have a conservative cumulative lifetime 30-day recipient cap, including revoked grants; super admins are exempt from duration limits, not permissions. This intentionally prevents repeated grants/revokes from resetting authority. A configurable cap and bulk-specific permissions remain outstanding.
 - Students cannot read raw grant/audit rows or write either table. Own summaries exclude notes, actors and request payloads. Staff reads require both admin role and view permission. Mutations require the corresponding granular permission. Public/anonymous RPC execution is revoked.
-- The effective-access projection gives valid paid subscriptions precedence, then a non-revoked, currently valid grant, then free. Expiry is timestamp-based and scheduled grants do not activate early. Existing live entitlement functions and frontend have NOT yet been routed to this projection: do not deploy this as a complete access system.
+- The effective-access projection gives valid paid subscriptions precedence, then a non-revoked, currently valid grant, then free. Expiry is timestamp-based and scheduled grants do not activate early. The follow-up adapter migration and gated frontend now route interactive access through this projection; neither migration nor the rollout flag has been enabled in production. Do not deploy this as a complete access system.
 - Pure pricing policy supports percentage basis points, fixed minor-unit discounts and free days; rejects client-supplied prices/identity, mismatched currencies, invalid windows, limits and overlapping free grants. It is NOT a redemption authorizer; atomic reservation/settlement is unimplemented.
-- Notifications, admin/student UI, bulk workflow, promo schema compatibility migration, reservation coordinator, Hubtel verification and existing entitlement adapters remain outstanding.
+- Notifications, admin UI, full student redemption UI, bulk workflow, promo schema compatibility migration, reservation coordinator and Hubtel verification remain outstanding.
 
 ## Validation evidence
 
-- `npm run test:access-promotions`: 25 passing Node test entries, including the database suite parent (24 leaf tests); no failures. Uses isolated PGlite fixtures, not hosted RLS evidence.
+- `npm run test:access-promotions`: 26 passing Node test entries, including the database suite parent (25 leaf tests); no failures. Uses isolated PGlite fixtures, not hosted RLS evidence.
+- `npm run test:access-ui`: 5 hook tests passed, covering complimentary labels, paid fallback, fail-closed permissions, disabled rollout and expired grants/logout.
 - `npm run test:access-concurrency`: 5 passing Node test entries, including the suite parent (4 leaf tests). Uses independent PostgreSQL 17 sessions in a disposable network-isolated Docker container with only synthetic records. Covers duplicate grant retries, overlap rejection, the cumulative admin duration cap under concurrent requests, and atomic rollback on audit failure. Container removed after the test. Does NOT cover promo reservations, provider callbacks, or bulk jobs, which are not implemented.
 - Pricing module strict Deno JavaScript typecheck and lint: passed.
 - Existing daily-email/diagnostic/permissions Node tests: 31 passed.
@@ -81,7 +82,7 @@ New-user rule proposed: no successful paid invoice/transaction or verified paid 
 
 ## Remaining work before enablement
 
-1. Integrate the resolver into all existing database and frontend entitlement consumers, preserving paid-plan behavior and failing closed on RPC errors.
+1. Rehearse the entitlement adapter migration and enable the gated frontend only after the remaining feature is validated. Explicitly review the daily-email cohort separately; this update does not expand live sending.
 2. Implement the admin/student UI, notifications, paginated reporting, profile shortcut and confirmed bulk workflow.
 3. Extend legacy promo schema safely and implement transactional redemption, reservations, settlement, reconciliation and zero-payment access grants.
 4. Confirm Hubtel merchant checkout/verification contract, server-side configuration and approved GHS prices; implement and test the provider adapter without trusting browser/callback assertions alone.
@@ -89,4 +90,13 @@ New-user rule proposed: no successful paid invoice/transaction or verified paid 
 
 Items 1–3 are unfinished implementation, not merchant-account blockers. A source push does not make this feature complete or ready to enable. Do not deploy the foundation migration as though it delivers the full feature.
 
-PRODUCTION READINESS: NOT READY. This is an undeployed, unconnected foundation, not the completed Access & Promotions feature.
+## Entitlement integration follow-up
+
+- Added `20260919210000_access_entitlement_adapters.sql`. The existing subscription-plan entry point now resolves grants, so dependent planner, learning, video, flashcard and quota consumers use the same access decision after migration. Question access preserves its existing highest-paid-tier behavior and only falls back to grants. The on-site daily question check accepts grants without changing paid eligibility.
+- Live daily-email eligibility is intentionally unchanged: no expansion of the production sending cohort during this work.
+- `useSubscription` can consume the own-account effective-access RPC when `VITE_ACCESS_PROMOTIONS_ENABLED=true`. The flag defaults off. This is a rollout switch, not an authorization boundary; the database remains authoritative.
+- Frontend fixes: filter expired subscriptions before selecting the latest record, reject stale account fetch completions, refresh on focus/expiry, and respect empty or failed permission responses instead of restoring static role permissions. Valid paid records remain a fallback if the new grant RPC is unavailable; grants never use that fallback.
+- Student billing distinguishes complimentary access from a paid subscription/invoice and displays no automatic renewal for grants.
+- Added five hook tests and a paid-basic-vs-master-grant database regression. Full admin UI, bulk, promotions lifecycle and Hubtel adapter still remain; this update must not be described as completing those features.
+
+PRODUCTION READINESS: NOT READY. This is an undeployed foundation and gated entitlement integration, not the completed Access & Promotions feature.

@@ -39,6 +39,7 @@ test('access grant migration: authorization, RLS, audit, caps and retry invarian
    insert into subscriptions(id,user_id,plan_name,status,current_period_end) values(gen_random_uuid(),'${student}','365-Day Faculty Pass','active',now()+interval '365 days');
   `);
   await db.exec(await readFile(new URL('../supabase/migrations/20260919200000_access_grant_foundation.sql',import.meta.url),'utf8'));
+  await db.exec(await readFile(new URL('../supabase/migrations/20260919210000_access_entitlement_adapters.sql',import.meta.url),'utf8'));
   const paid=(await db.query('select * from subscriptions')).rows;
   const login=async id=>{ await db.exec('reset role'); await db.query("select set_config('test.uid',$1,false)",[id]); await db.exec('set role authenticated'); };
   const dates=(await db.query("select now()::text as start,(now()+interval '30 days')::text as finish")).rows[0];
@@ -97,6 +98,8 @@ test('access grant migration: authorization, RLS, audit, caps and retry invarian
   await t.test('paid subscriptions remain unchanged; anonymous RPC is forbidden',async()=>{
    await login(student);
    assert.equal((await db.query("select my_effective_access()->>'source' as source")).rows[0].source,'paid_subscription');
+   assert.equal((await db.query('select current_subscription_plan_key() as plan')).rows[0].plan,'faculty');
+   assert.equal((await db.query('select current_question_access_level() as level')).rows[0].level,3);
    await db.exec('reset role'); assert.deepEqual((await db.query('select * from subscriptions')).rows,paid);
    await db.exec('set role anon'); await assert.rejects(create(args),/permission denied/);
   });
@@ -106,6 +109,8 @@ test('access grant migration: authorization, RLS, audit, caps and retry invarian
    await db.exec('delete from subscriptions');
    await login(student);
    assert.equal((await db.query("select my_effective_access()->>'has_access' as allowed")).rows[0].allowed,'false');
+   assert.equal((await db.query('select current_subscription_plan_key() as plan')).rows[0].plan,'free');
+   assert.equal((await db.query('select has_daily_question_access() as allowed')).rows[0].allowed,false);
    await db.exec('reset role');
    await db.exec("update access_grants set starts_at=now()-interval '2 days',expires_at=now()-interval '1 day' where revoked_at is null");
    await login(student);
@@ -114,6 +119,17 @@ test('access grant migration: authorization, RLS, audit, caps and retry invarian
    await db.exec("update access_grants set starts_at=now()-interval '1 day',expires_at=now()+interval '1 day',status='scheduled' where revoked_at is null");
    await login(student);
    assert.equal((await db.query("select my_effective_access()->>'source' as source")).rows[0].source,'manual_extension');
+   assert.equal((await db.query('select current_subscription_plan_key() as plan')).rows[0].plan,'master');
+   assert.equal((await db.query('select current_question_access_level() as level')).rows[0].level,3);
+   assert.equal((await db.query('select has_daily_question_access() as allowed')).rows[0].allowed,true);
+  });
+  await t.test('paid basic tier wins over master grant and expired newer payments',async()=>{
+   await db.exec('reset role');
+   await db.exec(`insert into subscriptions values(gen_random_uuid(),'${student}','30-Day Pass','active',now()+interval '1 day',now()-interval '1 day'),
+    (gen_random_uuid(),'${student}','365-Day Faculty Pass','active',now()-interval '1 day',now());`);
+   await login(student);
+   assert.equal((await db.query('select current_subscription_plan_key() as plan')).rows[0].plan,'basic');
+   assert.equal((await db.query('select current_question_access_level() as level')).rows[0].level,2);
   });
  } finally { await db.close(); }
 });
