@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { HubtelProvider,readHubtelConfiguration } from '../_shared/hubtel-provider.ts';
+import { HubtelProvider,errorCode,readHubtelConfiguration,settlementState } from '../_shared/hubtel-provider.ts';
 // Public wake-up endpoint, not a payment authorizer. The callback cannot supply
 // financial truth; a server-to-server authenticated status query is mandatory.
 Deno.serve(async request=>{
@@ -13,8 +13,9 @@ Deno.serve(async request=>{
   if(error)return new Response(null,{status:503});
   if(!data)return new Response(null,{status:202});
   const result=await provider.handleCallback(data);
-  const {error:settleError}=await db.rpc('settle_access_payment',{p_order:order,p_reference:result.reference,p_state:result.state,
+  const {data:created}=await db.from('access_payment_orders').select('created_at').eq('id',order).maybeSingle();
+  const {error:settleError}=await db.rpc('settle_access_payment',{p_order:order,p_reference:result.reference,p_state:settlementState(result.state,created?.created_at),
    p_amount_minor:result.amountMinor,p_currency:result.currency});
   return new Response(null,{status:settleError?503:200});
- }catch{return new Response(null,{status:503});}
+ }catch(e){console.error(JSON.stringify({event:'hubtel_callback_unresolved',order,code:errorCode(e)}));return new Response(null,{status:503});}
 });

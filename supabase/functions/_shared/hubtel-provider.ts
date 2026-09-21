@@ -29,6 +29,15 @@ export function normalizeStatus(status: unknown): PaymentState {
     default: return 'processing';
   }
 }
+// A mobile-money prompt that the provider still reports as unpaid a full day later is abandoned.
+// Only a matched, independently verified provider answer plus this age releases the order; age alone never does.
+export const STALE_PROCESSING_MS = 24 * 60 * 60 * 1000;
+export function settlementState(state: PaymentState, createdAt: string | null | undefined, now = Date.now()): PaymentState {
+  if (state !== 'processing') return state;
+  const created = createdAt ? Date.parse(createdAt) : NaN;
+  return Number.isFinite(created) && now - created > STALE_PROCESSING_MS ? 'expired' : state;
+}
+export const errorCode = (error: unknown) => error instanceof ProviderError ? error.code : 'unknown';
 export function readHubtelConfiguration(get: (key: string) => string | undefined) {
   const keys = ['HUBTEL_CLIENT_ID','HUBTEL_CLIENT_SECRET','HUBTEL_MERCHANT_ID','HUBTEL_API_BASE_URL','HUBTEL_CALLBACK_URL'];
   const values = keys.map(key => get(key)?.trim());

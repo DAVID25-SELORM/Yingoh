@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {HubtelProvider,normalizeStatus,readHubtelConfiguration} from '../supabase/functions/_shared/hubtel-provider.ts';
+import {HubtelProvider,STALE_PROCESSING_MS,errorCode,normalizeStatus,readHubtelConfiguration,settlementState} from '../supabase/functions/_shared/hubtel-provider.ts';
 const environment:Record<string,string>={
  HUBTEL_CLIENT_ID:'synthetic-id',HUBTEL_CLIENT_SECRET:'synthetic-secret',HUBTEL_MERCHANT_ID:'synthetic-merchant',
  HUBTEL_API_BASE_URL:'https://checkout.hubtel.com',HUBTEL_CALLBACK_URL:'https://example.test/functions/v1/hubtel-callback',
@@ -54,4 +54,15 @@ Deno.test('Hubtel response errors remain sanitized',async()=>{
  await assert.rejects(new HubtelProvider(config(),fetcher).verifyPayment(input),e=>{
   assert.equal((e as Error).message,'provider_request_unconfirmed');return true;
  });
+});
+Deno.test('unpaid orders are released only after a verified provider answer plus a full day; never earlier or for terminal states',()=>{
+ const now=Date.parse('2026-09-22T12:00:00Z');
+ const ago=(ms:number)=>new Date(now-ms).toISOString();
+ assert.equal(settlementState('processing',ago(STALE_PROCESSING_MS+1000),now),'expired');
+ assert.equal(settlementState('processing',ago(STALE_PROCESSING_MS-1000),now),'processing');
+ assert.equal(settlementState('processing',null,now),'processing');
+ assert.equal(settlementState('processing','not-a-date',now),'processing');
+ assert.equal(settlementState('successful',ago(STALE_PROCESSING_MS*5),now),'successful');
+ assert.equal(settlementState('failed',ago(STALE_PROCESSING_MS*5),now),'failed');
+ assert.equal(errorCode(new Error('secret-detail')),'unknown');
 });

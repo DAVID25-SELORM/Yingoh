@@ -1,5 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
-import { HubtelProvider,readHubtelConfiguration } from '../_shared/hubtel-provider.ts';
+import { HubtelProvider,errorCode,readHubtelConfiguration,settlementState } from '../_shared/hubtel-provider.ts';
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 Deno.serve(async request=>{
@@ -56,10 +56,10 @@ Deno.serve(async request=>{
   if(verification){
    try{
     const result=await provider.verifyPayment(verification);
-    const {error}=await service.rpc('settle_access_payment',{p_order:orderId,p_reference:result.reference,p_state:result.state,
+    const {error}=await service.rpc('settle_access_payment',{p_order:orderId,p_reference:result.reference,p_state:settlementState(result.state,orders.find((o:{id:string})=>o.id===orderId)?.created_at),
      p_amount_minor:result.amountMinor,p_currency:result.currency});
     if(error)return reply({orderId,state:'processing',message:'Payment is awaiting reconciliation.'},202);
-   }catch{return reply({orderId,state:'processing',message:'Payment is awaiting independent verification.'},202);}
+   }catch(e){console.error(JSON.stringify({event:'hubtel_verification_unresolved',order:orderId,code:errorCode(e)}));return reply({orderId,state:'processing',message:'Payment is awaiting independent verification.'},202);}
   }
   const {data:latest,error}=await user.rpc('my_access_payment_orders');
   if(error)return reply({orderId,state:'processing'},202);
