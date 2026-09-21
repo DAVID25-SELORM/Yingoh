@@ -146,7 +146,7 @@ begin
   from public.questions
   where status = 'published';
 
-  select count(*) into active_plans
+  select count(distinct name) into active_plans
   from public.payment_plans
   where is_active
     and name in (

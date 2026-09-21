@@ -28,7 +28,10 @@ set ngn_data = '{
   "correct_left":["l1","l2","l5"],
   "correct_right":["r1","r2","r4"]
 }'::jsonb
-where id = '2dbbedb5-1941-4487-820c-ed5c2f8b3502';
+where id = '2dbbedb5-1941-4487-820c-ed5c2f8b3502'
+ or (question_type='bow_tie' and topic='NGN Case Studies' and
+ prompt='A 68-year-old client is admitted to the ICU with a 3-day history of productive cough, fever of 39.2°C, and confusion. Oxygen saturation is 88% on room air. BP is 88/54 mmHg. The client''s family reports he lives alone and has type 2 diabetes and COPD. ABGs: pH 7.28, PaCO2 52, HCO3 22. WBC 22,000. Chest X-ray shows bilateral infiltrates.'
+ and (ngn_data is null or ngn_data='{}'::jsonb));
 
 update public.questions
 set ngn_data = '{
@@ -46,7 +49,10 @@ set ngn_data = '{
   ],
   "correct":{"r1":"c1","r2":"c1","r3":"c1","r4":"c2","r5":"c2"}
 }'::jsonb
-where id = '7d6ee6f1-ffec-4481-9c02-d89039cc932f';
+where id = '7d6ee6f1-ffec-4481-9c02-d89039cc932f'
+ or (question_type='matrix' and topic='NGN Case Studies' and
+ prompt='A nurse is caring for a 54-year-old client admitted for acute decompensated heart failure. Vitals: BP 156/98, HR 108, RR 26, SpO₂ 90%, temp 37.1°C. The client has 3+ pitting edema in bilateral lower extremities, JVD, and audible crackles bilaterally. Orders include: IV furosemide 40 mg, continuous cardiac monitoring, daily weights, sodium restriction 2g/day, and supplemental oxygen. For each nursing intervention, indicate whether it is Indicated, Contraindicated, or Not Applicable.'
+ and (ngn_data is null or ngn_data='{}'::jsonb));
 
 update public.questions
 set ngn_data = '{
@@ -60,7 +66,10 @@ set ngn_data = '{
     {"id":"h6","text":"2-cm area of oozing","correct":false}
   ]
 }'::jsonb
-where id = 'ffb58433-266d-4d1e-9a88-0cb059444b6d';
+where id = 'ffb58433-266d-4d1e-9a88-0cb059444b6d'
+ or (question_type='highlight' and topic='NGN Case Studies' and
+ prompt='A nurse reviews the following nursing note for a 72-year-old client admitted for a right hip replacement performed this morning. Highlight all findings that require immediate follow-up.'
+ and (ngn_data is null or ngn_data='{}'::jsonb));
 
 do $$
 declare

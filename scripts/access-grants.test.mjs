@@ -13,7 +13,7 @@ test('access grant migration: authorization, RLS, audit, caps and retry invarian
  const db=new PGlite();
  try {
   await db.exec(`
-   create role anon; create role authenticated;
+   create role anon; create role authenticated; create role service_role;
    create schema auth;
    create function auth.uid() returns uuid language sql stable as $$
     select nullif(current_setting('test.uid',true),'')::uuid $$;
@@ -130,6 +130,125 @@ test('access grant migration: authorization, RLS, audit, caps and retry invarian
    await login(student);
    assert.equal((await db.query('select current_subscription_plan_key() as plan')).rows[0].plan,'basic');
    assert.equal((await db.query('select current_question_access_level() as level')).rows[0].level,2);
+  });
+  await t.test('server rollout controls default off and cannot be changed by clients',async()=>{
+   await db.exec('reset role');
+   await db.exec(await readFile(new URL('../supabase/migrations/20260919220000_access_server_controls.sql',import.meta.url),'utf8'));
+   await login(admin);
+   assert.deepEqual((await db.query('select * from access_system_controls')).rows,[{
+    id:true,complimentary_access_enabled:false,promo_codes_enabled:false,hubtel_payments_enabled:false,
+   }]);
+   await assert.rejects(db.query('update access_system_controls set complimentary_access_enabled=true'),/permission denied/);
+   await assert.rejects(create([other,plan,dates.start,dates.finish,'Disabled',null,plan,null]),/Complimentary access is disabled/);
+  });
+  await t.test('paused grant access preserves paid access and revocation remains available',async()=>{
+   await login(student);
+   assert.equal((await db.query('select current_subscription_plan_key() as plan')).rows[0].plan,'basic');
+   await db.exec('reset role');
+   await db.exec('delete from subscriptions');
+   await login(student);
+   assert.equal((await db.query('select current_subscription_plan_key() as plan')).rows[0].plan,'free');
+   await db.exec('reset role');
+   await db.exec('update access_system_controls set complimentary_access_enabled=true');
+   await login(student);
+   assert.equal((await db.query('select current_subscription_plan_key() as plan')).rows[0].plan,'master');
+   await db.exec('reset role');
+   await db.exec('update access_system_controls set complimentary_access_enabled=false');
+   await login(admin);
+   const extension=(await db.query('select id from access_grants where parent_grant_id=$1',[grant])).rows[0].id;
+   await db.query('select admin_revoke_access($1,$2)',[extension,'Revoked while paused']);
+   assert.equal((await db.query('select status from access_grants where id=$1',[extension])).rows[0].status,'revoked');
+  });
+  await t.test('bulk preview is read-only and classifies invalid, unknown, duplicate and paid users',async()=>{
+   await db.exec('reset role');
+   await db.exec(`alter table profiles add column email text,add column full_name text;
+    update profiles set email=id::text||'@example.test',full_name='Fixture';
+    create table notifications(id uuid default gen_random_uuid(),user_id uuid,title text,message text,type text,link text);
+    create table admin_audit_logs(id uuid default gen_random_uuid(),admin_id uuid,action text,target_table text,target_id uuid,details jsonb);
+    insert into subscriptions values(gen_random_uuid(),'${student}','30-Day Pass','active',now()+interval '1 day',now());`);
+   await db.exec(await readFile(new URL('../supabase/migrations/20260919230000_bulk_access_grants.sql',import.meta.url),'utf8'));
+   await db.exec(await readFile(new URL('../supabase/migrations/20260920000000_access_reporting_notifications.sql',import.meta.url),'utf8'));
+   await login(student);
+   await assert.rejects(db.query('select admin_preview_bulk_access($1)',[[other]]),/Not authorized/);
+   await login(admin);
+   const entries=[other+'@example.test',other,'invalid','unknown@example.test',student];
+   const before=(await db.query('select count(*)::int as n from access_grants')).rows[0].n;
+   const preview=(await db.query('select admin_preview_bulk_access($1) as result',[entries])).rows[0].result;
+   assert.equal(preview.summary.submitted,5); assert.equal(preview.summary.eligible,1);
+   assert.equal(preview.summary.duplicates,1); assert.equal(preview.summary.invalid,1);
+   assert.equal(preview.summary.unknown,1); assert.equal(preview.summary.paid,1);
+   assert.equal((await db.query('select count(*)::int as n from access_grants')).rows[0].n,before);
+   assert.equal((await db.query('select count(*)::int as n from access_grant_batches')).rows[0].n,0);
+   await assert.rejects(db.query('select admin_preview_bulk_access($1)',[Array(101).fill(other)]),/between 1 and 100/);
+  });
+  await t.test('confirmed bulk execution is idempotent, notifies once and retains batch audit',async()=>{
+   const entries=[other];
+   const preview=(await db.query('select admin_preview_bulk_access($1) as result',[entries])).rows[0].result;
+   const args=[entries,plan,dates.start,dates.finish,'Bulk fixture',null,true,'00000000-0000-4000-8000-000000000099',preview.preview_hash];
+   const run=values=>db.query('select admin_execute_bulk_access($1,$2,$3,$4,$5,$6,$7,$8,$9) as result',values);
+   await assert.rejects(run(args),/Complimentary access is disabled/);
+   await db.exec('reset role'); await db.exec('update access_system_controls set complimentary_access_enabled=true'); await login(admin);
+   await assert.rejects(run(args.map((v,i)=>i===8?'stale':v)),/Preview changed/);
+   const first=(await run(args)).rows[0].result;
+   const second=(await run(args)).rows[0].result;
+   assert.deepEqual(second,first); assert.equal(first.grant_ids.length,1);
+   await assert.rejects(run(args.map((v,i)=>i===4?'Different':v)),/Idempotency conflict/);
+   await db.exec('reset role');
+   assert.equal((await db.query('select count(*)::int as n from notifications')).rows[0].n,1);
+   assert.equal((await db.query("select count(*)::int as n from admin_audit_logs where action='BULK_ACCESS_GRANTED'")).rows[0].n,1);
+  });
+  await t.test('reporting requires staff permission, paginates and excludes request payloads',async()=>{
+   await login(student);
+   await assert.rejects(db.query('select admin_access_grants()'),/Not authorized/);
+   await assert.rejects(db.query('select admin_access_history()'),/Not authorized/);
+   await assert.rejects(db.query('select admin_access_users($1)',['Fixture']),/Not authorized/);
+   await login(admin);
+   const report=(await db.query('select admin_access_grants() as result')).rows[0].result;
+   assert.ok(report.total>0); assert.ok(report.rows.length<=25);
+   assert.equal('request_payload' in report.rows[0],false);
+   assert.equal('request_key' in report.rows[0],false);
+   const filtered=(await db.query("select admin_access_grants(p_status=>'revoked') as result")).rows[0].result;
+   assert.ok(filtered.rows.every(row=>row.effective_status==='revoked'));
+   const history=(await db.query('select admin_access_history() as result')).rows[0].result;
+   assert.ok(history.total>0); assert.equal('request_payload' in history.rows[0].new_values,false);
+   assert.equal((await db.query('select admin_access_users($1)',[other+'@example.test'])).rows.length,1);
+   await assert.rejects(db.query('select admin_access_grants(p_page=>-1)'),/Invalid filter/);
+  });
+  await t.test('individual grant and revoke notices are atomic and idempotent',async()=>{
+   await login(admin);
+   const args=[student,plan,dates.start,dates.finish,'Individual notification',null,'00000000-0000-4000-8000-000000000777',true,null];
+   const issue=values=>db.query('select admin_issue_access($1,$2,$3,$4,$5,$6,$7,$8,$9) as id',values);
+   const first=(await issue(args)).rows[0].id;
+   assert.equal((await issue(args)).rows[0].id,first);
+   await assert.rejects(issue(args.map((v,i)=>i===7?false:v)),/Notification request conflict/);
+   await db.query('select admin_revoke_access_with_notice($1,$2,$3)',[first,'Ended',true]);
+   await db.query('select admin_revoke_access_with_notice($1,$2,$3)',[first,'Ended',true]);
+   await db.exec('reset role');
+   assert.equal((await db.query('select count(*)::int as n from notifications')).rows[0].n,3);
+   assert.equal((await db.query("select count(*)::int as n from access_grant_events where access_grant_id=$1",[first])).rows[0].n,2);
+  });
+  await t.test('reminders are service-only, paused safely and delivered once per expiry stage',async()=>{
+   await login(admin);
+   await assert.rejects(db.query('select process_access_reminders()'),/permission denied/);
+   await assert.rejects(db.query("select emit_access_notice($1,'forged','x','x',true)",[student]),/permission denied/);
+   await db.exec('reset role');
+   await db.query("update access_grants set expires_at=now()+interval '6 days' where user_id=$1 and revoked_at is null",[other]);
+   await db.exec('update access_system_controls set complimentary_access_enabled=false; set role service_role');
+   assert.equal((await db.query('select process_access_reminders() as n')).rows[0].n,0);
+   await db.exec('reset role; update access_system_controls set complimentary_access_enabled=true; set role service_role');
+   assert.equal((await db.query('select process_access_reminders() as n')).rows[0].n,1);
+   assert.equal((await db.query('select process_access_reminders() as n')).rows[0].n,0);
+   await db.exec('reset role; delete from notifications; set role service_role');
+   assert.equal((await db.query('select process_access_reminders() as n')).rows[0].n,0);
+   for(const period of ["2 days","12 hours","-1 hour"]){
+    await db.exec('reset role');
+    await db.query("update access_grants set starts_at=now()-interval '30 days',expires_at=now()+$1::interval where user_id=$2 and revoked_at is null",[period,other]);
+    await db.exec('set role service_role');
+    assert.equal((await db.query('select process_access_reminders() as n')).rows[0].n,1);
+    assert.equal((await db.query('select process_access_reminders() as n')).rows[0].n,0);
+   }
+   await db.exec('reset role');
+   assert.equal((await db.query('select count(*)::int as n from notifications')).rows[0].n,3);
   });
  } finally { await db.close(); }
 });

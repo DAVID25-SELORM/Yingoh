@@ -5,3 +5,11 @@ verify_jwt = false
 [functions.daily-email-diagnostic]
 # One-shot diagnostic requires the server-only cron credential.
 verify_jwt = false
+
+[functions.hubtel-checkout]
+# The handler validates the bearer token with auth.getUser before all work.
+verify_jwt = false
+
+[functions.hubtel-callback]
+# No callback amount/status is trusted; server-to-server verification is required.
+verify_jwt = false

@@ -1,5 +1,5 @@
 begin;
-create table public.learning_reminder_log (
+create table if not exists public.learning_reminder_log (
  user_id uuid not null references public.profiles(id), source_id uuid not null, kind text not null,
  due_on date not null, reminder_day date not null default current_date,
  primary key(user_id,source_id,kind,due_on,reminder_day)

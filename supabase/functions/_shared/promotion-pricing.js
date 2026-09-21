@@ -103,11 +103,8 @@ export function validatePromotionEligibility({ promotion, user, planId, priceMin
     if (promotion.minimumPurchaseCurrency !== currency) reject('currency_mismatch');
     if (priceMinor < promotion.minimumPurchaseMinor) reject('minimum_purchase');
   }
-  // No implicit stacking of free periods, including already scheduled grants.
-  if (promotion.benefit?.type === 'free_access_days') {
-    if (typeof user.hasOverlappingComplimentaryGrant !== 'boolean') reject('invalid_usage_state');
-    if (user.hasOverlappingComplimentaryGrant) reject('overlapping_grant');
-  }
+  // The transactional coordinator appends free periods after the latest
+  // non-revoked expiry under the same recipient lock as administrative grants.
   return calculatePromotionPrice({ priceMinor, currency, benefit: promotion.benefit });
 }
 

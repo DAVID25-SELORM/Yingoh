@@ -3,6 +3,7 @@ import { AlertTriangle, BriefcaseBusiness, Building2, CheckCircle2, CreditCard, 
 import { recordLegalAcceptance, supabase } from '../services/supabase';
 import { useSubscription, createCheckoutSession, normalizePlanName } from '../hooks/useSubscription';
 import { SUBSCRIPTION_PLANS } from '../data/subscriptionPlans';
+import PromotionCheckout from './PromotionCheckout';
 
 const DEMO_PLANS = SUBSCRIPTION_PLANS;
 
@@ -520,6 +521,7 @@ export default function PaymentsView({ session, canManage = false }) {
       <div className="section-title">
         <h2>{canManage ? 'Payments & Subscriptions' : 'Choose your NurseFaculty plan'}</h2>
       </div>
+      {!canManage && import.meta.env.VITE_ACCESS_PROMOTIONS_ENABLED === 'true' && <PromotionCheckout session={session}/>}
 
       {customerNotice && (
         <div role="status" style={{

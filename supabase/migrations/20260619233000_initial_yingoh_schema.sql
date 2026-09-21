@@ -1,4 +1,7 @@
-create extension if not exists "pgcrypto";
+-- Match Supabase's extension schema on fresh installs. Later certificate
+-- migrations explicitly reference extensions.digest.
+create schema if not exists extensions;
+create extension if not exists "pgcrypto" with schema extensions;
 
 create table if not exists public.profiles (
   id uuid primary key references auth.users(id) on delete cascade,

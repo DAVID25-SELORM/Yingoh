@@ -356,7 +356,8 @@ insert into public.announcements (title, content, audience) values
 insert into public.promo_codes (code, discount_pct, max_uses, expires_at) values
 ('NCLEX25', 25, 100, now() + interval '90 days'),
 ('NEWSTUDENT', 50, 200, now() + interval '30 days'),
-('YINGOH10', 10, null, null);
+('YINGOH10', 10, null, null)
+on conflict (code) do nothing;
 
 -- Seed sample class schedules (demo)
 -- These use a placeholder instructor_id; they will be updated when real instructors exist

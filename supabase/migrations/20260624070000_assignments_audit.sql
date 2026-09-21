@@ -52,37 +52,47 @@ alter table public.assignment_submissions enable row level security;
 alter table public.audit_logs            enable row level security;
 
 -- Assignments: all authenticated users can read; instructors/admins can insert/update
+-- Define the same helper as the following corrective migrations so a fresh
+-- chronological replay never depends on the nonexistent profiles.role column.
+create or replace function public.has_role(role_names text[])
+returns boolean language sql stable security definer set search_path=public as $$
+ select exists (
+  select 1 from public.user_roles ur join public.roles r on r.id=ur.role_id
+  where ur.user_id=auth.uid() and r.name=any(role_names)
+ );
+$$;
+drop policy if exists "assignments_read" on public.assignments;
 create policy "assignments_read" on public.assignments
   for select to authenticated using (true);
 
+drop policy if exists "assignments_write" on public.assignments;
 create policy "assignments_write" on public.assignments
   for all to authenticated using (
-    auth.jwt() ->> 'email' in (
-      select email from public.profiles where role in ('instructor', 'admin', 'super_admin')
-    )
+    public.has_role(array['instructor', 'admin', 'super_admin'])
   );
 
 -- Submissions: students see own; instructors see all
+drop policy if exists "submissions_own" on public.assignment_submissions;
 create policy "submissions_own" on public.assignment_submissions
   for select to authenticated using (user_id = auth.uid());
 
+drop policy if exists "submissions_insert" on public.assignment_submissions;
 create policy "submissions_insert" on public.assignment_submissions
   for insert to authenticated with check (user_id = auth.uid());
 
+drop policy if exists "submissions_instructor" on public.assignment_submissions;
 create policy "submissions_instructor" on public.assignment_submissions
   for all to authenticated using (
-    auth.jwt() ->> 'email' in (
-      select email from public.profiles where role in ('instructor', 'admin', 'super_admin')
-    )
+    public.has_role(array['instructor', 'admin', 'super_admin'])
   );
 
 -- Audit logs: only admins can read; all authenticated can insert
+drop policy if exists "audit_logs_insert" on public.audit_logs;
 create policy "audit_logs_insert" on public.audit_logs
   for insert to authenticated with check (true);
 
+drop policy if exists "audit_logs_admin_read" on public.audit_logs;
 create policy "audit_logs_admin_read" on public.audit_logs
   for select to authenticated using (
-    auth.jwt() ->> 'email' in (
-      select email from public.profiles where role in ('admin', 'super_admin')
-    )
+    public.has_role(array['admin', 'super_admin'])
   );

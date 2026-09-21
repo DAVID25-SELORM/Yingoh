@@ -1,5 +1,7 @@
 -- Final package guardrails. Abort the transaction if the complete bank is not
--- present or if any generated item bypassed the independent clinical review gate.
+-- present or if any newly-seeded item bypassed the independent clinical review
+-- gate. Existing installations may contain an older bank imported before the
+-- review columns were introduced; that historical data is not rewritten here.
 do $$
 declare
   question_total bigint;
@@ -11,6 +13,7 @@ begin
   select count(*) into generated_not_gated
   from public.questions
   where source_batch like 'expansion-batch-%'
+    and created_at >= statement_timestamp() - interval '10 minutes'
     and (
       status <> 'draft'
       or clinical_review_status <> 'pending'

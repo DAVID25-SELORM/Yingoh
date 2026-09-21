@@ -220,7 +220,7 @@ begin
     raise exception 'Not authorized for this course';
   end if;
 
-  generated_code := 'NUR-' || to_char(now(), 'YYYY') || '-' || upper(substr(encode(gen_random_bytes(4), 'hex'), 1, 8));
+  generated_code := 'NUR-' || to_char(now(), 'YYYY') || '-' || upper(substr(encode(extensions.gen_random_bytes(4), 'hex'), 1, 8));
 
   update public.course_enrollment_links
   set is_active = false, updated_at = now()

@@ -1,5 +1,5 @@
 begin;
-create table public.competency_memberships (
+create table if not exists public.competency_memberships (
  institution_id uuid references public.institution_accounts(id) on delete cascade,
  user_id uuid references public.profiles(id) on delete cascade,
  role text not null default 'staff' check(role in ('staff','assessor','manager')),
@@ -8,7 +8,7 @@ create table public.competency_memberships (
 create or replace function public.competency_staff(p_institution uuid) returns boolean language sql stable security definer set search_path=public as $$
  select public.has_role(array['admin','super_admin']) or exists(select 1 from public.competency_memberships where institution_id=p_institution and user_id=auth.uid() and role in ('assessor','manager'));
 $$;
-create table public.competency_assignments (
+create table if not exists public.competency_assignments (
  id uuid primary key default gen_random_uuid(), institution_id uuid not null references public.institution_accounts(id),
  user_id uuid not null references public.profiles(id), item_id uuid not null references public.learning_items(id),
  item_version integer not null, criteria_snapshot text not null, title text not null,
@@ -20,8 +20,11 @@ create table public.competency_assignments (
 );
 alter table public.competency_memberships enable row level security;
 alter table public.competency_assignments enable row level security;
+drop policy if exists competency_members_read on public.competency_memberships;
 create policy competency_members_read on public.competency_memberships for select to authenticated using(user_id=auth.uid() or public.competency_staff(institution_id));
+drop policy if exists competency_members_admin on public.competency_memberships;
 create policy competency_members_admin on public.competency_memberships for all to authenticated using(public.has_role(array['admin','super_admin'])) with check(public.has_role(array['admin','super_admin']));
+drop policy if exists competency_assignments_read on public.competency_assignments;
 create policy competency_assignments_read on public.competency_assignments for select to authenticated using(user_id=auth.uid() or public.competency_staff(institution_id));
 revoke all on public.competency_memberships,public.competency_assignments from anon,authenticated;
 grant select,insert,update,delete on public.competency_memberships to authenticated;

@@ -1,5 +1,7 @@
 # Access & Promotions — discovery and implementation plan
 
+Latest local follow-up from `efa6151`: see `ACCESS_PROMOTIONS_IMPLEMENTATION_STATUS.md` for current grants, promotions, Hubtel implementation, test evidence and migration blockers. The sections below describe the historical foundation state, not the current local implementation. Pushing and deployment remain prohibited.
+
 Status: foundation plus gated entitlement integration implemented; full feature incomplete. User authorized source pushes on 19 September 2026. No production database writes, migration deployment, backfill, payment, or email send performed. Pushing main can trigger the existing Vercel build. No Hubtel endpoint is included; grant UI entitlement rollout remains off by default.
 
 ## Existing architecture
@@ -81,7 +83,7 @@ New-user rule proposed: no successful paid invoice/transaction or verified paid 
 - Pure pricing policy supports percentage basis points, fixed minor-unit discounts and free days; rejects client-supplied prices/identity, mismatched currencies, invalid windows, limits and overlapping free grants. It is NOT a redemption authorizer; atomic reservation/settlement is unimplemented.
 - Notifications, admin UI, full student redemption UI, bulk workflow, promo schema compatibility migration, reservation coordinator and Hubtel verification remain outstanding.
 
-## Validation evidence
+## Validation evidence at the foundation commit (historical)
 
 - `npm run test:access-promotions`: 29 passing Node test entries, including the database suite parent (28 leaf tests); no failures. Uses isolated PGlite fixtures, not hosted RLS evidence. Includes three catalog/conversion/zero-payment pricing tests.
 - `npm run test:access-ui`: 5 hook tests passed, covering complimentary labels, paid fallback, fail-closed permissions, disabled rollout and expired grants/logout.
@@ -93,7 +95,7 @@ New-user rule proposed: no successful paid invoice/transaction or verified paid 
 - Existing UI regressions: 4 files, 19 tests passed (question manager, super admin, lifelong, daily email). No new UI or responsive claims at this stage.
 - Hosted/provider tests, promo/bulk concurrency tests, migration rehearsal against the complete schema and the remainder of the requested acceptance suite are outstanding.
 
-## Remaining work before enablement
+## Remaining work at the foundation commit (historical)
 
 1. Rehearse the entitlement adapter migration and enable the gated frontend only after the remaining feature is validated. Explicitly review the daily-email cohort separately; this update does not expand live sending.
 2. Implement the admin/student UI, notifications, paginated reporting, profile shortcut and confirmed bulk workflow.

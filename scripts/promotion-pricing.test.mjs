@@ -26,7 +26,7 @@ test('100 percent discount requests no external payment', () => {
 test('free-days benefit is an access grant, not a payment discount', () => {
   const f = fixture(); f.promotion.benefit = { type: 'free_access_days', freeDays: 30 };
   assert.equal(validate(f).kind, 'access_grant'); assert.equal(validate(f).requiresPayment, false);
-  f.user.hasOverlappingComplimentaryGrant = true; rejects(f, 'overlapping_grant');
+  f.user.hasOverlappingComplimentaryGrant = true; assert.equal(validate(f).kind, 'access_grant');
 });
 test('currency mismatches rejected without inferred exchange rate', () => {
   const f = fixture(); f.promotion.benefit = { type: 'fixed_discount', fixedMinor: 100, currency: 'USD' };

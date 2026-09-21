@@ -124,11 +124,14 @@ create unique index if not exists refund_requests_one_open_per_transaction
   on public.refund_requests(transaction_id)
   where status in ('submitted','under_review','approved','refund_processing');
 alter table public.refund_requests enable row level security;
+drop policy if exists "refund_requests_own_read" on public.refund_requests;
 create policy "refund_requests_own_read" on public.refund_requests for select to authenticated
   using (requester_id=auth.uid() or public.has_role(array['finance','admin','super_admin']));
+drop policy if exists "refund_requests_own_insert" on public.refund_requests;
 create policy "refund_requests_own_insert" on public.refund_requests for insert to authenticated
   with check (requester_id=auth.uid() and status='submitted' and reviewed_by is null and decided_at is null
     and exists(select 1 from public.billing_transactions t where t.id=transaction_id and t.user_id=auth.uid() and t.status='paid' and requested_amount <= t.amount));
+drop policy if exists "refund_requests_finance_update" on public.refund_requests;
 create policy "refund_requests_finance_update" on public.refund_requests for update to authenticated
   using (public.has_role(array['finance','admin','super_admin']))
   with check (public.has_role(array['finance','admin','super_admin']));
@@ -140,6 +143,7 @@ using public.roles r
 where rp.role_id=r.id and r.name='student' and rp.permission_id='resources.upload';
 
 drop policy if exists "audit_logs_insert" on public.audit_logs;
+drop policy if exists "audit_logs_insert_actor_only" on public.audit_logs;
 create policy "audit_logs_insert_actor_only" on public.audit_logs for insert to authenticated
   with check (
     user_id = auth.uid()
@@ -148,6 +152,7 @@ create policy "audit_logs_insert_actor_only" on public.audit_logs for insert to 
 
 -- Do not expose enrollment restriction arrays through anonymous table reads.
 drop policy if exists "enrollment_links_public_read" on public.course_enrollment_links;
+drop policy if exists "enrollment_links_staff_read" on public.course_enrollment_links;
 create policy "enrollment_links_staff_read" on public.course_enrollment_links for select to authenticated
   using (public.is_course_staff(course_id) or public.has_role(array['admin','super_admin']));
 revoke select on public.course_enrollment_links from anon;
@@ -194,10 +199,12 @@ $$;
 
 -- Course-scoped assignment and grading policies.
 drop policy if exists "assignments_write" on public.assignments;
+drop policy if exists "assignments_course_staff_write" on public.assignments;
 create policy "assignments_course_staff_write" on public.assignments for all to authenticated
   using (public.has_role(array['admin','super_admin']) or (course_id is not null and public.is_course_staff(course_id)))
   with check (public.has_role(array['admin','super_admin']) or (course_id is not null and public.is_course_staff(course_id)));
 drop policy if exists "assignments_read" on public.assignments;
+drop policy if exists "assignments_course_read" on public.assignments;
 create policy "assignments_course_read" on public.assignments for select to authenticated using (
   public.has_role(array['admin','super_admin']) or public.is_course_staff(course_id)
   or (public.current_subscription_level() >= 3 and exists(
@@ -205,6 +212,7 @@ create policy "assignments_course_read" on public.assignments for select to auth
   ))
 );
 drop policy if exists "submissions_instructor" on public.assignment_submissions;
+drop policy if exists "submissions_course_staff" on public.assignment_submissions;
 create policy "submissions_course_staff" on public.assignment_submissions for all to authenticated
   using (public.has_role(array['admin','super_admin']) or exists(
     select 1 from public.assignments a where a.id=assignment_submissions.assignment_id and public.is_course_staff(a.course_id)
@@ -213,6 +221,7 @@ create policy "submissions_course_staff" on public.assignment_submissions for al
     select 1 from public.assignments a where a.id=assignment_submissions.assignment_id and public.is_course_staff(a.course_id)
   ));
 drop policy if exists "submissions_insert" on public.assignment_submissions;
+drop policy if exists "submissions_enrolled_insert" on public.assignment_submissions;
 create policy "submissions_enrolled_insert" on public.assignment_submissions for insert to authenticated with check (
   user_id=auth.uid() and public.current_subscription_level() >= 3 and exists(
     select 1 from public.assignments a join public.course_memberships cm on cm.course_id=a.course_id
@@ -221,6 +230,7 @@ create policy "submissions_enrolled_insert" on public.assignment_submissions for
 );
 
 -- Daily question content is sanitized until the authenticated learner has answered.
+drop function if exists public.get_daily_question_content();
 create or replace function public.get_daily_question_content()
 returns table(
   daily_question_id uuid, question_id uuid, question_date date, topic text, question_type text,
@@ -242,6 +252,7 @@ $$;
 revoke all on function public.get_daily_question_content() from public, anon;
 grant execute on function public.get_daily_question_content() to authenticated;
 
+drop function if exists public.submit_daily_question_answer_secure(uuid,text[]);
 create or replace function public.submit_daily_question_answer_secure(p_daily_question_id uuid, p_selected_ids text[])
 returns table(attempt jsonb, correct_answer jsonb, rationale text, strategy text, reference_url text)
 language plpgsql volatile security definer set search_path = public
@@ -286,6 +297,7 @@ grant execute on function public.complete_exam_session_secure(uuid,integer) to a
 drop policy if exists "exam_sessions_update_own" on public.exam_sessions;
 
 -- Unscoped live sessions are reserved for administrators.
+drop policy if exists "schedules_staff_write" on public.class_schedules;
 drop policy if exists "schedules_staff_write" on public.class_schedules;
 create policy "schedules_staff_write" on public.class_schedules for all to authenticated
   using (public.has_role(array['admin','super_admin','department_admin']) or

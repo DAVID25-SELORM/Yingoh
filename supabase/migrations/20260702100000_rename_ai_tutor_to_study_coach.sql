@@ -1,6 +1,11 @@
 -- Align database naming with the Study Coach product name while preserving data.
-alter table public.ai_tutor_conversations
-  rename to study_coach_conversations;
+do $$
+begin
+  if to_regclass('public.ai_tutor_conversations') is not null
+     and to_regclass('public.study_coach_conversations') is null then
+    alter table public.ai_tutor_conversations rename to study_coach_conversations;
+  end if;
+end $$;
 
 alter table public.study_coach_conversations
   alter column title set default 'Study Coach Conversation';

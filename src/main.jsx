@@ -22,6 +22,7 @@ import AnalyticsView from './components/AnalyticsView';
 import SuperAdminPanel from './components/SuperAdminPanel';
 import QuestionManager from './components/QuestionManager';
 import PaymentsView from './components/PaymentsView';
+import AccessPromotions from './components/AccessPromotions';
 import InstructorTools from './components/InstructorTools';
 import ContentReviewer from './components/ContentReviewer';
 import AnnouncementsView from './components/AnnouncementsView';
@@ -406,6 +407,7 @@ const NAV = [
   { label: 'Users', icon: Users, group: 'admin' },
   { label: 'Questions', icon: ClipboardCheck, group: 'admin', viewKey: 'AdminQuestions' },
   { label: 'Payments', icon: CreditCard, group: 'admin' },
+  ...(import.meta.env.VITE_ACCESS_PROMOTIONS_ENABLED === 'true' ? [{ label: 'Access & Promotions', icon: ShieldCheck, group: 'admin' }] : []),
   { label: 'Instructors', icon: GraduationCap, group: 'admin' },
   { label: 'Content Review', icon: CheckCircle2, group: 'admin' },
   { label: 'Announcements', icon: Bell, group: 'admin' },
@@ -560,7 +562,8 @@ function App() {
       return null;
     }
   });
-  const { roles, hasAdminAccess, planLabel, isFaculty, loading: accessLoading } = useSubscription(session);
+  const { roles, hasAdminAccess, planLabel, isFaculty, loading: accessLoading, can } = useSubscription(session);
+  const [accessInitialUser, setAccessInitialUser] = useState(null);
   const navigateTo = (view) => {
     setActiveView(view);
     setMobileNavOpen(false);
@@ -673,6 +676,7 @@ function App() {
     ? effectiveRoles.some((role) => ['admin', 'super_admin'].includes(role))
     : hasAdminAccess;
   const canAccessView = (view) => {
+    if (view === 'Access & Promotions') return import.meta.env.VITE_ACCESS_PROMOTIONS_ENABLED === 'true' && effectiveHasAdminAccess && can('access_grant.view');
     if (view === 'Learning Content') return effectiveHasAdminAccess || isInstructor || isReviewer;
     if (SUPER_ADMIN_VIEWS.has(view)) return isSuperAdmin;
     if (view === 'Users') return isSuperAdmin || effectiveHasAdminAccess;
@@ -899,10 +903,12 @@ function App() {
             session={session}
             onStartViewAs={startUserViewAs}
             canManageSuperAdmins={isSuperAdmin}
+            onGrantAccess={!supportView && canAccessView('Access & Promotions') && can('access_grant.create') ? user => { setAccessInitialUser(user); setActiveView('Access & Promotions'); } : undefined}
           />
         )}
         {activeView === 'AdminQuestions' && (effectiveHasAdminAccess || isReviewer) && <QuestionManager session={session} />}
         {activeView === 'Billing' && <PaymentsView session={session} />}
+        {activeView === 'Access & Promotions' && canAccessView('Access & Promotions') && <AccessPromotions session={session} readOnly={Boolean(supportView)} initialUser={accessInitialUser} />}
         {activeView === 'Payments' && (effectiveHasAdminAccess || isFinance) && <PaymentsView session={session} canManage />}
         {activeView === 'Instructors' && (effectiveHasAdminAccess || isInstructor) && <InstructorTools session={session} />}
         {activeView === 'Content Review' && (effectiveHasAdminAccess || isReviewer) && <ContentReviewer session={session} />}

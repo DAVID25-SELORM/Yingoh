@@ -1,4 +1,4 @@
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from '@supabase/supabase-js';
 
 const url = Deno.env.get('SUPABASE_URL') ?? '';
 const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
@@ -33,11 +33,17 @@ Deno.serve(async (req) => {
 
   const service = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
   const { data: actorRoles } = await service.from('user_roles').select('roles(name)').eq('user_id', auth.user.id);
-  const roles = (actorRoles ?? []).map((row: any) => row.roles?.name).filter(Boolean);
+  const roleRows = (actorRoles ?? []) as unknown as Array<{ roles: { name: string } | { name: string }[] | null }>;
+  const roles = roleRows.flatMap(({ roles: assigned }) =>
+    Array.isArray(assigned) ? assigned.map((role) => role.name) : assigned ? [assigned.name] : []);
   if (!roles.some((role: string) => ['admin', 'super_admin'].includes(role))) return respond(req, 403, { error: 'Administrator access is required.' });
 
-  let body: Record<string, any>;
-  try { body = await req.json(); } catch { return respond(req, 400, { error: 'Invalid request body.' }); }
+  let body: Record<string, unknown>;
+  try {
+    const parsed: unknown = await req.json();
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Invalid object');
+    body = parsed as Record<string, unknown>;
+  } catch { return respond(req, 400, { error: 'Invalid request body.' }); }
   const action = body.action;
   const email = String(body.email ?? '').trim().toLowerCase();
   const fullName = String(body.fullName ?? '').trim();
@@ -79,8 +85,10 @@ Deno.serve(async (req) => {
         professional_title: body.professionalTitle || null,
         institution: body.institution || null,
         staff_id: body.staffId || null,
-        account_status: action === 'invite' ? 'invitation_pending' : 'active',
-        onboarding_email_sent: action === 'invite' || Boolean(body.sendOnboardingEmail),
+        account_status: action === 'invite' ? 'invited' : 'onboarding',
+        // Auth accepted the invite request; this legacy flag is not proof of
+        // delivery. Direct creation does not send an onboarding email.
+        onboarding_email_sent: action === 'invite',
         updated_at: new Date().toISOString(),
       });
     }

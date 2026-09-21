@@ -79,7 +79,7 @@ function PermissionPreview({ roles, overrides = {} }) {
   );
 }
 
-export default function UserManagement({ session, onStartViewAs, canManageSuperAdmins = false }) {
+export default function UserManagement({ session, onStartViewAs, onGrantAccess, canManageSuperAdmins = false }) {
   const [users, setUsers] = useState(supabase ? [] : DEMO_USERS);
   const [invites, setInvites] = useState(supabase ? [] : DEMO_INVITES);
   const [search, setSearch] = useState('');
@@ -105,8 +105,6 @@ export default function UserManagement({ session, onStartViewAs, canManageSuperA
     professional_title: '',
     nursing_specialty: '',
     staff_id: '',
-    account_status: 'invitation_pending',
-    send_onboarding_email: true,
   };
   const [form, setForm] = useState(EMPTY_FORM);
   const manageableRoles = canManageSuperAdmins
@@ -179,7 +177,6 @@ export default function UserManagement({ session, onStartViewAs, canManageSuperA
           professionalTitle: form.professional_title || null,
           institution: form.institution || null,
           staffId: form.staff_id || null,
-          sendOnboardingEmail: Boolean(form.send_onboarding_email),
         });
         if (error) throw error;
         if (data?.error) throw new Error(data.error);
@@ -411,6 +408,7 @@ export default function UserManagement({ session, onStartViewAs, canManageSuperA
                         >
                           <Shield size={13} /> Roles
                         </button>
+                        {onGrantAccess && <button className="ghost-btn" onClick={() => onGrantAccess(u)}>Grant access</button>}
                         <button
                           className="ghost-btn"
                           style={{ fontSize: '0.78rem', padding: '5px 10px' }}
@@ -535,19 +533,16 @@ export default function UserManagement({ session, onStartViewAs, canManageSuperA
                     <input value={form.staff_id} onChange={(e) => setForm((p) => ({ ...p, staff_id: e.target.value }))} placeholder="Optional staff number" />
                   </div>
                   <div className="qm-form-row">
-                    <label>Account Status</label>
-                    <select value={form.account_status} onChange={(e) => setForm((p) => ({ ...p, account_status: e.target.value }))}>
-                      <option value="invitation_pending">Invitation Pending</option>
-                      <option value="active">Active</option>
-                      <option value="suspended">Suspended</option>
-                      <option value="deactivated">Deactivated</option>
-                    </select>
+                    <span>Initial status</span>
+                    <p>{form.invite_only ? 'Invited after the invitation is issued.' : 'Onboarding — account setup must be completed.'}</p>
                   </div>
                 </div>
-                <label style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 10, fontSize: '0.84rem', color: '#42585e' }}>
-                  <input type="checkbox" checked={form.send_onboarding_email} onChange={(e) => setForm((p) => ({ ...p, send_onboarding_email: e.target.checked }))} />
-                  Send onboarding email and redirect instructor to create first classroom after activation.
-                </label>
+                <p style={{ marginTop: 10, fontSize: '0.84rem', color: '#42585e' }}>
+                  {form.invite_only
+                    ? 'A secure invitation is requested through the account email service. Inbox delivery is not guaranteed.'
+                    : 'Creating an account does not send an onboarding email.'}
+                  {' '}Course assignment and platform permissions are managed separately.
+                </p>
               </div>
             )}
 
