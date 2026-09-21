@@ -42,12 +42,26 @@ export default function NotificationsBell({ session, onNavigate }) {
       setNotifs(data ?? []);
     });
 
-    // Real-time updates
-    const channel = supabase.channel('notifs').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${session.user.id}` }, ({ new: n }) => {
-      setNotifs((prev) => [n, ...prev]);
-    }).subscribe();
+    // Real-time updates. The socket is closed while the page is hidden so the browser can
+    // cache the page (back/forward cache) without logging a forced-close warning.
+    let channel = null;
+    const subscribe = () => {
+      if (channel) return;
+      channel = supabase.channel('notifs').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${session.user.id}` }, ({ new: n }) => {
+        setNotifs((prev) => [n, ...prev]);
+      }).subscribe();
+    };
+    const unsubscribe = () => { if (channel) { supabase.removeChannel(channel); channel = null; } };
+    const onPageShow = (event) => { if (event.persisted) subscribe(); };
+    subscribe();
+    window.addEventListener('pagehide', unsubscribe);
+    window.addEventListener('pageshow', onPageShow);
 
-    return () => supabase.removeChannel(channel);
+    return () => {
+      window.removeEventListener('pagehide', unsubscribe);
+      window.removeEventListener('pageshow', onPageShow);
+      unsubscribe();
+    };
   }, [session]);
 
   const unread = notifs.filter((n) => !n.is_read).length;
