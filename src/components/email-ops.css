@@ -1,5 +1,5 @@
-.eo-page-root { display: grid; gap: 18px; min-width: 0; max-width: 100%; color: #172f38; }
-.eo-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+.eo-page-root { display: grid; gap: 16px; min-width: 0; max-width: 100%; color: #172f38; }
+.eo-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; padding: 20px 22px; background: #fff; border: 1px solid #dfe8e5; border-radius: 16px; box-shadow: 0 1px 3px #12382c0d; }
 .eo-header h2 { margin: 0; font-size: 1.6rem; letter-spacing: -.02em; }
 .eo-header p { margin: 6px 0 0; color: #5b6f6e; font-size: .92rem; max-width: 52ch; }
 .eo-header-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
@@ -24,13 +24,17 @@
 .eo-kpi-label svg { color: #2a8072; flex-shrink: 0; }
 .eo-kpi strong { font-size: clamp(1.5rem, 2.2vw, 2rem); line-height: 1.1; font-variant-numeric: tabular-nums; letter-spacing: -.03em; }
 .eo-kpi small { color: #607473; font-size: .74rem; }
-.eo-secondary { display: flex; flex-wrap: wrap; gap: 8px 24px; margin: 0; color: #516767; font-size: .85rem; }
-.eo-secondary strong { color: #172f38; margin-left: 4px; }
+.eo-secondary { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
+.eo-chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: #fff; border: 1px solid #dfe8e5; color: #516767; font-size: .8rem; }
+.eo-chip strong { color: #172f38; font-variant-numeric: tabular-nums; }
+.eo-fail-summary { display: grid; gap: 10px; }
+.eo-fail-summary ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.eo-tab-count { margin-left: 8px; min-width: 20px; padding: 1px 7px; border-radius: 999px; background: #b83a2e; color: #fff; font-size: .72rem; font-weight: 700; }
 .eo-tabs { display: flex; gap: 4px; padding: 4px; background: #e9efed; border-radius: 12px; width: fit-content; max-width: 100%; }
 .eo-tabs button { min-height: 40px; padding: 0 18px; border-radius: 8px; background: transparent; color: #48605f; font-size: .875rem; font-weight: 650; }
 .eo-tabs .eo-tab-active { background: #fff; color: #176b60; box-shadow: 0 1px 4px #163c3014; }
 .eo-tabpanel { display: grid; gap: 16px; min-width: 0; }
-.eo-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.eo-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: start; }
 .eo-panel { background: #fff; border: 1px solid #dfe8e5; border-radius: 16px; padding: 20px; min-width: 0; box-shadow: 0 1px 3px #12382c0d; }
 .eo-panel h3 { display: flex; align-items: center; gap: 8px; margin: 0 0 14px; font-size: 1rem; }
 .eo-panel h3 svg { color: #2a8072; }
@@ -40,8 +44,8 @@
 .eo-good { display: flex; gap: 8px; align-items: center; color: #14604f; margin: 0; font-size: .9rem; }
 .eo-muted { color: #607473; margin: 0; font-size: .85rem; } .eo-small { margin-top: 10px; font-size: .78rem; }
 .eo-activity { list-style: none; margin: 0; padding: 0; }
-.eo-activity li { display: grid; grid-template-columns: minmax(0, 1.2fr) auto auto; gap: 12px; align-items: center; padding: 11px 0; border-top: 1px solid #eef2f0; font-size: .87rem; }
-.eo-activity-name { font-weight: 650; overflow-wrap: anywhere; }
+.eo-activity li { display: grid; grid-template-columns: minmax(0, 1fr); row-gap: 4px; gap: 12px; align-items: center; padding: 11px 0; border-top: 1px solid #eef2f0; font-size: .87rem; }
+.eo-activity-name { font-weight: 650; grid-column: 1; overflow-wrap: anywhere; }
 .eo-activity-what { display: flex; gap: 6px; flex-wrap: wrap; }
 .eo-activity time { color: #607473; font-size: .78rem; }
 .eo-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; font-size: .74rem; font-weight: 700; white-space: nowrap; border: 1px solid; }
@@ -84,7 +88,8 @@
 .eo-field dt { color: #607473; } .eo-field dd { margin: 0; overflow-wrap: anywhere; }
 .eo-field code { font-size: .78rem; }
 @media (max-width: 1200px) { .eo-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 900px) { .eo-grid { grid-template-columns: 1fr; } }
+@media (max-width: 1100px) { .eo-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 760px) { .eo-grid { grid-template-columns: 1fr; } }
 @media (max-width: 720px) {
   .eo-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
   .eo-kpi { padding: 13px; min-height: 104px; }

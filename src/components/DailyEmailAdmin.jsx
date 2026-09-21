@@ -229,7 +229,7 @@ export default function DailyEmailAdmin() {
 
   return <section className="eo-page-root" aria-labelledby="eo-title">
     <header className="eo-header">
-      <div><h2 id="eo-title">Daily Emails</h2><p>Monitor scheduled NCLEX emails, delivery status, engagement and sending health.</p></div>
+      <div><h2 id="eo-title">Daily Emails</h2><p>Monitor scheduled NCLEX emails, delivery health, learner engagement and operational issues.</p></div>
       <div className="eo-header-actions">
         {data && <span className={`eo-state ${data.enabled ? 'eo-state-on' : 'eo-state-off'}`} role="status">
           <span className="eo-dot" aria-hidden="true" />{data.enabled ? 'Sending Enabled' : 'Sending Paused'}</span>}
@@ -244,23 +244,23 @@ export default function DailyEmailAdmin() {
 
     {m && <>
       <div className="eo-kpis" role="group" aria-label={`Delivery metrics for ${date}`}>
-        <Kpi label="Scheduled" value={num(m.total)} helper={`For ${date}`} Icon={CalendarCheck} />
+        <Kpi label={date === today() ? 'Scheduled Today' : 'Scheduled'} value={num(m.total)} helper={`For ${date}`} Icon={CalendarCheck} />
         <Kpi label="Sent" value={num(m.sent)} helper="Accepted by SMTP" Icon={Send} />
         <Kpi label="Pending" value={num(m.pending)} helper={`${num(m.scheduled)} awaiting first send`} Icon={Clock} />
         <Kpi label="Failed" value={num(m.failed)} helper={m.failed ? 'Needs review' : 'No failures'} Icon={XCircle} />
         <Kpi label="Answered" value={num(m.answered)} helper={`${num(m.incorrect)} incorrect`} Icon={MessageSquareReply} />
         <Kpi label="Correct rate" value={rate(m.correct, m.answered)} helper={`${num(m.correct)} of ${num(m.answered)} answered`} Icon={Target} />
       </div>
-      <p className="eo-secondary"><span>Send acceptance <strong>{rate(m.sent, m.total)}</strong></span><span>Answer rate <strong>{rate(m.answered, m.total)}</strong></span><span>Correct answer rate <strong>{rate(m.correct, m.answered)}</strong></span></p>
+      <p className="eo-secondary" aria-label="Rates"><span className="eo-chip">Send acceptance <strong>{rate(m.sent, m.total)}</strong></span><span className="eo-chip">Answer rate <strong>{rate(m.answered, m.total)}</strong></span><span className="eo-chip">Correct answer rate <strong>{rate(m.correct, m.answered)}</strong></span></p>
     </>}
 
     <div className="eo-tabs" role="tablist" aria-label="Email operations sections">
       {TABS.map(([key, label]) => <button key={key} type="button" role="tab" id={`eo-tab-${key}`} aria-selected={tab === key} aria-controls="eo-tabpanel" tabIndex={tab === key ? 0 : -1} className={tab === key ? 'eo-tab-active' : ''} onClick={() => selectTab(key)}
-        onKeyDown={e => { const i = TABS.findIndex(t => t[0] === key); const n = e.key === 'ArrowRight' ? TABS[(i + 1) % 3] : e.key === 'ArrowLeft' ? TABS[(i + 2) % 3] : null; if (n) { e.preventDefault(); selectTab(n[0]); document.getElementById(`eo-tab-${n[0]}`)?.focus(); } }}>{label}</button>)}
+        onKeyDown={e => { const i = TABS.findIndex(t => t[0] === key); const n = e.key === 'ArrowRight' ? TABS[(i + 1) % 3] : e.key === 'ArrowLeft' ? TABS[(i + 2) % 3] : null; if (n) { e.preventDefault(); selectTab(n[0]); document.getElementById(`eo-tab-${n[0]}`)?.focus(); } }}>{label}{key === 'failures' && m?.failed > 0 && <span className="eo-tab-count" aria-label={`${m.failed} failed`}>{num(m.failed)}</span>}</button>)}
     </div>
     <div id="eo-tabpanel" role="tabpanel" aria-labelledby={`eo-tab-${tab}`} className="eo-tabpanel">
-      {tab === 'overview' && <><div className="eo-grid">{healthPanel}{attention}</div>{recent}</>}
-      {tab !== 'overview' && <>{tab === 'failures' && <p className="eo-muted">Showing failed deliveries. Automatic retries run on the existing schedule; retry from this page is not available.</p>}{toolbar}{table}</>}
+      {tab === 'overview' && <div className="eo-grid">{healthPanel}{attention}{recent}</div>}
+      {tab !== 'overview' && <>{tab === 'failures' && <div className="eo-fail-summary"><p className="eo-muted">Showing failed deliveries with diagnostics. Automatic retries run on the existing schedule; retry from this page is not available.</p>{health && <ul aria-label="Failure breakdown"><li className="eo-chip">Retries pending <strong>{num(health.retry_pending)}</strong></li><li className="eo-chip">Permanent <strong>{num(health.permanent_failures)}</strong></li><li className="eo-chip">Invalid recipients <strong>{num(health.invalid_recipients)}</strong></li><li className="eo-chip">Unknown outcome <strong>{num(health.unknown_outcome)}</strong></li></ul>}</div>}{toolbar}{table}</>}
     </div>
     {confirming && data && <ConfirmDialog enabled={data.enabled} busy={busy} onCancel={() => setConfirming(false)} onConfirm={toggle} />}
     {selected && <DetailDrawer row={selected} onClose={() => setSelected(null)} />}

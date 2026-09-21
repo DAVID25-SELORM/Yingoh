@@ -197,3 +197,14 @@ it('never writes secrets or raw errors to the console or DOM', async () => {
   expect(spies.flatMap(s=>s.mock.calls).flat().join(' ')).not.toMatch(/hunter2|service_role|eyJhbGciOi|lease-1/);
   spies.forEach(s=>s.mockRestore());
 });
+it('header subtitle, Scheduled Today label, three overview panels and failure count on the tab', async () => {
+  mock.rpc.mockResolvedValue({data:payload()});
+  render(<DailyEmailAdmin />);
+  expect(await screen.findByText('Monitor scheduled NCLEX emails, delivery health, learner engagement and operational issues.')).toBeTruthy();
+  expect(screen.getByRole('group',{name:/Delivery metrics/}).textContent).toContain('Scheduled Today');
+  const grid=document.querySelector('.eo-grid'); expect(grid.querySelectorAll('section.eo-panel').length).toBe(3);
+  expect(screen.getByRole('tab',{name:/Failures/}).textContent).toContain('1');
+  expect(screen.queryByRole('tab',{name:/Settings/})).toBeNull();
+  cleanup(); mock.rpc.mockResolvedValue({data:payload()}); render(<DailyEmailAdmin />); await openTab('Failures');
+  expect(await screen.findByRole('list',{name:'Failure breakdown'})).toBeTruthy();
+});
