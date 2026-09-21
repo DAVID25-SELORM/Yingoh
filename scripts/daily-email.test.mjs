@@ -38,6 +38,7 @@ insert into daily_question_emails_sent values('${uid(2)}',current_date-2,now()-i
 insert into daily_question_attempts values('${uid(202)}','${uid(2)}','${uid(201)}',now()-interval '2 days','{"ids":["a"]}',true);
 `);
 await db.exec(await readFile(new URL('../supabase/migrations/20260918100000_daily_email_system.sql',import.meta.url),'utf8'));
+await db.exec(await readFile(new URL('../supabase/migrations/20260921000000_admin_daily_emails_operations.sql',import.meta.url),'utf8'));
 const query = async (sql, args=[]) => (await db.query(sql,args)).rows;
 const rpc = async (name,args={}) => {
   const keys=Object.keys(args);
@@ -246,4 +247,77 @@ test('unknown pause state fails closed without SMTP or scheduling', async () => 
   const r=await f.handler(new Request('https://example.com',{method:'POST',headers:{'x-cron-secret':'test-secret'}}));
   assert.equal(r.status,500); assert.equal(f.counts().runs,0); assert.equal(f.counts().sent,0);
   assert.ok(!JSON.stringify(f.logs).includes('test-secret'));
+});
+test('admin reporting exposes filtered total, health counters and recent activity for admins only', async () => {
+  await reset();
+  await db.exec(`insert into daily_question_deliveries(user_id,question_id,scheduled_date,timezone,status,scheduled_for,sent_at,retryable,last_error,failed_at) values
+   ('${uid(1)}','${uid(101)}',current_date+10,'UTC','sent',now(),now(),false,null,null),
+   ('${uid(2)}','${uid(101)}',current_date+10,'UTC','failed',now(),null,false,'invalid_recipient',now())`);
+  await db.exec('set role authenticated'); await assert.rejects(rpc('admin_daily_emails',{p_date:'2999-01-01'}));
+  await db.exec("set test.admin='true'");
+  const date=(await query('select (current_date+10)::text d'))[0].d;
+  const all=await rpc('admin_daily_emails',{p_date:date}); assert.equal(all.filtered_total,2); assert.equal(all.health.invalid_recipients,1); assert.equal(all.recent.length,2);
+  const failed=await rpc('admin_daily_emails',{p_date:date,p_status:'failed'}); assert.equal(failed.filtered_total,1); assert.equal(failed.rows.length,1);
+  assert.equal(all.metrics.total,2); assert.ok(!JSON.stringify(all).includes('lease_token'));
+  await db.exec('reset role');
+});
+test('migration keeps admin_daily_emails locked to authenticated admins and service_role (no PUBLIC/anon execute)', async () => {
+  const sig='public.admin_daily_emails(date,text,text,integer)';
+  const p=(await query(`select has_function_privilege('anon','${sig}','execute') anon,has_function_privilege('authenticated','${sig}','execute') auth,has_function_privilege('service_role','${sig}','execute') svc,coalesce(proacl::text,'') acl,prosecdef,proconfig::text cfg from pg_proc where oid='${sig}'::regprocedure`))[0];
+  assert.equal(p.anon,false); assert.equal(p.auth,true); assert.equal(p.svc,true); assert.ok(!/(^\{|,)=X/.test(p.acl),'PUBLIC must not hold execute'); assert.equal(p.prosecdef,true); assert.match(p.cfg,/search_path=public/);
+  assert.equal((await query(`select count(*)::int c from pg_proc where proname='admin_daily_emails'`))[0].c,1,'replacement must not leave an overload');
+});
+test('realistic mixed data: metrics, filtered totals, counters, pagination and pause/resume leave history untouched', async () => {
+  await reset();
+  const D=(await query('select (current_date+20)::text d,(current_date+21)::text s,(current_date+22)::text e'))[0];
+  const id=n=>`('00000000-0000-4000-8000-'||lpad(${n}::text,12,'0'))::uuid`;
+  await db.exec(`
+   insert into auth.users(id,email) select ${id('n')},'n'||n||'@example.com' from generate_series(1000,1129) n;
+   insert into profiles select ${id('n')},'Nurse '||n,'n'||n||'@example.com' from generate_series(1000,1129) n;
+   insert into daily_question_deliveries(user_id,question_id,scheduled_date,timezone,status,scheduled_for,sent_at,answered_at,is_correct,retry_count,retryable,last_error,failed_at)
+   select ${id('n')},'${uid(101)}','${D.d}','UTC',
+    case when i<10 then 'scheduled' when i<15 then 'reserved' when i<20 then 'sending' when i<60 then 'sent' when i<90 then 'answered' when i<110 then 'failed' when i<113 then 'failed' else 'sent' end,
+    now(),
+    case when i between 20 and 89 or i>=113 then now() end,
+    case when i between 60 and 89 then now() end,
+    case when i between 60 and 79 then true when i between 80 and 89 then false end,
+    case when i between 90 and 94 then 1 when i between 95 and 99 then 3 else 0 end,
+    i between 90 and 94,
+    case when i between 90 and 99 then 'temporary_rejection' when i between 100 and 104 then 'permanent_rejection' when i between 105 and 109 then 'invalid_recipient' when i between 110 and 112 then 'delivery_outcome_unknown' end,
+    case when i between 90 and 112 then now() end
+   from (select n,n-1000 i from generate_series(1000,1129) n) s;
+   insert into daily_question_deliveries(user_id,question_id,scheduled_date,timezone,status,scheduled_for)
+   select ${id('n')},'${uid(101)}','${D.s}','UTC','scheduled',now() from generate_series(1000,1004) n;`);
+  const before=(await query(`select md5(string_agg(d::text,'' order by id)) h,count(*)::int c from daily_question_deliveries d`))[0];
+  await db.exec("set role authenticated; set test.admin='true'");
+  // CASE G: mixed >50 rows
+  const all=await rpc('admin_daily_emails',{p_date:D.d});
+  assert.deepEqual(all.metrics,{total:130,scheduled:15,sent:87,pending:25,failed:23,answered:30,correct:20,incorrect:10});
+  assert.deepEqual({...all.health,last_sent_at:null,opted_in_recipients:null},{retry_pending:5,permanent_failures:10,invalid_recipients:5,unknown_outcome:3,last_sent_at:null,opted_in_recipients:null});
+  assert.equal(all.filtered_total,130); assert.equal(all.rows.length,50); assert.ok(all.recent.length<=10&&all.recent.length>0);
+  assert.ok(all.recent.every(r=>['sent','answered','failed'].includes(r.status)));
+  assert.equal((await rpc('admin_daily_emails',{p_date:D.d,p_page:2})).rows.length,30);
+  assert.equal((await rpc('admin_daily_emails',{p_date:D.d,p_page:3})).rows.length,0);
+  // filter combinations: totals follow the filters, metrics stay date-wide
+  const f=async a=>rpc('admin_daily_emails',{p_date:D.d,...a});
+  assert.equal((await f({p_status:'failed'})).filtered_total,23);
+  assert.equal((await f({p_search:'111'})).filtered_total,10);
+  assert.equal((await f({p_status:'failed',p_search:'111'})).filtered_total,3);
+  assert.equal((await f({p_status:'sent'})).filtered_total,57);
+  const p2=await f({p_status:'sent',p_page:1}); assert.equal(p2.rows.length,7); assert.equal(p2.filtered_total,57);
+  assert.equal((await f({p_status:'failed',p_search:'111'})).metrics.total,130);
+  assert.equal((await f({p_search:'nurse 1105'})).filtered_total,1);
+  assert.equal((await f({p_status:'answered',p_search:'zzz'})).filtered_total,0);
+  // CASE B scheduled-only, CASE A none
+  const b=await rpc('admin_daily_emails',{p_date:D.s}); assert.deepEqual(b.metrics,{total:5,scheduled:5,sent:0,pending:5,failed:0,answered:0,correct:0,incorrect:0}); assert.equal(b.recent.length,0);
+  const a=await rpc('admin_daily_emails',{p_date:D.e}); assert.equal(a.metrics.total,0); assert.equal(a.filtered_total,0); assert.deepEqual(a.rows,[]); assert.equal(a.health.retry_pending,0);
+  // pause/resume as admin leaves deliveries untouched
+  await db.exec('update daily_email_config set enabled=false'); assert.equal((await rpc('admin_daily_emails',{p_date:D.d})).enabled,false);
+  await db.exec('update daily_email_config set enabled=true'); assert.equal((await rpc('admin_daily_emails',{p_date:D.d})).enabled,true);
+  // non-admin cannot pause or report
+  await db.exec("set test.admin='false'"); await assert.rejects(rpc('admin_daily_emails',{p_date:D.d}));
+  await db.exec('update daily_email_config set enabled=false'); await db.exec('reset role');
+  assert.equal((await query('select enabled from daily_email_config'))[0].enabled,true);
+  const after=(await query(`select md5(string_agg(d::text,'' order by id)) h,count(*)::int c from daily_question_deliveries d`))[0];
+  assert.deepEqual(after,before);
 });
