@@ -87,3 +87,19 @@ it('read-only preview disables promo mutation entry points',async()=>{
  render(<PromotionManager access={access} plans={[]} readOnly/>);
  expect(screen.getByRole('button',{name:'Create promo'}).disabled).toBe(true);
 });
+it('new promotions get an auto-generated code that can be regenerated, and the generator is unambiguous and unique',async()=>{
+ const {generatePromoCode}=await import('../src/services/accessPromotions');
+ const codes=new Set(Array.from({length:500},()=>generatePromoCode()));
+ expect(codes.size).toBe(500);
+ for(const c of codes)expect(c).toMatch(/^NF-[ABCDEFGHJKMNPQRSTUVWXYZ23456789]{6}$/);
+ render(<PromotionManager access={access} plans={[{id:'plan',name:'30-Day Pass'}]}/>);
+ fireEvent.click(screen.getByRole('button',{name:'Create promo'}));
+ const input=screen.getByLabelText('Code');const first=input.value;
+ expect(first).toMatch(/^NF-[A-Z2-9]{6}$/);
+ fireEvent.click(screen.getByRole('button',{name:'Generate new code'}));
+ expect(screen.getByLabelText('Code').value).toMatch(/^NF-[A-Z2-9]{6}$/);expect(screen.getByLabelText('Code').value).not.toBe(first);
+ fireEvent.change(screen.getByLabelText('Name'),{target:{value:'Auto'}});
+ for(let i=0;i<5;i++)fireEvent.click(screen.getByRole('button',{name:'Continue'}));
+ fireEvent.click(screen.getByRole('button',{name:'Confirm promotion'}));
+ await waitFor(()=>{const call=mock.rpc.mock.calls.find(([n])=>n==='admin_save_promotion');expect(call[1].p_config.code).toMatch(/^NF-[A-Z2-9]{6}$/);});
+});

@@ -1,5 +1,5 @@
 import React,{useEffect,useRef,useState} from 'react';
-import {accessRpc,localDateTime} from '../services/accessPromotions';
+import {accessRpc,generatePromoCode,localDateTime} from '../services/accessPromotions';
 const time=value=>value?new Date(value).toLocaleString():'—';
 const money=value=>'GHS '+(Number(value)/100).toFixed(2);
 export function promotionBenefit(p) {
@@ -10,7 +10,7 @@ function PromotionWizard({record,duplicate,plans,onClose,onSaved}) {
  const [step,setStep]=useState(0),[busy,setBusy]=useState(false),[error,setError]=useState('');
  const running=useRef(false);
  const [values,setValues]=useState({
-  code:duplicate?'':record?.code??'',name:duplicate?(record.name+' copy'):record?.name??'',description:record?.description??'',
+  code:duplicate?generatePromoCode():record?.code??generatePromoCode(),name:duplicate?(record.name+' copy'):record?.name??'',description:record?.description??'',
   benefit_type:record?.benefit_type??'percentage_discount',benefit_units:record?.benefit_units??2000,
   starts_at:localDateTime(record?new Date(record.valid_from):new Date()),
   expires_at:localDateTime(record?new Date(record.expires_at):new Date(Date.now()+30*86400000)),
@@ -35,7 +35,7 @@ function PromotionWizard({record,duplicate,plans,onClose,onSaved}) {
  return <section className="ap-panel" aria-label="Promotion wizard"><header className="ap-header"><h3>{duplicate?'Duplicate':record?'Edit':'Create'} promotion</h3><button className="ghost-btn" disabled={busy} onClick={onClose}>Cancel</button></header>
   <p aria-live="polite">Step {step+1} of 6 · {steps[step]}</p>{error&&<p role="alert">{error}</p>}
   <form onSubmit={submit}><fieldset disabled={busy}>
-   {step===0&&<><label>Name<input required maxLength={150} value={values.name} onChange={e=>set('name',e.target.value)}/></label><label>Code<input required pattern="[A-Za-z0-9][A-Za-z0-9_-]{2,63}" value={values.code} onChange={e=>set('code',e.target.value)}/></label><label>Description<textarea maxLength={2000} value={values.description} onChange={e=>set('description',e.target.value)}/></label></>}
+   {step===0&&<><label>Name<input required maxLength={150} value={values.name} onChange={e=>set('name',e.target.value)}/></label><label>Code<input required pattern="[A-Za-z0-9][A-Za-z0-9_-]{2,63}" value={values.code} onChange={e=>set('code',e.target.value)}/></label>{(!record||duplicate)&&<button type="button" className="ghost-btn" onClick={()=>set('code',generatePromoCode())}>Generate new code</button>}<label>Description<textarea maxLength={2000} value={values.description} onChange={e=>set('description',e.target.value)}/></label></>}
    {step===1&&<><label>Benefit type<select value={values.benefit_type} onChange={e=>{set('benefit_type',e.target.value);set('benefit_units',e.target.value==='percentage_discount'?2000:30);}}><option value="percentage_discount">Percentage discount</option><option value="fixed_discount">Fixed GHS discount</option><option value="free_access_days">Complimentary access days</option></select></label>
     <label>{values.benefit_type==='percentage_discount'?'Percentage':values.benefit_type==='fixed_discount'?'Discount in GHS':'Days'}<input type="number" required min={values.benefit_type==='free_access_days'?1:0.01} step={values.benefit_type==='free_access_days'?1:0.01} max={values.benefit_type==='percentage_discount'?100:values.benefit_type==='free_access_days'?3650:21474836} value={values.benefit_type==='free_access_days'?values.benefit_units:values.benefit_units/100} onChange={e=>set('benefit_units',Math.round(Number(e.target.value)*(values.benefit_type==='free_access_days'?1:100)))}/></label><p>{promotionBenefit(values)}</p></>}
    {step===2&&<><label>Valid plan<select value={values.plan_id} onChange={e=>set('plan_id',e.target.value)}><option value="">All supported subscription plans</option>{plans.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}</select></label><label>Minimum purchase (GHS)<input type="number" min="0" step="0.01" required value={values.minimum_ghs_minor/100} onChange={e=>set('minimum_ghs_minor',Math.round(Number(e.target.value)*100))}/></label><label className="ap-checkbox"><input type="checkbox" checked={values.new_users_only} onChange={e=>set('new_users_only',e.target.checked)}/>New subscribers only</label></>}

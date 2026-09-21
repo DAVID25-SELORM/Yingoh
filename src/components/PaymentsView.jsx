@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { AlertTriangle, BriefcaseBusiness, Building2, CheckCircle2, CreditCard, DollarSign, FileText, History, PlusCircle, ReceiptText, Search, ShieldCheck, Smartphone, Sparkles, Tag, ToggleLeft, ToggleRight, Users, X } from 'lucide-react';
 import { recordLegalAcceptance, supabase } from '../services/supabase';
+import { generatePromoCode } from '../services/accessPromotions';
 import { useSubscription, createCheckoutSession, normalizePlanName } from '../hooks/useSubscription';
 import { SUBSCRIPTION_PLANS } from '../data/subscriptionPlans';
 import PromotionCheckout from './PromotionCheckout';
@@ -159,6 +160,7 @@ export default function PaymentsView({ session, canManage = false }) {
     minimum_purchase_usd: '',
   });
   const [showPromoForm, setShowPromoForm] = useState(false);
+  const [codeIsAuto, setCodeIsAuto] = useState(true);
   const [mmPlan, setMmPlan] = useState('thirty_day');
   const [mmPhone, setMmPhone] = useState('');
   const [mmChannel, setMmChannel] = useState('mtn');
@@ -367,11 +369,18 @@ export default function PaymentsView({ session, canManage = false }) {
     setPromos((prev) => prev.map((p) => p.id === id ? { ...p, is_active: !current } : p));
   }
 
+  // Open the form with an auto-generated code (still editable, with a Generate button).
+  useEffect(() => {
+    if (showPromoForm) { setNewPromo((p) => (p.code ? p : { ...p, code: generatePromoCode() })); setCodeIsAuto(true); }
+  }, [showPromoForm]);
+
   async function savePromo() {
     const numericDiscount = Number(newPromo.discount_value);
+    const typedCode = newPromo.code.toUpperCase().trim();
+    const code = typedCode || generatePromoCode();
     const payload = {
-      code: newPromo.code.toUpperCase().trim(),
-      name: newPromo.name.trim() || newPromo.code.toUpperCase().trim(),
+      code,
+      name: newPromo.name.trim() || code,
       description: newPromo.description || null,
       discount_type: newPromo.discount_type,
       discount_value: numericDiscount,
@@ -390,7 +399,13 @@ export default function PaymentsView({ session, canManage = false }) {
     };
     if (!payload.code || !payload.discount_value) return;
     if (supabase) {
-      const { data } = await supabase.from('promo_codes').insert(payload).select().single();
+      // An auto-generated code that collides with an existing one (unique violation) is regenerated.
+      let { data, error } = await supabase.from('promo_codes').insert(payload).select().single();
+      for (let attempt = 0; error?.code === '23505' && attempt < 3 && (codeIsAuto || !typedCode); attempt++) {
+        payload.code = generatePromoCode();
+        if (!newPromo.name.trim()) payload.name = payload.code;
+        ({ data, error } = await supabase.from('promo_codes').insert(payload).select().single());
+      }
       if (data) setPromos((prev) => [data, ...prev]);
     } else {
       setPromos((prev) => [{ ...payload, id: `p${Date.now()}` }, ...prev]);
@@ -1151,7 +1166,9 @@ export default function PaymentsView({ session, canManage = false }) {
               <div className="qm-form-grid">
                 <div className="qm-form-row">
                   <label>Code</label>
-                  <input value={newPromo.code} onChange={(e) => setNewPromo((p) => ({ ...p, code: e.target.value.toUpperCase() }))} placeholder="e.g. SAVE20" style={{ height: 38, borderRadius: 8, border: '1px solid #dbe6e4', padding: '0 12px' }} />
+                  <div style={{ display: 'flex', gap: 8 }}><input value={newPromo.code} onChange={(e) => { setCodeIsAuto(false); setNewPromo((p) => ({ ...p, code: e.target.value.toUpperCase() })); }} placeholder="Auto-generated" aria-describedby="promo-code-hint" style={{ height: 38, borderRadius: 8, border: '1px solid #dbe6e4', padding: '0 12px', flex: 1, minWidth: 0 }} />
+                    <button type="button" className="ghost-btn" onClick={() => { setCodeIsAuto(true); setNewPromo((p) => ({ ...p, code: generatePromoCode() })); }}>Generate</button></div>
+                  <small id="promo-code-hint" style={{ color: '#607473' }}>A unique code is generated automatically. Edit it or click Generate for another.</small>
                 </div>
                 <div className="qm-form-row">
                   <label>Name</label>

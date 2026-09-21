@@ -51,3 +51,18 @@ export function grantDates(start, days) {
 export function localDateTime(date = new Date()) {
   return new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
 }
+
+// Unambiguous alphabet (no 0/O/1/I/L) so codes are easy to read out and type.
+const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+export function generatePromoCode(prefix = 'NF', length = 6) {
+  const bytes = new Uint8Array(length);
+  globalThis.crypto.getRandomValues(bytes);
+  // 256 is not a multiple of the alphabet size; reject the biased tail so every character is uniform.
+  const limit = 256 - (256 % CODE_ALPHABET.length);
+  let out = '';
+  for (let i = 0; out.length < length; i++) {
+    if (i >= bytes.length) { globalThis.crypto.getRandomValues(bytes); i = 0; }
+    if (bytes[i] < limit) out += CODE_ALPHABET[bytes[i] % CODE_ALPHABET.length];
+  }
+  return prefix + '-' + out;
+}
