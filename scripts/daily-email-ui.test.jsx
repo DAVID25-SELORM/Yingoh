@@ -208,3 +208,26 @@ it('header subtitle, Scheduled Today label, three overview panels and failure co
   cleanup(); mock.rpc.mockResolvedValue({data:payload()}); render(<DailyEmailAdmin />); await openTab('Failures');
   expect(await screen.findByRole('list',{name:'Failure breakdown'})).toBeTruthy();
 });
+it('audience control: shows current audience, previews impact, requires confirmation, then saves via the existing config update', async () => {
+  mock.rpc.mockImplementation(async name => name === 'admin_daily_email_audience_preview' ? {data:{opted_in:8,paid_eligible:0,all_eligible:7}} : {data:payload({audience:'paid'})});
+  render(<DailyEmailAdmin />);
+  const group=await screen.findByRole('radiogroup'); expect(within(group).getByLabelText(/Paid subscribers only/).checked).toBe(true);
+  fireEvent.click(within(group).getByLabelText(/All users/));
+  const dialog=await screen.findByRole('dialog'); await waitFor(()=>expect(dialog.textContent).toContain('About 7 of 8 opted-in users'));
+  expect(dialog.textContent).toContain('does not turn sending on or off');
+  fireEvent.click(within(dialog).getByText('Cancel')); expect(mock.update).not.toHaveBeenCalled();
+  fireEvent.click(within(screen.getByRole('radiogroup')).getByLabelText(/All users/));
+  fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button',{name:'Send to all users'}));
+  await waitFor(()=>expect(mock.update).toHaveBeenCalledWith({audience:'all'}));
+  expect(mock.update).not.toHaveBeenCalledWith(expect.objectContaining({enabled:expect.anything()}));
+});
+it('audience control still works if the preview is unavailable, reports save errors and is hidden on the old RPC', async () => {
+  mock.rpc.mockImplementation(async name => name === 'admin_daily_email_audience_preview' ? {data:null,error:{message:'x'}} : {data:payload({audience:'all'})});
+  mock.error={message:'rls'};
+  render(<DailyEmailAdmin />);
+  fireEvent.click(within(await screen.findByRole('radiogroup')).getByLabelText(/Paid subscribers only/));
+  fireEvent.click(within(await screen.findByRole('dialog')).getByRole('button',{name:'Paid subscribers only'}));
+  expect((await screen.findByRole('alert')).textContent).toContain('Could not update the recipient audience');
+  cleanup(); mock.error=null; mock.rpc.mockReset(); mock.rpc.mockResolvedValue({data:payload()});
+  render(<DailyEmailAdmin />); await screen.findByText('Sending health'); expect(screen.queryByRole('radiogroup')).toBeNull();
+});

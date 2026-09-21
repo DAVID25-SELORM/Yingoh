@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   Activity, AlertTriangle, CalendarCheck, CheckCircle2, ChevronLeft, ChevronRight, Clock, Inbox, Info,
-  Mail, MessageSquareReply, Pause, Play, RefreshCw, RotateCcw, Search, Send, Target, X, XCircle,
+  Mail, MessageSquareReply, Users, Pause, Play, RefreshCw, RotateCcw, Search, Send, Target, X, XCircle,
 } from 'lucide-react';
 import { supabase } from '../services/supabase';
 import './email-ops.css';
@@ -87,6 +87,26 @@ function ConfirmDialog({ enabled, busy, onCancel, onConfirm }) {
   </div>;
 }
 
+const AUDIENCES = {
+  paid: { label: 'Paid subscribers only', note: 'Only users with an active paid plan receive daily emails.' },
+  all: { label: 'All users', note: 'Every opted-in user with a verified email receives daily emails, including free accounts.' },
+};
+
+function AudienceDialog({ target, preview, busy, onCancel, onConfirm }) {
+  const ref = useDialog(true, onCancel);
+  const count = preview && Number.isFinite(preview[target === 'all' ? 'all_eligible' : 'paid_eligible']) ? preview[target === 'all' ? 'all_eligible' : 'paid_eligible'] : null;
+  return <div className="eo-overlay" onMouseDown={e => { if (e.target === e.currentTarget) onCancel(); }}>
+    <div className="eo-modal" role="dialog" aria-modal="true" aria-labelledby="eo-aud-title" aria-describedby="eo-aud-body" ref={ref}>
+      <h3 id="eo-aud-title">{target === 'all' ? 'Send to all users?' : 'Send to paid subscribers only?'}</h3>
+      <p id="eo-aud-body">{AUDIENCES[target].note}{count != null && <> About <strong>{num(count)}</strong> of {num(preview.opted_in)} opted-in users would be eligible.</>} This applies from the next processing run, does not change existing deliveries, and does not turn sending on or off.</p>
+      <div className="eo-modal-actions">
+        <button type="button" className="ghost-btn" data-autofocus onClick={onCancel}>Cancel</button>
+        <button type="button" className="primary-btn" disabled={busy} onClick={onConfirm}>{target === 'all' ? 'Send to all users' : 'Paid subscribers only'}</button>
+      </div>
+    </div>
+  </div>;
+}
+
 function Field({ label, children }) {
   return <div className="eo-field"><dt>{label}</dt><dd>{children}</dd></div>;
 }
@@ -123,6 +143,7 @@ export default function DailyEmailAdmin() {
   const [filter, setFilter] = useState(''); const [page, setPage] = useState(0);
   const [tab, setTab] = useState('overview');
   const [data, setData] = useState(null); const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
+  const [audienceTarget, setAudienceTarget] = useState(null); const [preview, setPreview] = useState(null);
   const [confirming, setConfirming] = useState(false); const [selected, setSelected] = useState(null);
   const effectiveStatus = tab === 'failures' ? 'failed' : status;
 
@@ -141,6 +162,17 @@ export default function DailyEmailAdmin() {
     const result = await supabase.from('daily_email_config').update({ enabled: !data.enabled }).eq('id', true).select('enabled').single();
     setConfirming(false);
     if (result.error) { setError('Could not update the global email setting.'); setBusy(false); } else await load();
+  }
+  async function chooseAudience(next) {
+    if (!data || next === data.audience) return;
+    setPreview(null); setAudienceTarget(next);
+    try { const r = await supabase.rpc('admin_daily_email_audience_preview'); if (!r.error) setPreview(r.data); } catch { /* preview is optional */ }
+  }
+  async function saveAudience() {
+    setBusy(true);
+    const result = await supabase.from('daily_email_config').update({ audience: audienceTarget }).eq('id', true).select('audience').single();
+    setAudienceTarget(null);
+    if (result.error) { setError('Could not update the recipient audience.'); setBusy(false); } else await load();
   }
   function resetFilters() { setDate(today()); setStatus(''); setSearch(''); setFilter(''); setPage(0); }
   const selectTab = key => { setTab(key); setPage(0); };
@@ -212,11 +244,19 @@ export default function DailyEmailAdmin() {
     <h3 id="eo-health"><Activity size={17} aria-hidden="true" />Sending health</h3>
     <dl className="eo-list">
       <div><dt>Daily emails</dt><dd>{data.enabled ? 'Enabled' : 'Paused'}</dd></div>
+      {data.audience && <div><dt>Recipient audience</dt><dd>{AUDIENCES[data.audience]?.label || '—'}</dd></div>}
       <div><dt>Queue ({date})</dt><dd>{issueCount === 0 && !anyManual ? 'Healthy' : 'Has issues'}</dd></div>
       <div><dt>Failed jobs ({date})</dt><dd>{num(m?.failed)}</dd></div>
       {health && <><div><dt>Last accepted send</dt><dd>{stamp(health.last_sent_at)}</dd></div>
         <div><dt>Opted-in recipients</dt><dd>{num(health.opted_in_recipients)}</dd></div></>}
     </dl>
+  </section>;
+
+  const audiencePanel = data?.audience && <section className="eo-panel" aria-labelledby="eo-audience">
+    <h3 id="eo-audience"><Users size={17} aria-hidden="true" />Recipient audience</h3>
+    <div className="eo-audience" role="radiogroup" aria-labelledby="eo-audience">
+      {Object.entries(AUDIENCES).map(([key, a]) => <label key={key} className={data.audience === key ? 'eo-aud-on' : ''}><input type="radio" name="eo-audience" value={key} checked={data.audience === key} disabled={busy} onChange={() => chooseAudience(key)} /><span><strong>{a.label}</strong><small>{a.note}</small></span></label>)}
+    </div>
   </section>;
 
   const recent = data?.recent && <section className="eo-panel" aria-labelledby="eo-recent">
@@ -259,9 +299,10 @@ export default function DailyEmailAdmin() {
         onKeyDown={e => { const i = TABS.findIndex(t => t[0] === key); const n = e.key === 'ArrowRight' ? TABS[(i + 1) % 3] : e.key === 'ArrowLeft' ? TABS[(i + 2) % 3] : null; if (n) { e.preventDefault(); selectTab(n[0]); document.getElementById(`eo-tab-${n[0]}`)?.focus(); } }}>{label}{key === 'failures' && m?.failed > 0 && <span className="eo-tab-count" aria-label={`${m.failed} failed`}>{num(m.failed)}</span>}</button>)}
     </div>
     <div id="eo-tabpanel" role="tabpanel" aria-labelledby={`eo-tab-${tab}`} className="eo-tabpanel">
-      {tab === 'overview' && <div className="eo-grid">{healthPanel}{attention}{recent}</div>}
+      {tab === 'overview' && <><div className="eo-grid">{healthPanel}{attention}{recent}</div>{audiencePanel}</>}
       {tab !== 'overview' && <>{tab === 'failures' && <div className="eo-fail-summary"><p className="eo-muted">Showing failed deliveries with diagnostics. Automatic retries run on the existing schedule; retry from this page is not available.</p>{health && <ul aria-label="Failure breakdown"><li className="eo-chip">Retries pending <strong>{num(health.retry_pending)}</strong></li><li className="eo-chip">Permanent <strong>{num(health.permanent_failures)}</strong></li><li className="eo-chip">Invalid recipients <strong>{num(health.invalid_recipients)}</strong></li><li className="eo-chip">Unknown outcome <strong>{num(health.unknown_outcome)}</strong></li></ul>}</div>}{toolbar}{table}</>}
     </div>
+    {audienceTarget && <AudienceDialog target={audienceTarget} preview={preview} busy={busy} onCancel={() => setAudienceTarget(null)} onConfirm={saveAudience} />}
     {confirming && data && <ConfirmDialog enabled={data.enabled} busy={busy} onCancel={() => setConfirming(false)} onConfirm={toggle} />}
     {selected && <DetailDrawer row={selected} onClose={() => setSelected(null)} />}
   </section>;

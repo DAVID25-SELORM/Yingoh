@@ -39,6 +39,7 @@ insert into daily_question_attempts values('${uid(202)}','${uid(2)}','${uid(201)
 `);
 await db.exec(await readFile(new URL('../supabase/migrations/20260918100000_daily_email_system.sql',import.meta.url),'utf8'));
 await db.exec(await readFile(new URL('../supabase/migrations/20260921000000_admin_daily_emails_operations.sql',import.meta.url),'utf8'));
+await db.exec(await readFile(new URL('../supabase/migrations/20260921010000_daily_email_audience_setting.sql',import.meta.url),'utf8'));
 const query = async (sql, args=[]) => (await db.query(sql,args)).rows;
 const rpc = async (name,args={}) => {
   const keys=Object.keys(args);
@@ -320,4 +321,31 @@ test('realistic mixed data: metrics, filtered totals, counters, pagination and p
   assert.equal((await query('select enabled from daily_email_config'))[0].enabled,true);
   const after=(await query(`select md5(string_agg(d::text,'' order by id)) h,count(*)::int c from daily_question_deliveries d`))[0];
   assert.deepEqual(after,before);
+});
+test('audience setting: defaults to paid-only, admin can switch to all, free users only qualify under all, invalid and non-admin changes are rejected', async () => {
+  await reset();
+  const free='00000000-0000-4000-8000-000000009001', paid='00000000-0000-4000-8000-000000009002';
+  await db.exec(`insert into auth.users(id,email) values('${free}','free@example.com'),('${paid}','paid@example.com');
+   insert into profiles values('${free}','Free','free@example.com'),('${paid}','Paid','paid@example.com');
+   insert into subscriptions values('${free}','free','active',null),('${paid}','starter','active',null)`);
+  assert.equal((await query('select audience from daily_email_config'))[0].audience,'paid');
+  const eligible=async u=>(await query('select public.daily_email_eligible($1) v',[u]))[0].v;
+  assert.equal(await eligible(paid),true); assert.equal(await eligible(free),false);
+  // non-admin cannot change the audience (RLS) and invalid values are rejected
+  await db.exec("set role authenticated; set test.admin='false'; update daily_email_config set audience='all'"); await db.exec('reset role');
+  assert.equal((await query('select audience from daily_email_config'))[0].audience,'paid');
+  await assert.rejects(db.exec("update daily_email_config set audience='everyone'"));
+  await assert.rejects((async()=>{ await db.exec("set role authenticated; set test.admin='false'"); try { await rpc('admin_daily_email_audience_preview'); } finally { await db.exec('reset role'); } })());
+  // admin preview + switch
+  await db.exec("set role authenticated; set test.admin='true'");
+  const preview=await rpc('admin_daily_email_audience_preview'); assert.ok(preview.all_eligible>preview.paid_eligible);
+  await db.exec("update daily_email_config set audience='all'");
+  assert.equal((await rpc('admin_daily_emails',{p_date:'2999-01-01'})).audience,'all'); await db.exec('reset role');
+  assert.equal(await eligible(free),true); assert.equal(await eligible(paid),true);
+  // switching back restores paid-only; suppressed/unconfirmed users never qualify in either mode
+  await db.exec("update daily_email_config set audience='paid'"); assert.equal(await eligible(free),false);
+  await db.exec("update daily_email_config set audience='all'; update auth.users set email_confirmed_at=null where id='"+free+"'"); assert.equal(await eligible(free),false);
+  // helpers are not callable by clients
+  for (const fn of ['daily_email_base_eligible(uuid)','daily_email_has_paid_plan(uuid)']) assert.equal((await query("select has_function_privilege('authenticated','public."+fn+"','execute') v"))[0].v,false);
+  await db.exec("update daily_email_config set audience='paid'");
 });
