@@ -4,6 +4,7 @@ import {randomUUID} from 'node:crypto';
 import {readFile,readdir} from 'node:fs/promises';
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
+import {RBAC_ROLES} from '../src/data/rbac.js';
 function docker(args,input=''){
  return new Promise((resolve,reject)=>{
   const child=spawn('docker',args,{stdio:['pipe','pipe','pipe'],windowsHide:true});let out='',err='';
@@ -49,6 +50,14 @@ test('complete migration history: fresh install and base-commit upgrade',{timeou
   await t.test('fresh install applies every repository migration',async()=>{
    await sql(bootstrap,'fresh');await apply(files,'fresh');
    assert.equal(await sql('select complimentary_access_enabled or promo_codes_enabled or hubtel_payments_enabled from access_system_controls','fresh'),'f');
+  });
+  // Drift guard: the role/permission matrix shown in the app (src/data/rbac.js) must equal the database seed.
+  await t.test('frontend role matrix equals the database role_permissions after the full migration chain',async()=>{
+   const rows=await sql("select r.name||'='||coalesce(string_agg(rp.permission_id,',' order by rp.permission_id),'') from roles r left join role_permissions rp on rp.role_id=r.id group by r.name order by r.name",'fresh');
+   const database=Object.fromEntries(rows.split('\n').filter(Boolean).map(line=>{const [name,list]=line.split('=');return [name,list?list.split(','):[]];}));
+   const frontend=Object.fromEntries(RBAC_ROLES.map(role=>[role.name,[...role.permissions].sort()]));
+   assert.deepEqual(Object.keys(database).sort(),Object.keys(frontend).sort());
+   for(const name of Object.keys(frontend))assert.deepEqual(database[name],frontend[name],'permission drift for role '+name);
   });
   await t.test('upgrade preserves baseline rows and controls remain paused',async()=>{
    await sql(bootstrap,'upgrade');await apply(base,'upgrade');

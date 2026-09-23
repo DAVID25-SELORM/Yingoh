@@ -24,7 +24,9 @@
     "test:daily-email": "node --test scripts/daily-email.test.mjs scripts/daily-email-diagnostic.test.mjs && vitest run scripts/daily-email-ui.test.jsx",
     "check:daily-email": "deno check --config supabase/functions/daily-question-email/deno.json supabase/functions/daily-question-email/index.ts supabase/functions/daily-email-diagnostic/index.ts scripts/diagnose-daily-email.ts",
     "lint:daily-email": "deno lint --config supabase/functions/daily-question-email/deno.json supabase/functions/daily-question-email scripts/diagnose-daily-email.ts",
-    "diagnose:daily-email": "deno run --config supabase/functions/daily-question-email/deno.json --allow-env=SMTP_HOST,SMTP_PORT,SMTP_USER,SMTP_PASS,SMTP_FROM,SMTP_FROM_NAME,SMTP_REPLY_TO,APP_URL --allow-net scripts/diagnose-daily-email.ts"
+    "diagnose:daily-email": "deno run --config supabase/functions/daily-question-email/deno.json --allow-env=SMTP_HOST,SMTP_PORT,SMTP_USER,SMTP_PASS,SMTP_FROM,SMTP_FROM_NAME,SMTP_REPLY_TO,APP_URL --allow-net scripts/diagnose-daily-email.ts",
+    "test:diagnostic": "node --test scripts/diagnostic-roadmap.test.mjs",
+    "test:roles": "node --test scripts/role-separation.test.mjs && deno test --config supabase/functions/admin-users/deno.json scripts/admin-users-roles.test.ts"
   },
   "keywords": [],
   "author": "",

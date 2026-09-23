@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { assignableRoles, isPrivilegedRole } from './roles.ts';
 
 const url = Deno.env.get('SUPABASE_URL') ?? '';
 const anonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
@@ -48,8 +49,10 @@ Deno.serve(async (req) => {
   const email = String(body.email ?? '').trim().toLowerCase();
   const fullName = String(body.fullName ?? '').trim();
   const roleName = String(body.role ?? '').trim();
-  const allowedRoles = ['student','instructor','admin','finance','content_reviewer','department_admin','exam_officer','question_bank_manager','support_officer','academic_registrar','library_manager','analytics_manager','guest_reviewer'];
-  if (roles.includes('super_admin')) allowedRoles.push('super_admin');
+  const allowedRoles = assignableRoles(roles);
+  if (isPrivilegedRole(roleName) && !allowedRoles.includes(roleName)) {
+    return respond(req, 403, { error: 'Only a Super Admin can create or invite Admin or Super Admin accounts.' });
+  }
   if (!email || !/^\S+@\S+\.\S+$/.test(email) || !fullName || !allowedRoles.includes(roleName)) {
     return respond(req, 400, { error: 'Valid name, email, and permitted role are required.' });
   }

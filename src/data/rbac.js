@@ -77,6 +77,22 @@ export const PERMISSION_GROUPS = [
     ],
   },
   {
+    key: 'access',
+    label: 'Access & Promotions',
+    permissions: [
+      ['access_grant.view', 'View complimentary access grants'],
+      ['access_grant.create', 'Create complimentary access grants'],
+      ['access_grant.extend', 'Extend complimentary access grants'],
+      ['access_grant.revoke', 'Revoke complimentary access grants'],
+      ['access_grant.bulk_create', 'Bulk grant complimentary access'],
+      ['promo.view', 'View promotions'],
+      ['promo.create', 'Create promotions'],
+      ['promo.edit', 'Edit promotions'],
+      ['promo.pause', 'Pause or resume promotions'],
+      ['promo.view_redemptions', 'View promotion redemptions'],
+    ],
+  },
+  {
     key: 'system',
     label: 'System',
     permissions: [
@@ -122,6 +138,9 @@ const ADMIN = [
   'courses.view', 'courses.create', 'courses.edit', 'courses.publish',
   'payments.view', 'subscriptions.manage', 'analytics.global', 'reports.view',
   'reports.export', 'settings.view',
+  // Access & Promotions (bulk grants stay Super Admin only)
+  'access_grant.view', 'access_grant.create', 'access_grant.extend', 'access_grant.revoke',
+  'promo.view', 'promo.create', 'promo.edit', 'promo.pause', 'promo.view_redemptions',
 ];
 
 const ALL_PERMISSION_KEYS = PERMISSION_GROUPS.flatMap((group) => group.permissions.map(([key]) => key));

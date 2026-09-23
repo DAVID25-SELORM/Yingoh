@@ -79,6 +79,9 @@ function PermissionPreview({ roles, overrides = {} }) {
   );
 }
 
+const PRIVILEGED_ROLE_NAMES = ['admin', 'super_admin'];
+const isPrivilegedUser = (user) => (user?.roles ?? []).some((role) => PRIVILEGED_ROLE_NAMES.includes(role));
+
 export default function UserManagement({ session, onStartViewAs, onGrantAccess, canManageSuperAdmins = false }) {
   const [users, setUsers] = useState(supabase ? [] : DEMO_USERS);
   const [invites, setInvites] = useState(supabase ? [] : DEMO_INVITES);
@@ -109,7 +112,7 @@ export default function UserManagement({ session, onStartViewAs, onGrantAccess, 
   const [form, setForm] = useState(EMPTY_FORM);
   const manageableRoles = canManageSuperAdmins
     ? ALL_ROLES
-    : ALL_ROLES.filter((role) => role.name !== 'super_admin');
+    : ALL_ROLES.filter((role) => !PRIVILEGED_ROLE_NAMES.includes(role.name));
   const selectedRoleMeta = ALL_ROLES.find((role) => role.name === form.role);
 
   useEffect(() => {
@@ -140,8 +143,8 @@ export default function UserManagement({ session, onStartViewAs, onGrantAccess, 
 
   async function handleAddUser(e) {
     e.preventDefault();
-    if (form.role === 'super_admin' && !canManageSuperAdmins) {
-      setError('Only a Super Admin can create or invite another Super Admin.');
+    if (PRIVILEGED_ROLE_NAMES.includes(form.role) && !canManageSuperAdmins) {
+      setError('Only a Super Admin can create or invite Admin or Super Admin accounts.');
       return;
     }
     setSaving(true);
@@ -196,8 +199,8 @@ export default function UserManagement({ session, onStartViewAs, onGrantAccess, 
 
   async function assignRole(userId, roleName) {
     setError('');
-    if (roleName === 'super_admin' && !canManageSuperAdmins) {
-      setError('Only a Super Admin can assign the Super Admin role.');
+    if (PRIVILEGED_ROLE_NAMES.includes(roleName) && !canManageSuperAdmins) {
+      setError('Only a Super Admin can assign the Admin or Super Admin role.');
       return;
     }
     if (supabase) {
@@ -220,8 +223,8 @@ export default function UserManagement({ session, onStartViewAs, onGrantAccess, 
 
   async function removeRole(userId, roleName) {
     setError('');
-    if (roleName === 'super_admin' && !canManageSuperAdmins) {
-      setError('Only a Super Admin can remove the Super Admin role.');
+    if (PRIVILEGED_ROLE_NAMES.includes(roleName) && !canManageSuperAdmins) {
+      setError('Only a Super Admin can remove the Admin or Super Admin role.');
       return;
     }
     if (supabase) {
@@ -402,8 +405,8 @@ export default function UserManagement({ session, onStartViewAs, onGrantAccess, 
                         <button
                           className="ghost-btn"
                           style={{ fontSize: '0.78rem', padding: '5px 10px' }}
-                          disabled={!canManageSuperAdmins && u.roles?.includes('super_admin')}
-                          title={!canManageSuperAdmins && u.roles?.includes('super_admin') ? 'Only a Super Admin can manage a Super Admin account' : 'Manage roles'}
+                          disabled={!canManageSuperAdmins && isPrivilegedUser(u)}
+                          title={!canManageSuperAdmins && isPrivilegedUser(u) ? 'Only a Super Admin can manage an Admin or Super Admin account' : 'Manage roles'}
                           onClick={() => openRoleModal(u)}
                         >
                           <Shield size={13} /> Roles
