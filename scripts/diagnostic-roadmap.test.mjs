@@ -39,6 +39,7 @@ values('T','mcq','draft one','[{"id":"a","text":"A"},{"id":"b","text":"B"}]','{"
 `);
 await db.exec(await readFile(new URL('../supabase/migrations/20260921020000_smart_diagnostic_system.sql', import.meta.url), 'utf8'));
 await db.exec(await readFile(new URL('../supabase/migrations/20260922020000_diagnostic_ui_support.sql', import.meta.url), 'utf8'));
+await db.exec(await readFile(new URL('../supabase/migrations/20260923000000_diagnostic_part_a_quota.sql', import.meta.url), 'utf8'));
 
 const query = async (sql, args = []) => (await db.query(sql, args)).rows;
 const as = async (who, fn) => {
@@ -59,10 +60,16 @@ test('band thresholds are the NurseFaculty internal bands; small samples are fla
   assert.equal(await band(3, 3, 4), 'insufficient_data'); assert.equal(await band(0, 0), 'no_data');
 });
 
-test('Part A quota allocates exactly 100 across the blueprint by largest remainder', async () => {
+test('Part A quota leaves room for the planned Part B/C/D content (calculations are all Pharmacology)', async () => {
   const q = await query('select sub_name,quota from public.diagnostic_quota(100) order by sub_sort');
-  assert.deepEqual(q.map(r => r.quota), [18, 13, 9, 9, 10, 16, 12, 13]);
+  assert.deepEqual(q.map(r => r.quota), [16, 16, 12, 11, 12, 10, 13, 10]);
   assert.equal(q.reduce((a, r) => a + r.quota, 0), 100);
+  const reserved = { 'Management of Care': 11, 'Safety and Infection Prevention and Control': 4, 'Health Promotion and Maintenance': 2, 'Psychosocial Integrity': 3, 'Basic Care and Comfort': 2, 'Pharmacological and Parenteral Therapies': 14, 'Reduction of Risk Potential': 5, 'Physiological Adaptation': 9 };
+  const targets = Object.fromEntries((await query('select sub_name,sub_target from public.diagnostic_blueprint()')).map(r => [r.sub_name, r.sub_target]));
+  for (const r of q) assert.equal(r.quota + reserved[r.sub_name], targets[r.sub_name], r.sub_name);
+  assert.ok(Object.values(reserved).reduce((a, b) => a + b, 0) === 50);
+  // other sizes stay proportional and always sum to the requested size
+  for (const n of [60, 90, 120]) assert.equal((await query('select sum(quota)::int s from public.diagnostic_quota($1)', [n]))[0].s, n);
   assert.equal((await query('select sum(sub_target)::int s from public.diagnostic_blueprint()'))[0].s, 150);
 });
 
@@ -80,7 +87,7 @@ test('proposal picks only eligible, unused questions by blueprint quota; forms c
   assert.equal(res.added, 100); assert.deepEqual(res.shortfalls, []);
   const perSub = await query('select subcategory,count(*)::int n from diagnostic_items where form_id=$1 group by 1', [state.form]);
   const byName = Object.fromEntries(perSub.map(r => [r.subcategory, r.n]));
-  assert.equal(byName['Management of Care'], 18); assert.equal(byName['Basic Care and Comfort'], 10); assert.equal(byName['Physiological Adaptation'], 13);
+  assert.equal(byName['Management of Care'], 16); assert.equal(byName['Basic Care and Comfort'], 12); assert.equal(byName['Physiological Adaptation'], 10); assert.equal(byName['Pharmacological and Parenteral Therapies'], 10);
   assert.equal((await query(`select count(*)::int c from diagnostic_items i join questions q on q.id=i.question_id where q.prompt in ('draft one','ngn type','short rationale','pending review')`))[0].c, 0);
   assert.equal((await query('select count(*)::int c from diagnostic_items i join questions q on q.id=i.question_id where i.subcategory<>q.client_need'))[0].c, 0);
   await assert.rejects(as(ADMIN, () => rpc('admin_diagnostic_propose_items', { p_form: state.form })), /already has items/);

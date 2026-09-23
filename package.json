@@ -26,7 +26,9 @@
     "lint:daily-email": "deno lint --config supabase/functions/daily-question-email/deno.json supabase/functions/daily-question-email scripts/diagnose-daily-email.ts",
     "diagnose:daily-email": "deno run --config supabase/functions/daily-question-email/deno.json --allow-env=SMTP_HOST,SMTP_PORT,SMTP_USER,SMTP_PASS,SMTP_FROM,SMTP_FROM_NAME,SMTP_REPLY_TO,APP_URL --allow-net scripts/diagnose-daily-email.ts",
     "test:diagnostic": "node --test scripts/diagnostic-roadmap.test.mjs && vitest run scripts/diagnostic-ui.test.jsx",
-    "test:roles": "node --test scripts/role-separation.test.mjs && deno test --config supabase/functions/admin-users/deno.json scripts/admin-users-roles.test.ts"
+    "test:roles": "node --test scripts/role-separation.test.mjs && deno test --config supabase/functions/admin-users/deno.json scripts/admin-users-roles.test.ts",
+    "test:diagnostic-content": "node --test scripts/diagnostic-content.test.mjs",
+    "build:diagnostic-content": "node scripts/build-diagnostic-content.mjs"
   },
   "keywords": [],
   "author": "",
