@@ -54,6 +54,8 @@ import LearningDashboard from './components/LearningDashboard';
 import ProfessionalCV from './components/ProfessionalCV';
 import DailyEmailSettings from './components/DailyEmailSettings';
 import DailyEmailAdmin from './components/DailyEmailAdmin';
+import DiagnosticView from './components/DiagnosticView';
+import DiagnosticAdmin from './components/DiagnosticAdmin';
 
 if (typeof window !== 'undefined' && window.location.hostname === 'yingoh.vercel.app') {
   window.location.replace(`https://nursefaculty.org${window.location.pathname}${window.location.search}${window.location.hash}`);
@@ -387,6 +389,7 @@ const NAV = [
   { label: 'Questions', icon: ClipboardCheck, group: 'learn' },
   { label: 'Exam', icon: Target, group: 'learn' },
   { label: 'Question of the Day', icon: CalendarDays, group: 'learn', more: true },
+  { label: 'Diagnostic', icon: Target, group: 'learn', more: true },
   { label: 'Flashcards', icon: Brain, group: 'learn' },
   { label: 'NurseFaculty Tutor', viewKey: 'Study Coach', icon: Brain, group: 'learn' },
   { label: 'Analytics', icon: BarChart3, group: 'learn' },
@@ -415,6 +418,7 @@ const NAV = [
   { label: 'Video Manager', icon: MonitorPlay, group: 'admin' },
   { label: 'Audit Logs', icon: ShieldCheck, group: 'admin' },
   { label: 'Daily Emails', icon: Bell, group: 'admin' },
+  { label: 'Diagnostic Admin', icon: ClipboardCheck, group: 'admin' },
 ];
 
 const VALID_VIEW_KEYS = new Set(NAV.map((n) => n.viewKey ?? n.label));
@@ -451,7 +455,7 @@ function dailyDeliveryId() {
   const id = new URLSearchParams(window.location.search).get('dailyDelivery');
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id || '') ? id : null;
 }
-const ADMIN_VIEWS = new Set(['AdminQuestions', 'Audit Logs', 'Daily Emails']);
+const ADMIN_VIEWS = new Set(['AdminQuestions', 'Audit Logs', 'Daily Emails', 'Diagnostic Admin']);
 const FINANCE_VIEWS = new Set(['Payments']);
 const INSTRUCTOR_VIEWS = new Set(['Instructors', 'Announcements', 'Classroom', 'Video Manager']);
 const REVIEWER_VIEWS = new Set(['Content Review', 'AdminQuestions']);
@@ -879,6 +883,8 @@ function App() {
         {activeView === 'Exam' && <ExamModeView session={session} onNavigate={setActiveView} />}
         {activeView === 'Question of the Day' && <QuestionOfTheDayView session={session} deliveryId={dailyDeliveryId()} />}
         {activeView === 'Daily Emails' && canAccessView('Daily Emails') && <DailyEmailAdmin />}
+        {activeView === 'Diagnostic' && <DiagnosticView session={session} />}
+        {activeView === 'Diagnostic Admin' && canAccessView('Diagnostic Admin') && <DiagnosticAdmin />}
         {activeView === 'Account' && <DailyEmailSettings session={session} />}
         {activeView === 'Flashcards' && <FlashcardsView session={session} />}
         {activeView === 'Planner' && <StudyPlannerView session={session} />}

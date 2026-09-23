@@ -1,9 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Activity, AlertTriangle, CalendarCheck, CheckCircle2, ChevronLeft, ChevronRight, Clock, Inbox, Info,
   Mail, MessageSquareReply, Users, Pause, Play, RefreshCw, RotateCcw, Search, Send, Target, X, XCircle,
 } from 'lucide-react';
 import { supabase } from '../services/supabase';
+import useDialog from '../hooks/useDialog';
 import './email-ops.css';
 
 const PAGE_SIZE = 50;
@@ -48,28 +49,6 @@ function CorrectBadge({ value }) {
 
 function Kpi({ label, value, helper, Icon }) {
   return <div className="eo-kpi"><div className="eo-kpi-label"><span>{label}</span><Icon size={16} aria-hidden="true" /></div><strong>{value}</strong><small>{helper || ' '}</small></div>;
-}
-
-function useDialog(open, onClose) {
-  const ref = useRef(null);
-  useEffect(() => {
-    if (!open) return undefined;
-    const previous = document.activeElement;
-    const node = ref.current;
-    node?.querySelector('[data-autofocus]')?.focus();
-    function onKey(e) {
-      if (e.key === 'Escape') { e.stopPropagation(); onClose(); return; }
-      if (e.key !== 'Tab' || !node) return;
-      const items = [...node.querySelectorAll('button:not([disabled]), [href], input, select, [tabindex]:not([tabindex="-1"])')];
-      if (!items.length) return;
-      const first = items[0]; const last = items[items.length - 1];
-      if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
-      else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
-    }
-    document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('keydown', onKey); previous?.focus?.(); };
-  }, [open, onClose]);
-  return ref;
 }
 
 function ConfirmDialog({ enabled, busy, onCancel, onConfirm }) {

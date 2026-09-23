@@ -38,6 +38,7 @@ values('T','mcq','draft one','[{"id":"a","text":"A"},{"id":"b","text":"B"}]','{"
 ('T','mcq','pending review','[{"id":"a","text":"A"},{"id":"b","text":"B"}]','{"ids":["a"]}',repeat('R ',60),'published','Management of Care','pending');
 `);
 await db.exec(await readFile(new URL('../supabase/migrations/20260921020000_smart_diagnostic_system.sql', import.meta.url), 'utf8'));
+await db.exec(await readFile(new URL('../supabase/migrations/20260922020000_diagnostic_ui_support.sql', import.meta.url), 'utf8'));
 
 const query = async (sql, args = []) => (await db.query(sql, args)).rows;
 const as = async (who, fn) => {
@@ -175,4 +176,40 @@ test('retest requires more attempts, then progress compares attempts; admins can
   await assert.rejects(as(ADMIN, () => rpc('admin_diagnostic_tag_error', { p_attempt: state.attempt, p_question: state.missed, p_type: 'Z' })), /Invalid error type/);
   const adminView = await as(ADMIN, () => rpc('admin_get_diagnostic_report', { p_attempt: state.attempt }));
   assert.equal(adminView.error_tags.length, 1); assert.equal(adminView.error_tags[0].error_type, 'C');
+});
+
+test('screen support functions: learner assignments, admin lists, bounded search, review and access control', async () => {
+  const mine = await as(S1, () => rpc('my_diagnostic_assignments'));
+  assert.equal(mine.length, 1); assert.equal(mine[0].form_id, state.form); assert.equal(mine[0].attempts_allowed, 2); assert.equal(mine[0].attempts_used, 2);
+  assert.equal(mine[0].open_attempt_id, null); assert.ok(mine[0].last_attempt_id);
+  assert.deepEqual(await as(S2, () => rpc('my_diagnostic_assignments')), []);
+  await assert.rejects(as(S1, () => rpc('admin_diagnostic_list_forms')), /Administrator access required/);
+  const forms = await as(ADMIN, () => rpc('admin_diagnostic_list_forms'));
+  assert.equal(forms[0].items, 150); assert.equal(forms[0].assigned, 1); assert.equal(forms[0].submitted, 2);
+  const form = await as(ADMIN, () => rpc('admin_diagnostic_get_form', { p_form: state.form }));
+  assert.equal(form.items.length, 150); assert.ok(form.items.every(i => i.prompt.length <= 200));
+  assert.equal(JSON.stringify(form).includes('correct_answer'), false);
+  const assignments = await as(ADMIN, () => rpc('admin_diagnostic_assignments', { p_form: state.form }));
+  assert.equal(assignments[0].attempts_used, 2);
+  // search: eligible + unused only, bounded, wildcard-safe
+  const found = await as(ADMIN, () => rpc('admin_diagnostic_search_questions', { p_query: '', p_limit: 500 }));
+  assert.ok(found.length <= 30);
+  const used = new Set((await query('select question_id from diagnostic_items')).map(r => r.question_id));
+  assert.ok(found.every(f => !used.has(f.id)));
+  assert.deepEqual(await as(ADMIN, () => rpc('admin_diagnostic_search_questions', { p_query: '%' })), []);
+  await assert.rejects(as(S1, () => rpc('admin_diagnostic_search_questions', { p_query: '' })), /Administrator access required/);
+  assert.equal((await as(ADMIN, () => rpc('admin_diagnostic_find_users', { p_query: 'Student' }))).length, 2);
+  assert.deepEqual(await as(ADMIN, () => rpc('admin_diagnostic_find_users', { p_query: 'S' })), []);
+  await assert.rejects(as(S1, () => rpc('admin_diagnostic_find_users', { p_query: 'Student' })), /Administrator access required/);
+  const review = await as(ADMIN, () => rpc('admin_get_diagnostic_review', { p_attempt: state.attempt }));
+  assert.equal(review.length, 150); assert.equal(review.filter(r => r.is_correct).length, 60);
+  assert.equal(review.find(r => r.question_id === state.missed).error_type, 'C');
+  // taxonomy A-G: Test-Taking Reasoning and Careless Error are valid, H is not
+  await as(ADMIN, () => rpc('admin_diagnostic_tag_error', { p_attempt: state.attempt, p_question: state.missed, p_type: 'F', p_note: 'Changed a correct answer' }));
+  await as(ADMIN, () => rpc('admin_diagnostic_tag_error', { p_attempt: state.attempt, p_question: state.missed, p_type: 'G' }));
+  await assert.rejects(as(ADMIN, () => rpc('admin_diagnostic_tag_error', { p_attempt: state.attempt, p_question: state.missed, p_type: 'H' })), /Invalid error type/);
+  await as(ADMIN, () => rpc('admin_diagnostic_tag_error', { p_attempt: state.attempt, p_question: state.missed, p_type: 'C', p_note: 'Skipped prioritization step' }));
+  await assert.rejects(as(S1, () => rpc('admin_get_diagnostic_review', { p_attempt: state.attempt })), /Administrator access required/);
+  const anon = async fn => (await query("select has_function_privilege('anon','public." + fn + "','execute') v"))[0].v;
+  for (const fn of ['my_diagnostic_assignments()', 'admin_diagnostic_list_forms()', 'admin_get_diagnostic_review(uuid)']) assert.equal(await anon(fn), false, fn);
 });
