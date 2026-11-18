@@ -1,6 +1,7 @@
 import React,{useEffect,useRef,useState} from 'react';
 import {supabase,recordLegalAcceptance} from '../services/supabase';
 import {accessRpc} from '../services/accessPromotions';
+import {dedupePlans} from '../utils/plans';
 import './access-promotions.css';
 const money=n=>'GHS '+(Number(n)/100).toFixed(2);
 export default function PromotionCheckout({session}) {
@@ -13,10 +14,10 @@ export default function PromotionCheckout({session}) {
  const running=useRef(false),request=useRef(null);
  useEffect(()=>{
   if(!session?.user?.id||!supabase)return;let current=true;
-  Promise.all([supabase.from('payment_plans').select('id,name').eq('is_active',true).gt('price_usd',0).order('sort_order'),
+  Promise.all([supabase.from('payment_plans').select('id,name,audience,is_active,sort_order,created_at').eq('is_active',true).gt('price_usd',0).order('sort_order'),
    supabase.from('access_system_controls').select('*').single(),accessRpc('my_access_payment_orders'),accessRpc('my_promotion_confirmations')])
    .then(([p,c,o,r])=>{if(!current)return;if(p.error||c.error)throw new Error('Checkout setup is unavailable.');
-    setPlans(p.data??[]);setPlan(v=>v||p.data?.[0]?.id||'');setControls(c.data);setOrders(o);setConfirmations(r);})
+    const unique=dedupePlans(p.data);setPlans(unique);setPlan(v=>unique.some(x=>x.id===v)?v:unique[0]?.id||'');setControls(c.data);setOrders(o);setConfirmations(r);})
    .catch(e=>{if(current)setError(e.message);});return()=>{current=false;};
  },[session?.user?.id,revision]);
  useEffect(()=>{

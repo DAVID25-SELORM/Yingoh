@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { AlertTriangle, BriefcaseBusiness, Building2, CheckCircle2, CreditCard, DollarSign, FileText, History, PlusCircle, ReceiptText, Search, ShieldCheck, Smartphone, Sparkles, Tag, ToggleLeft, ToggleRight, Users, X } from 'lucide-react';
 import { recordLegalAcceptance, supabase } from '../services/supabase';
 import { generatePromoCode } from '../services/accessPromotions';
+import { dedupePlans } from '../utils/plans';
 import { useSubscription, createCheckoutSession, normalizePlanName } from '../hooks/useSubscription';
 import { SUBSCRIPTION_PLANS } from '../data/subscriptionPlans';
 import PromotionCheckout from './PromotionCheckout';
@@ -181,7 +182,8 @@ export default function PaymentsView({ session, canManage = false }) {
       .then(({ data }) => { if (Number.isFinite(Number(data))) setBankCount(Number(data)); });
     supabase.from('payment_plans').select('*').order('sort_order').then(({ data }) => {
       if (data?.length) {
-        setPlans(data.map((plan) => {
+        // The table can hold the same plan more than once; show each plan a single time.
+        setPlans(dedupePlans(data).map((plan) => {
           const canonical = SUBSCRIPTION_PLANS.find((item) => normalizePlanName(item.name) === normalizePlanName(plan.name));
           return canonical ? { ...plan, features: canonical.features, question_limit: canonical.question_limit } : plan;
         }));

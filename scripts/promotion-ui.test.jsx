@@ -2,18 +2,18 @@
 import React from 'react';
 import {afterEach,beforeEach,expect,it,vi} from 'vitest';
 import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
-const mock=vi.hoisted(()=>({rpc:vi.fn(),invoke:vi.fn(),controls:{},rows:[]}));
+const mock=vi.hoisted(()=>({rpc:vi.fn(),invoke:vi.fn(),controls:{},rows:[],plans:null}));
 vi.mock('../src/services/accessPromotions',async original=>({...await original(),accessRpc:(...args)=>mock.rpc(...args)}));
 vi.mock('../src/services/supabase',()=>({recordLegalAcceptance:async()=>({error:null}),supabase:{
  functions:{invoke:(...args)=>mock.invoke(...args)},
- from:table=>{const q=new Proxy({}, {get:(_,key)=>key==='then'?resolve=>Promise.resolve({data:table==='payment_plans'?[{id:'plan',name:'30-Day Pass'}]:mock.controls}).then(resolve):()=>q});return q;},
+ from:table=>{const q=new Proxy({}, {get:(_,key)=>key==='then'?resolve=>Promise.resolve({data:table==='payment_plans'?(mock.plans??[{id:'plan',name:'30-Day Pass'}]):mock.controls}).then(resolve):()=>q});return q;},
 }}));
 import PromotionCheckout from '../src/components/PromotionCheckout';
 import PromotionManager from '../src/components/PromotionManager';
 const session={user:{id:'student'}},access={can:()=>true};
 beforeEach(()=>{
  mock.controls={promo_codes_enabled:true,complimentary_access_enabled:true,hubtel_payments_enabled:false};
- mock.rows=[];mock.invoke.mockReset().mockResolvedValue({data:{state:'processing',orderId:'order'}});
+ mock.rows=[];mock.plans=null;mock.invoke.mockReset().mockResolvedValue({data:{state:'processing',orderId:'order'}});
  mock.rpc.mockReset().mockImplementation(async name=>{
   if(name==='my_access_payment_orders')return mock.rows;
   if(name==='my_promotion_confirmations')return [];
@@ -102,4 +102,16 @@ it('new promotions get an auto-generated code that can be regenerated, and the g
  for(let i=0;i<5;i++)fireEvent.click(screen.getByRole('button',{name:'Continue'}));
  fireEvent.click(screen.getByRole('button',{name:'Confirm promotion'}));
  await waitFor(()=>{const call=mock.rpc.mock.calls.find(([n])=>n==='admin_save_promotion');expect(call[1].p_config.code).toMatch(/^NF-[A-Z2-9]{6}$/);});
+});
+it('duplicated plan rows in the database are shown once in checkout',async()=>{
+ const row=(id,name,sort,created)=>({id,name,audience:'student',is_active:true,sort_order:sort,created_at:created});
+ mock.plans=[row('t1','30-Day Pass',2,'2026-06-24T00:00:00Z'),row('n1','90-Day Success Plan',3,'2026-06-24T00:00:00Z'),
+  row('t2','30-Day Pass',2,'2026-07-02T00:00:00Z'),row('n2','90-Day Success Plan',3,'2026-07-02T00:00:00Z'),row('m1','180-Day Master Plan',4,'2026-06-24T00:00:00Z'),row('m2','180-Day Master Plan',4,'2026-07-02T00:00:00Z')];
+ render(<PromotionCheckout session={session}/>);
+ const select=await screen.findByLabelText('Subscription plan');
+ await waitFor(()=>expect([...select.querySelectorAll('option')].length).toBeGreaterThan(0));
+ expect([...select.querySelectorAll('option')].map(o=>o.textContent)).toEqual(['30-Day Pass','90-Day Success Plan','180-Day Master Plan']);
+ expect(select.value).toBe('t1');
+ // the price preview is requested for the kept plan, not a duplicate
+ await waitFor(()=>expect(mock.rpc).toHaveBeenCalledWith('preview_access_plan',{p_plan:'t1'}));
 });

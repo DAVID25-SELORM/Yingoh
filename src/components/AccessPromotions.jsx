@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { supabase } from '../services/supabase';
 import { useSubscription } from '../hooks/useSubscription';
 import { accessRpc, grantDates, localDateTime, parseBulkEntries } from '../services/accessPromotions';
+import { dedupePlans } from '../utils/plans';
 import './access-promotions.css';
 import PromotionManager from './PromotionManager';
 import AccessPaymentMonitor from './AccessPaymentMonitor';
@@ -107,11 +108,11 @@ export default function AccessPromotions({ session, readOnly=false, initialUser=
   useEffect(()=>{
     if(!allowed)return; let current=true;setLoading(true);setError('');
     const dates={p_from:from?new Date(from+'T00:00:00').toISOString():null,p_to:to?new Date(new Date(to+'T00:00:00').getTime()+86400000).toISOString():null};
-    Promise.all([accessRpc('admin_access_dashboard'),supabase.from('payment_plans').select('id,name').eq('is_active',true).gt('price_usd',0).order('sort_order'),
+    Promise.all([accessRpc('admin_access_dashboard'),supabase.from('payment_plans').select('id,name,audience,is_active,sort_order,created_at').eq('is_active',true).gt('price_usd',0).order('sort_order'),
       tab==='History'?(historyGrant?accessRpc('admin_access_history',{...dates,p_page:page,p_user:student?.id??null,p_action:action||null,p_grant:historyGrant,p_actor:actor?.id??null}):
       accessRpc('admin_access_activity',{...dates,p_page:page,p_user:student?.id??null,p_actor:actor?.id??null,p_action:action||null,p_promo:/^[a-f0-9-]{36}$/i.test(promoFilter)?promoFilter:null})):
       accessRpc('admin_access_grants',{...dates,p_page:page,p_user:student?.id??null,p_status:status||null,p_plan:plan||null})])
-      .then(([stats,products,rows])=>{if(!current)return;if(products.error)throw new Error('Plans could not be loaded.');setOverview(stats);setPlans(products.data??[]);setList(rows);})
+      .then(([stats,products,rows])=>{if(!current)return;if(products.error)throw new Error('Plans could not be loaded.');setOverview(stats);setPlans(dedupePlans(products.data));setList(rows);})
       .catch(e=>{if(current)setError(e.message);}).finally(()=>{if(current)setLoading(false);});
     return()=>{current=false;};
   },[allowed,tab,page,status,plan,student,from,to,action,historyGrant,revision,actor,promoFilter]);
