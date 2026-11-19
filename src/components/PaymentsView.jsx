@@ -3,6 +3,7 @@ import { AlertTriangle, BriefcaseBusiness, Building2, CheckCircle2, CreditCard, 
 import { recordLegalAcceptance, supabase } from '../services/supabase';
 import { generatePromoCode } from '../services/accessPromotions';
 import { dedupePlans } from '../utils/plans';
+import { isPromoUsable, promoStatus } from '../utils/promoStatus';
 import { useSubscription, createCheckoutSession, normalizePlanName } from '../hooks/useSubscription';
 import { SUBSCRIPTION_PLANS } from '../data/subscriptionPlans';
 import PromotionCheckout from './PromotionCheckout';
@@ -562,7 +563,7 @@ export default function PaymentsView({ session, canManage = false }) {
           { label: 'Pending', value: `$${pendingRevenue.toFixed(2)}`, icon: DollarSign, color: '#e3a72f' },
           { label: 'Active Subscribers', value: subscribers.filter((s) => s.status === 'active').length, icon: Users, color: '#2b8a7d' },
           { label: 'Paid Invoices', value: invoices.filter((i) => i.status === 'paid').length, icon: FileText, color: '#6750a4' },
-          { label: 'Active Promos', value: promos.filter((p) => p.is_active).length, icon: Tag, color: '#c17f44' },
+          { label: 'Active Promos', value: promos.filter((p) => isPromoUsable(p)).length, icon: Tag, color: '#c17f44' },
         ].map((s) => (
           <div key={s.label} className="stat-card" style={{ borderTop: `3px solid ${s.color}`, textAlign: 'center' }}>
             <s.icon size={20} color={s.color} style={{ margin: '0 auto 6px' }} />
@@ -1264,7 +1265,7 @@ export default function PaymentsView({ session, canManage = false }) {
                   <td>{Number(p.applied_count ?? 0).toLocaleString()}</td>
                   <td>{formatUsd(p.revenue_generated_usd ?? 0)}</td>
                   <td style={{ color: '#607478', fontSize: '0.84rem' }}>{p.expires_at ? new Date(p.expires_at).toLocaleDateString() : 'Never'}</td>
-                  <td><span className={`status-badge status-${p.is_active ? 'paid' : 'failed'}`}>{p.is_active ? 'Active' : 'Inactive'}</span></td>
+                  <td>{(() => { const status = promoStatus(p); return <span className={`status-badge status-${status.badge}`}>{status.label}</span>; })()}</td>
                   <td>
                     <button className="icon-btn" onClick={() => togglePromo(p.id, p.is_active)}>
                       {p.is_active ? <ToggleRight size={20} color="#29b7a3" /> : <ToggleLeft size={20} color="#8a999c" />}
