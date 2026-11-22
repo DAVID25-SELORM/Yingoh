@@ -29,7 +29,8 @@
     "test:roles": "node --test scripts/role-separation.test.mjs && deno test --config supabase/functions/admin-users/deno.json scripts/admin-users-roles.test.ts",
     "test:diagnostic-content": "node --test scripts/diagnostic-content.test.mjs",
     "build:diagnostic-content": "node scripts/build-diagnostic-content.mjs",
-    "test:promo-legacy": "node --test scripts/promo-legacy-validation.test.mjs"
+    "test:promo-legacy": "node --test scripts/promo-legacy-validation.test.mjs",
+    "test:promo-ui-logic": "node --test scripts/promo-status.test.mjs scripts/promo-form.test.mjs scripts/payment-plans-dedupe.test.mjs"
   },
   "keywords": [],
   "author": "",

@@ -4,6 +4,7 @@ import { recordLegalAcceptance, supabase } from '../services/supabase';
 import { generatePromoCode } from '../services/accessPromotions';
 import { dedupePlans } from '../utils/plans';
 import { isPromoUsable, promoStatus } from '../utils/promoStatus';
+import { PROMO_DISCOUNT_TYPES, buildPromoPayload, promoSaveMessage } from '../utils/promoForm';
 import { useSubscription, createCheckoutSession, normalizePlanName } from '../hooks/useSubscription';
 import { SUBSCRIPTION_PLANS } from '../data/subscriptionPlans';
 import PromotionCheckout from './PromotionCheckout';
@@ -163,6 +164,9 @@ export default function PaymentsView({ session, canManage = false }) {
   });
   const [showPromoForm, setShowPromoForm] = useState(false);
   const [codeIsAuto, setCodeIsAuto] = useState(true);
+  const [promoFormError, setPromoFormError] = useState('');
+  const [promoSaving, setPromoSaving] = useState(false);
+  const [promoNotice, setPromoNotice] = useState(null);
   const [mmPlan, setMmPlan] = useState('thirty_day');
   const [mmPhone, setMmPhone] = useState('');
   const [mmChannel, setMmChannel] = useState('mtn');
@@ -368,7 +372,14 @@ export default function PaymentsView({ session, canManage = false }) {
   }
 
   async function togglePromo(id, current) {
-    if (supabase) await supabase.from('promo_codes').update({ is_active: !current }).eq('id', id);
+    setPromoNotice(null);
+    if (supabase) {
+      const { data, error } = await supabase.from('promo_codes').update({ is_active: !current }).eq('id', id).select('id, is_active').maybeSingle();
+      if (error || !data) {
+        setPromoNotice({ type: 'error', message: promoSaveMessage(error ?? { code: '42501' }) });
+        return;
+      }
+    }
     setPromos((prev) => prev.map((p) => p.id === id ? { ...p, is_active: !current } : p));
   }
 
@@ -378,41 +389,36 @@ export default function PaymentsView({ session, canManage = false }) {
   }, [showPromoForm]);
 
   async function savePromo() {
-    const numericDiscount = Number(newPromo.discount_value);
-    const typedCode = newPromo.code.toUpperCase().trim();
-    const code = typedCode || generatePromoCode();
-    const payload = {
-      code,
-      name: newPromo.name.trim() || code,
-      description: newPromo.description || null,
-      discount_type: newPromo.discount_type,
-      discount_value: numericDiscount,
-      discount_amount: numericDiscount,
-      discount_pct: newPromo.discount_type === 'percentage' ? Number(numericDiscount) : 0,
-      applies_to_plans: newPromo.applies_to_plans,
-      valid_from: newPromo.valid_from || null,
-      max_uses: newPromo.max_uses ? Number(newPromo.max_uses) : null,
-      max_per_user: newPromo.max_per_user ? Number(newPromo.max_per_user) : 1,
-      eligibility: newPromo.eligibility,
-      minimum_purchase_usd: newPromo.minimum_purchase_usd ? Number(newPromo.minimum_purchase_usd) : null,
-      expires_at: newPromo.expires_at || null,
-      is_active: true,
-      used_count: 0,
-      created_by: session?.user?.id ?? null,
-    };
-    if (!payload.code || !payload.discount_value) return;
-    if (supabase) {
-      // An auto-generated code that collides with an existing one (unique violation) is regenerated.
-      let { data, error } = await supabase.from('promo_codes').insert(payload).select().single();
-      for (let attempt = 0; error?.code === '23505' && attempt < 3 && (codeIsAuto || !typedCode); attempt++) {
-        payload.code = generatePromoCode();
-        if (!newPromo.name.trim()) payload.name = payload.code;
-        ({ data, error } = await supabase.from('promo_codes').insert(payload).select().single());
+    if (promoSaving) return;
+    setPromoFormError(''); setPromoNotice(null);
+    const typedCode = newPromo.code.trim();
+    const built = buildPromoPayload(newPromo, { userId: session?.user?.id ?? null, code: typedCode || generatePromoCode() });
+    if (built.error) { setPromoFormError(built.error); return; }
+    const payload = built.payload;
+    let saved = null;
+    setPromoSaving(true);
+    try {
+      if (supabase) {
+        // An auto-generated code that collides with an existing one (unique violation) is regenerated.
+        let { data, error } = await supabase.from('promo_codes').insert(payload).select().single();
+        for (let attempt = 0; error?.code === '23505' && attempt < 3 && (codeIsAuto || !typedCode); attempt++) {
+          payload.code = generatePromoCode();
+          if (!newPromo.name.trim()) payload.name = payload.code;
+          ({ data, error } = await supabase.from('promo_codes').insert(payload).select().single());
+        }
+        if (error || !data) { setPromoFormError(promoSaveMessage(error ?? { code: '42501' })); return; }
+        saved = data;
+      } else {
+        saved = { ...payload, id: `p${Date.now()}` };
       }
-      if (data) setPromos((prev) => [data, ...prev]);
-    } else {
-      setPromos((prev) => [{ ...payload, id: `p${Date.now()}` }, ...prev]);
+    } catch (err) {
+      setPromoFormError(promoSaveMessage(err));
+      return;
+    } finally {
+      setPromoSaving(false);
     }
+    setPromos((prev) => [saved, ...prev]);
+    setPromoNotice({ type: 'success', message: `Promo code ${saved.code} was saved and is ready to use.` });
     setNewPromo({
       code: '',
       name: '',
@@ -1180,14 +1186,11 @@ export default function PaymentsView({ session, canManage = false }) {
                 <div className="qm-form-row">
                   <label>Discount Type</label>
                   <select value={newPromo.discount_type} onChange={(e) => setNewPromo((p) => ({ ...p, discount_type: e.target.value }))} style={{ height: 38, borderRadius: 8, border: '1px solid #dbe6e4', padding: '0 12px' }}>
-                    <option value="percentage">Percentage</option>
-                    <option value="fixed_amount">Fixed USD amount</option>
-                    <option value="free_trial">Free trial</option>
-                    <option value="free_upgrade">Free upgrade</option>
+                    {PROMO_DISCOUNT_TYPES.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
                   </select>
                 </div>
                 <div className="qm-form-row">
-                  <label>{newPromo.discount_type === 'percentage' ? 'Discount %' : newPromo.discount_type === 'fixed_amount' ? 'Discount USD' : 'Benefit Value'}</label>
+                  <label>{newPromo.discount_type === 'percentage' ? 'Discount %' : 'Discount USD'}</label>
                   <input type="number" min="0" max={newPromo.discount_type === 'percentage' ? 100 : undefined} value={newPromo.discount_value} onChange={(e) => setNewPromo((p) => ({ ...p, discount_value: e.target.value }))} style={{ height: 38, borderRadius: 8, border: '1px solid #dbe6e4', padding: '0 12px' }} />
                 </div>
                 <div className="qm-form-row">
@@ -1230,12 +1233,15 @@ export default function PaymentsView({ session, canManage = false }) {
                 <label>Description</label>
                 <textarea value={newPromo.description} onChange={(e) => setNewPromo((p) => ({ ...p, description: e.target.value }))} rows={2} placeholder="Internal campaign notes, e.g. August nursing cohort welcome offer." />
               </div>
+              {promoFormError && <p role="alert" style={{ margin: '12px 0 0', color: '#8a2c21', fontSize: '0.85rem', fontWeight: 700 }}>{promoFormError}</p>}
               <div className="editor-footer">
-                <button className="ghost-btn" onClick={() => setShowPromoForm(false)}>Cancel</button>
-                <button className="primary-btn" onClick={savePromo} disabled={!newPromo.code || !newPromo.discount_value}>Save Promo</button>
+                <button className="ghost-btn" onClick={() => { setPromoFormError(''); setShowPromoForm(false); }}>Cancel</button>
+                <button className="primary-btn" onClick={savePromo} disabled={promoSaving || !newPromo.code || !newPromo.discount_value}>{promoSaving ? 'Saving…' : 'Save Promo'}</button>
               </div>
             </div>
           )}
+
+          {promoNotice && <p role={promoNotice.type === 'error' ? 'alert' : 'status'} style={{ margin: '0 0 12px', padding: '10px 14px', borderRadius: 10, fontSize: '0.88rem', fontWeight: 700, background: promoNotice.type === 'error' ? '#fce8e6' : '#e2f5f2', color: promoNotice.type === 'error' ? '#8a2c21' : '#135f55' }}>{promoNotice.message}</p>}
 
           <table className="admin-table">
             <thead>

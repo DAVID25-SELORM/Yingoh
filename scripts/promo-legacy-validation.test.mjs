@@ -18,7 +18,7 @@ function docker(args, input = '') {
   });
 }
 const uid = n => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
-const LEARNER = uid(1), NEWBIE = uid(2), EXISTING = uid(3);
+const LEARNER = uid(1), NEWBIE = uid(2), EXISTING = uid(3), SUPER = uid(4), ADMIN = uid(5);
 
 test('legacy promo codes validate correctly through the full migration chain', { timeout: 900000 }, async () => {
   let container;
@@ -86,6 +86,29 @@ test('legacy promo codes validate correctly through the full migration chain', {
     assert.equal((await validate(EXISTING, 'NEWONLY')).reason, 'Promo code is only for new subscribers.');
     // no sign-in: the learner-facing apply step needs a session, anon cannot call it at all
     await assert.rejects(sql(`set role anon; select public.validate_promo_code('YINGOH10','thirty_day',19,null);`, 'fresh'), /permission denied/);
+    // ---- creating a code exactly as the admin form does (generated code, date-only fields), under the real security rules ----
+    await sql(`
+      insert into auth.users(id,email,email_confirmed_at) values('${SUPER}','s@x.com',now()),('${ADMIN}','a@x.com',now());
+      insert into profiles(id,email,full_name) values('${SUPER}','s@x.com','S'),('${ADMIN}','a@x.com','A') on conflict do nothing;
+      insert into user_roles(user_id,role_id) select '${SUPER}',id from roles where name='super_admin';
+      insert into user_roles(user_id,role_id) select '${ADMIN}',id from roles where name='admin';`, 'fresh');
+    const formInsert = (who, code, extra = '') => sql(`set test.uid='${who}'; set role authenticated;
+      insert into promo_codes(code,name,description,discount_type,discount_value,discount_amount,discount_pct,applies_to_plans,valid_from,max_uses,max_per_user,eligibility,minimum_purchase_usd,expires_at,is_active,used_count,created_by)
+      values('${code}','${code}',null,'percentage',15,15,15,array[]::text[],null,null,1,'all',null,${extra || 'null'},true,0,'${SUPER}') returning code;`, 'fresh');
+    const created = await formInsert(SUPER, 'NF-7K3M9Q');
+    assert.match(created, /NF-7K3M9Q/, 'a super admin can create a generated code');
+    const generated = await validate(LEARNER, 'NF-7K3M9Q');
+    assert.equal(generated.valid, true, JSON.stringify(generated)); assert.equal(generated.discount_amount_usd, 2.85); assert.equal(generated.final_amount_usd, 16.15);
+    assert.equal((await validate(LEARNER, 'nf-7k3m9q')).valid, true, 'generated codes work in any letter case');
+    assert.equal((await validate(NEWBIE, 'NF-7K3M9Q', 'ninety_day', 49, true)).final_amount_usd, 41.65, 'and for the service role at checkout');
+    // a code whose expiry is a plain date (as the form saves it) stops working at the START of that day
+    await formInsert(SUPER, 'NF-DATED2', "'2026-12-31'");
+    assert.equal((await sql(`select expires_at::text from promo_codes where code='NF-DATED2'`, 'fresh')).trim().startsWith('2026-12-31 00:00:00'), true);
+    // an ordinary admin (not super admin) is refused by the legacy security rule
+    await assert.rejects(formInsert(ADMIN, 'NF-ADMINX'), /row-level security|violates/i, 'the legacy table is writable by super admins only');
+    // duplicates are rejected by the unique rule, in any case or spacing
+    await assert.rejects(formInsert(SUPER, 'nf-7k3m9q'), /duplicate|unique/i);
+
     // a code created with the NEW promotion system is not usable in the legacy checkout
     await sql(`insert into promo_codes(code,name,discount_pct,benefit_type,benefit_units) values('NEWSTYLE','NEWSTYLE',10,'percentage_discount',1000);`, 'fresh');
     assert.equal((await validate(LEARNER, 'NEWSTYLE')).reason, 'Use the new promotion checkout for this code.');
